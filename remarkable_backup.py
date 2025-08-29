@@ -20,10 +20,10 @@ from backup import ReMarkableBackup
 
 def setup_logging(verbose: bool = False):
     """Configure logging with appropriate levels and formatting.
-    
+
     Sets up console logging with timestamp formatting to track
     backup progress and debug any connection or sync issues.
-    
+
     Args:
         verbose: Enable DEBUG level logging if True, INFO level if False
     """
@@ -47,7 +47,7 @@ def setup_logging(verbose: bool = False):
               help='Automatically convert notebooks to PDF using hybrid converter')
 def cli(backup_dir: Path, password: Optional[str], verbose: bool, force_convert_all: bool, convert_pdf: bool) -> None:
     """ReMarkable Tablet Backup Tool
-    
+
     Connects to your ReMarkable tablet via USB and backs up files with
     incremental sync support. Optionally converts notebooks to PDF format.
     """

@@ -15,14 +15,14 @@ from typing import Dict
 
 class FileMetadata:
     """Manages file metadata for incremental sync.
-    
+
     Stores and manages file modification times, sizes, and checksums
     to enable efficient incremental backups by only copying changed files.
     """
 
     def __init__(self, metadata_file: Path):
         """Initialize metadata manager.
-        
+
         Args:
             metadata_file: Path to JSON file storing sync metadata
         """
@@ -32,7 +32,7 @@ class FileMetadata:
 
     def load(self):
         """Load metadata from JSON file.
-        
+
         Handles missing files and JSON parsing errors gracefully
         by initializing empty metadata dictionary.
         """
@@ -46,7 +46,7 @@ class FileMetadata:
 
     def save(self):
         """Save metadata to JSON file.
-        
+
         Creates parent directories if needed and writes metadata
         with proper formatting and error handling.
         """
@@ -59,13 +59,13 @@ class FileMetadata:
 
     def get_file_hash(self, file_path: Path) -> str:
         """Calculate MD5 hash of file for integrity verification.
-        
+
         Reads file in chunks to handle large files efficiently
         and avoid loading entire file into memory.
-        
+
         Args:
             file_path: Path to file to hash
-            
+
         Returns:
             str: MD5 hash hexdigest, empty string on error
         """
@@ -80,14 +80,14 @@ class FileMetadata:
 
     def should_sync_file(self, remote_file: Dict, local_path: Path) -> bool:
         """Determine if file needs to be synced based on metadata comparison.
-        
+
         Compares remote file metadata with stored local metadata to decide
         if the file has changed and needs to be re-downloaded.
-        
+
         Args:
             remote_file: Dictionary with remote file metadata (path, mtime, size)
             local_path: Local path where file would be stored
-            
+
         Returns:
             bool: True if file should be synced, False if up-to-date
         """
@@ -117,10 +117,10 @@ class FileMetadata:
 
     def update_file_metadata(self, remote_file: Dict, local_path: Path):
         """Update metadata for synced file with current information.
-        
+
         Stores file metadata including modification time, size, hash,
         and sync timestamp for future incremental sync operations.
-        
+
         Args:
             remote_file: Dictionary with remote file metadata
             local_path: Local path of the synced file

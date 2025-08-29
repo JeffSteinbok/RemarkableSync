@@ -23,20 +23,20 @@ from .metadata import FileMetadata
 
 class ReMarkableBackup:  # pylint: disable=too-many-instance-attributes
     """Main backup orchestrator for ReMarkable tablet.
-    
+
     Coordinates SSH connection, file synchronization, metadata management,
     and optional PDF conversion to provide a complete backup solution.
-    
+
     Key features:
     - Incremental sync based on file modification times
-    - Integrity verification using MD5 checksums  
+    - Integrity verification using MD5 checksums
     - Automatic PDF conversion integration
     - Progress tracking and detailed logging
     """
 
     def __init__(self, backup_dir: Path, password: str = None):
         """Initialize backup orchestrator.
-        
+
         Args:
             backup_dir: Local directory to store backup files
             password: SSH password for tablet (prompted if not provided)
@@ -113,7 +113,9 @@ class ReMarkableBackup:  # pylint: disable=too-many-instance-attributes
 
                         # Track notebook UUID if this file belongs to a notebook
                         # Handle both top-level files and files in subdirectories
-                        relative_path = os.path.relpath(remote_file['path'], self.remote_xochitl_dir)
+                        relative_path = os.path.relpath(
+                            remote_file['path'], self.remote_xochitl_dir
+                        )
                         path_parts = relative_path.split(os.sep)
 
                         # Check if this is a notebook-related file
@@ -147,7 +149,10 @@ class ReMarkableBackup:  # pylint: disable=too-many-instance-attributes
             if updated_notebooks:
                 logging.debug("Updated notebook UUIDs: %s", sorted(updated_notebooks))
 
-            logging.info("File backup completed successfully. Updated %d notebooks.", len(updated_notebooks))
+            logging.info(
+                "File backup completed successfully. Updated %d notebooks.",
+                len(updated_notebooks)
+            )
             return True, updated_notebooks
 
         except (paramiko.SSHException, OSError) as e:
@@ -159,10 +164,10 @@ class ReMarkableBackup:  # pylint: disable=too-many-instance-attributes
 
     def find_notebooks(self) -> List[Dict]:
         """Find and parse notebook metadata.
-        
+
         Scans the backup directory for .metadata files and extracts
         notebook information including name, type, and associated files.
-        
+
         Returns:
             List of dictionaries containing notebook information
         """
@@ -196,13 +201,13 @@ class ReMarkableBackup:  # pylint: disable=too-many-instance-attributes
 
     def convert_to_pdf(self, notebook: Dict) -> Optional[Path]:
         """Convert notebook to PDF using available tools.
-        
+
         Creates a placeholder metadata file for the notebook.
         In a full implementation, this would integrate with PDF conversion tools.
-        
+
         Args:
             notebook: Dictionary containing notebook information
-            
+
         Returns:
             Optional[Path]: Path to created file, None on error
         """
@@ -233,7 +238,7 @@ class ReMarkableBackup:  # pylint: disable=too-many-instance-attributes
         Args:
             force_convert_all: If True, convert all notebooks to PDF regardless of sync status
             convert_to_pdf: If True, automatically convert notebooks to PDF using hybrid converter
-            
+
         Returns:
             bool: True if backup successful, False otherwise
         """
@@ -251,13 +256,15 @@ class ReMarkableBackup:  # pylint: disable=too-many-instance-attributes
         logging.info("Backup process completed successfully")
         return True
 
-    def run_pdf_conversion(self, updated_notebook_uuids: Set[str], force_convert_all: bool = False) -> bool:  # pylint: disable=too-many-return-statements
+    def run_pdf_conversion(
+        self, updated_notebook_uuids: Set[str], force_convert_all: bool = False
+    ) -> bool:  # pylint: disable=too-many-return-statements
         """Run PDF conversion using hybrid_converter.py.
 
         Args:
             updated_notebook_uuids: Set of notebook UUIDs that were updated during sync
             force_convert_all: If True, convert all notebooks regardless of sync status
-            
+
         Returns:
             bool: True if conversion successful, False otherwise
         """

@@ -15,14 +15,17 @@ from scp import SCPClient
 
 class ReMarkableConnection:
     """Handles SSH connection to ReMarkable tablet.
-    
+
     Provides a robust connection interface with retry logic and error handling
     for connecting to ReMarkable tablets via USB networking.
     """
 
-    def __init__(self, host: str = "10.11.99.1", username: str = "root", port: int = 22, password: str = None):
+    def __init__(
+        self, host: str = "10.11.99.1", username: str = "root",
+        port: int = 22, password: str = None
+    ):
         """Initialize connection parameters.
-        
+
         Args:
             host: ReMarkable tablet IP address (default USB networking address)
             username: SSH username (always 'root' for ReMarkable)
@@ -38,10 +41,10 @@ class ReMarkableConnection:
 
     def get_password(self) -> str:
         """Get SSH password from user input.
-        
+
         The ReMarkable tablet's SSH password is found in:
         Settings > Help > Copyright and licenses > GPLv3 Compliance
-        
+
         Returns:
             str: The SSH password for tablet authentication
         """
@@ -55,10 +58,10 @@ class ReMarkableConnection:
 
     def connect(self) -> bool:
         """Establish SSH connection to ReMarkable tablet.
-        
+
         Attempts multiple connection strategies with different timeout values
         to handle various network conditions and tablet responsiveness.
-        
+
         Returns:
             bool: True if connection successful, False otherwise
         """
@@ -76,7 +79,10 @@ class ReMarkableConnection:
 
             for i, params in enumerate(connection_attempts):
                 try:
-                    logging.info("Connection attempt %d with timeout %ds...", i+1, params['timeout'])
+                    logging.info(
+                        "Connection attempt %d with timeout %ds...",
+                        i+1, params['timeout']
+                    )
                     self.ssh_client.connect(
                         hostname=self.host,
                         username=self.username,
@@ -112,7 +118,7 @@ class ReMarkableConnection:
 
     def disconnect(self):
         """Close SSH and SCP connections to ReMarkable tablet.
-        
+
         Safely closes both SCP and SSH client connections,
         ensuring clean disconnection from the tablet.
         """
@@ -124,13 +130,13 @@ class ReMarkableConnection:
 
     def execute_command(self, command: str) -> Tuple[str, str, int]:
         """Execute command on ReMarkable tablet via SSH.
-        
+
         Args:
             command: Shell command to execute on the tablet
-            
+
         Returns:
             Tuple of (stdout, stderr, exit_code)
-            
+
         Raises:
             ConnectionError: If not connected to tablet
         """
@@ -144,13 +150,13 @@ class ReMarkableConnection:
 
     def list_files(self, remote_path: str) -> List[Dict]:
         """List files in remote directory with metadata.
-        
+
         Uses the 'find' and 'stat' commands to get file modification times,
         sizes, and paths for incremental sync comparison.
-        
+
         Args:
             remote_path: Remote directory path to scan
-            
+
         Returns:
             List of dictionaries containing file metadata:
             - path: Full file path on tablet
