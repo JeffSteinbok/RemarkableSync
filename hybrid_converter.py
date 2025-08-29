@@ -453,7 +453,9 @@ def convert_notebook(notebook: Dict, output_dir: Path, backup_dir: Path) -> Dict
               help='Directory to save PDF files (default: backup_dir/pdfs_final)')
 @click.option('--verbose', '-v', is_flag=True, help='Enable verbose logging')
 @click.option('--sample', '-s', type=int, help='Convert only first N notebooks (for testing)')
-def main(backup_dir: Path, output_dir: Optional[Path], verbose: bool, sample: Optional[int]):
+@click.option('--updated-only', type=click.Path(path_type=Path),
+              help='File containing list of updated notebook UUIDs to convert')
+def main(backup_dir: Path, output_dir: Optional[Path], verbose: bool, sample: Optional[int], updated_only: Optional[Path]):
     """Hybrid ReMarkable PDF Converter - uses rmrl for v5, rmc for v6"""
     
     setup_logging(verbose)
@@ -474,12 +476,34 @@ def main(backup_dir: Path, output_dir: Optional[Path], verbose: bool, sample: Op
     print(f"Output directory: {output_dir}")
     print("Uses: rmrl for v5 files, rmc for v6 files")
     
+    # Load updated notebooks list if provided
+    updated_uuids = None
+    if updated_only:
+        if not updated_only.exists():
+            print(f"[ERROR] Updated notebooks file not found: {updated_only}")
+            sys.exit(1)
+        
+        try:
+            with open(updated_only, 'r', encoding='utf-8') as f:
+                updated_uuids = set(line.strip() for line in f if line.strip())
+            print(f"[SELECTIVE MODE] Converting only {len(updated_uuids)} updated notebooks")
+        except OSError as e:
+            print(f"[ERROR] Failed to read updated notebooks file: {e}")
+            sys.exit(1)
+    
     # Find notebooks and organize by folder structure
     all_items = find_notebooks(backup_dir)
     
     if not all_items:
         print("[WARNING] No items found in backup directory")
         sys.exit(0)
+    
+    # Filter by updated UUIDs if provided
+    if updated_uuids:
+        all_items = [item for item in all_items if item['uuid'] in updated_uuids]
+        if not all_items:
+            print("[INFO] No updated notebooks found for conversion")
+            sys.exit(0)
     
     # Organize into folder structure
     organization = organize_notebooks_by_structure(all_items, backup_dir)

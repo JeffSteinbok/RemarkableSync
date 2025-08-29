@@ -11,6 +11,7 @@ import json
 import hashlib
 import logging
 import sys
+import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Set, Tuple
@@ -381,11 +382,12 @@ class ReMarkableBackup:
             logging.error("Failed to create PDF metadata for %s: %s", notebook['name'], e)
             return None
     
-    def run_backup(self, force_convert_all: bool = False) -> bool:
-        """Run complete backup process.
+    def run_backup(self, force_convert_all: bool = False, convert_to_pdf: bool = False) -> bool:
+        """Run complete backup process with optional PDF conversion.
         
         Args:
             force_convert_all: If True, convert all notebooks to PDF regardless of sync status
+            convert_to_pdf: If True, automatically convert notebooks to PDF using hybrid converter
         """
         logging.info("Starting ReMarkable backup process")
         
@@ -394,39 +396,92 @@ class ReMarkableBackup:
         if not success:
             return False
         
-        # Find all notebooks
-        all_notebooks = self.find_notebooks()
-        logging.info("Found %d notebooks/documents", len(all_notebooks))
+        # Automatic PDF conversion using hybrid converter
+        if convert_to_pdf:
+            return self.run_pdf_conversion(updated_notebook_uuids, force_convert_all)
         
-        # Determine which notebooks to convert
+        logging.info("Backup process completed successfully")
+        return True
+
+    def run_pdf_conversion(self, updated_notebook_uuids: Set[str], force_convert_all: bool = False) -> bool:
+        """Run PDF conversion using hybrid_converter.py.
+        
+        Args:
+            updated_notebook_uuids: Set of notebook UUIDs that were updated during sync
+            force_convert_all: If True, convert all notebooks regardless of sync status
+        """
+        logging.info("Starting PDF conversion...")
+        
+        # Path to hybrid_converter.py (assume it's in the same directory)
+        script_dir = Path(__file__).parent
+        converter_script = script_dir / "hybrid_converter.py"
+        
+        if not converter_script.exists():
+            logging.error("hybrid_converter.py not found at %s", converter_script)
+            return False
+        
+        # Build command line arguments for hybrid converter
+        cmd_args = [
+            sys.executable,  # Use the same Python interpreter
+            str(converter_script),
+            "-d", str(self.backup_dir),
+            "--verbose"
+        ]
+        
+        # Determine conversion strategy
         if force_convert_all:
-            notebooks_to_convert = all_notebooks
             logging.info("Force conversion enabled - converting all notebooks to PDF")
-        else:
-            # Filter to only notebooks that were updated
-            notebooks_to_convert = [
-                notebook for notebook in all_notebooks 
-                if notebook['uuid'] in updated_notebook_uuids
-            ]
-        
-        # Convert notebooks to PDFs
-        if notebooks_to_convert:
-            action = "Converting" if force_convert_all else "Converting updated"
-            logging.info("%s %d notebooks to PDF...", action, len(notebooks_to_convert))
-            with tqdm(notebooks_to_convert, desc="Converting") as pbar:
-                for notebook in pbar:
-                    pbar.set_postfix_str(notebook['name'])
-                    self.convert_to_pdf(notebook)
         elif updated_notebook_uuids:
-            logging.info("Some files were updated but no notebooks found for conversion")
+            # Create a temporary file list of updated notebooks for selective conversion
+            updated_list_file = self.backup_dir / "updated_notebooks.txt"
+            try:
+                with open(updated_list_file, 'w', encoding='utf-8') as f:
+                    for uuid in sorted(updated_notebook_uuids):
+                        f.write(f"{uuid}\n")
+                
+                cmd_args.extend(["--updated-only", str(updated_list_file)])
+                logging.info("Converting %d updated notebooks to PDF", len(updated_notebook_uuids))
+            except OSError as e:
+                logging.error("Failed to create updated notebooks list: %s", e)
+                return False
         else:
             logging.info("No notebooks were updated - skipping PDF conversion")
+            return True
         
-        # Show summary
-        if force_convert_all:
-            logging.info("Converted all %d notebooks to PDF", len(notebooks_to_convert))
-        elif updated_notebook_uuids:
-            logging.info("Updated %d notebooks, converted %d to PDF", len(updated_notebook_uuids), len(notebooks_to_convert))
+        # Execute hybrid converter
+        try:
+            logging.info("Executing: %s", " ".join(cmd_args))
+            result = subprocess.run(
+                cmd_args,
+                cwd=script_dir,
+                capture_output=True,
+                text=True,
+                timeout=3600  # 1 hour timeout
+            )
+            
+            if result.returncode == 0:
+                logging.info("PDF conversion completed successfully")
+                
+                # Clean up temporary file if created
+                updated_list_file = self.backup_dir / "updated_notebooks.txt"
+                if updated_list_file.exists():
+                    try:
+                        updated_list_file.unlink()
+                    except OSError:
+                        pass  # Ignore cleanup errors
+                
+                return True
+            else:
+                logging.error("PDF conversion failed with exit code %d", result.returncode)
+                logging.error("Error output: %s", result.stderr)
+                return False
+                
+        except subprocess.TimeoutExpired:
+            logging.error("PDF conversion timed out after 1 hour")
+            return False
+        except (OSError, subprocess.SubprocessError) as e:
+            logging.error("Failed to execute PDF converter: %s", e)
+            return False
         
         logging.info("Backup process completed successfully")
         return True
@@ -450,7 +505,9 @@ def setup_logging(verbose: bool = False):
 @click.option('--verbose', '-v', is_flag=True, help='Enable verbose logging')
 @click.option('--force-convert-all', '-f', is_flag=True, 
               help='Convert all notebooks to PDF regardless of sync status')
-def cli(backup_dir: Path, password: Optional[str], verbose: bool, force_convert_all: bool) -> None:
+@click.option('--convert-pdf', '-c', is_flag=True,
+              help='Automatically convert notebooks to PDF using hybrid converter')
+def cli(backup_dir: Path, password: Optional[str], verbose: bool, force_convert_all: bool, convert_pdf: bool) -> None:
     """ReMarkable Tablet Backup Tool"""
     
     setup_logging(verbose)
@@ -459,17 +516,25 @@ def cli(backup_dir: Path, password: Optional[str], verbose: bool, force_convert_
     print("=" * 40)
     print(f"Backup directory: {backup_dir.absolute()}")
     
+    if convert_pdf:
+        print("PDF conversion enabled: Using hybrid converter")
+    
     if force_convert_all:
         print("Force conversion mode: All notebooks will be converted to PDF")
     
     backup_tool = ReMarkableBackup(backup_dir, password)
     
     try:
-        success = backup_tool.run_backup(force_convert_all=force_convert_all)
+        success = backup_tool.run_backup(force_convert_all=force_convert_all, convert_to_pdf=convert_pdf)
         if success:
             print("\n[SUCCESS] Backup completed successfully!")
             print(f"Files backed up to: {backup_tool.files_dir}")
-            print(f"PDF metadata created in: {backup_tool.pdfs_dir}")
+            if convert_pdf:
+                pdfs_final_dir = backup_dir / "pdfs_final"
+                if pdfs_final_dir.exists():
+                    print(f"PDFs generated in: {pdfs_final_dir}")
+                else:
+                    print(f"PDF metadata created in: {backup_tool.pdfs_dir}")
         else:
             print("\n[ERROR] Backup failed. Check logs for details.")
             sys.exit(1)
