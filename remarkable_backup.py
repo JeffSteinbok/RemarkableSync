@@ -10,14 +10,13 @@ import os
 import json
 import hashlib
 import logging
-import subprocess
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Set, Tuple
 import click
 import paramiko
-from scp import SCPClient
+from scp import SCPClient, SCPException
 from tqdm import tqdm
 
 
@@ -58,7 +57,7 @@ class ReMarkableConnection:
             
             for i, params in enumerate(connection_attempts):
                 try:
-                    logging.info(f"Connection attempt {i+1} with timeout {params['timeout']}s...")
+                    logging.info("Connection attempt %d with timeout %ds...", i+1, params['timeout'])
                     self.ssh_client.connect(
                         hostname=self.host,
                         username=self.username,
@@ -72,15 +71,15 @@ class ReMarkableConnection:
                     )
                     
                     self.scp_client = SCPClient(self.ssh_client.get_transport())
-                    logging.info(f"Connected to ReMarkable tablet at {self.host}")
+                    logging.info("Connected to ReMarkable tablet at %s", self.host)
                     return True
                     
-                except Exception as e:
-                    logging.warning(f"Connection attempt {i+1} failed: {e}")
+                except (paramiko.AuthenticationException, paramiko.SSHException, OSError) as e:
+                    logging.warning("Connection attempt %d failed: %s", i+1, e)
                     if self.ssh_client:
                         try:
                             self.ssh_client.close()
-                        except:
+                        except (paramiko.SSHException, OSError):
                             pass
                         self.ssh_client = paramiko.SSHClient()
                         self.ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -88,8 +87,8 @@ class ReMarkableConnection:
             logging.error("All connection attempts failed")
             return False
             
-        except Exception as e:
-            logging.error(f"Failed to connect to ReMarkable: {e}")
+        except (paramiko.AuthenticationException, paramiko.SSHException, OSError) as e:
+            logging.error("Failed to connect to ReMarkable: %s", e)
             return False
     
     def disconnect(self):
@@ -105,7 +104,7 @@ class ReMarkableConnection:
         if not self.ssh_client:
             raise ConnectionError("Not connected to ReMarkable tablet")
         
-        stdin, stdout, stderr = self.ssh_client.exec_command(command)
+        _, stdout, stderr = self.ssh_client.exec_command(command)
         exit_code = stdout.channel.recv_exit_status()
         
         return stdout.read().decode(), stderr.read().decode(), exit_code
@@ -116,7 +115,7 @@ class ReMarkableConnection:
         stdout, stderr, exit_code = self.execute_command(command)
         
         if exit_code != 0:
-            logging.error(f"Failed to list files: {stderr}")
+            logging.error("Failed to list files: %s", stderr)
             return []
         
         files = []
@@ -146,20 +145,20 @@ class FileMetadata:
         """Load metadata from file."""
         if self.metadata_file.exists():
             try:
-                with open(self.metadata_file, 'r') as f:
+                with open(self.metadata_file, 'r', encoding='utf-8') as f:
                     self.data = json.load(f)
-            except Exception as e:
-                logging.warning(f"Failed to load metadata: {e}")
+            except (OSError, json.JSONDecodeError) as e:
+                logging.warning("Failed to load metadata: %s", e)
                 self.data = {}
     
     def save(self):
         """Save metadata to file."""
         try:
             self.metadata_file.parent.mkdir(parents=True, exist_ok=True)
-            with open(self.metadata_file, 'w') as f:
+            with open(self.metadata_file, 'w', encoding='utf-8') as f:
                 json.dump(self.data, f, indent=2)
-        except Exception as e:
-            logging.error(f"Failed to save metadata: {e}")
+        except (OSError, TypeError) as e:
+            logging.error("Failed to save metadata: %s", e)
     
     def get_file_hash(self, file_path: Path) -> str:
         """Calculate MD5 hash of file."""
@@ -168,7 +167,7 @@ class FileMetadata:
             with open(file_path, 'rb') as f:
                 for chunk in iter(lambda: f.read(4096), b""):
                     hash_md5.update(chunk)
-        except Exception:
+        except OSError:
             return ""
         return hash_md5.hexdigest()
     
@@ -262,7 +261,7 @@ class ReMarkableBackup:
                 logging.info("All files are up to date")
                 return True, set()
             
-            logging.info(f"Syncing {len(files_to_sync)} files...")
+            logging.info("Syncing %d files...", len(files_to_sync))
             
             # Track which notebooks have been updated
             updated_notebooks = set()
@@ -308,8 +307,8 @@ class ReMarkableBackup:
                         
                         pbar.set_postfix_str(f"Downloaded {local_path.name}")
                         
-                    except Exception as e:
-                        logging.error(f"Failed to download {remote_file['path']}: {e}")
+                    except (OSError, SCPException) as e:
+                        logging.error("Failed to download %s: %s", remote_file['path'], e)
                     
                     pbar.update(1)
             
@@ -317,13 +316,13 @@ class ReMarkableBackup:
             self.metadata.save()
             
             if updated_notebooks:
-                logging.debug(f"Updated notebook UUIDs: {sorted(updated_notebooks)}")
+                logging.debug("Updated notebook UUIDs: %s", sorted(updated_notebooks))
             
-            logging.info(f"File backup completed successfully. Updated {len(updated_notebooks)} notebooks.")
+            logging.info("File backup completed successfully. Updated %d notebooks.", len(updated_notebooks))
             return True, updated_notebooks
             
-        except Exception as e:
-            logging.error(f"Backup failed: {e}")
+        except (paramiko.SSHException, OSError) as e:
+            logging.error("Backup failed: %s", e)
             return False, set()
         
         finally:
@@ -336,7 +335,7 @@ class ReMarkableBackup:
         # Look for .metadata files which indicate notebooks/documents
         for metadata_file in self.files_dir.glob("*.metadata"):
             try:
-                with open(metadata_file, 'r') as f:
+                with open(metadata_file, 'r', encoding='utf-8') as f:
                     metadata = json.load(f)
                 
                 uuid = metadata_file.stem
@@ -354,8 +353,8 @@ class ReMarkableBackup:
                 if notebook_info['content_file'].exists():
                     notebooks.append(notebook_info)
                     
-            except Exception as e:
-                logging.warning(f"Failed to parse {metadata_file}: {e}")
+            except (OSError, json.JSONDecodeError) as e:
+                logging.warning("Failed to parse %s: %s", metadata_file, e)
         
         return notebooks
     
@@ -366,7 +365,7 @@ class ReMarkableBackup:
         # For now, create a placeholder PDF indicating conversion is needed
         # In a real implementation, you would integrate with rm2pdf or rmc
         try:
-            with open(output_path.with_suffix('.txt'), 'w') as f:
+            with open(output_path.with_suffix('.txt'), 'w', encoding='utf-8') as f:
                 f.write(f"Notebook: {notebook['name']}\n")
                 f.write(f"UUID: {notebook['uuid']}\n")
                 f.write(f"Type: {notebook['type']}\n")
@@ -375,11 +374,11 @@ class ReMarkableBackup:
                 f.write("\nTo convert to PDF, you'll need to install rmc or rm2pdf tools\n")
                 f.write("See: https://github.com/ricklupton/rmc\n")
             
-            logging.info(f"Created metadata for {notebook['name']}")
+            logging.info("Created metadata for %s", notebook['name'])
             return output_path.with_suffix('.txt')
             
-        except Exception as e:
-            logging.error(f"Failed to create PDF metadata for {notebook['name']}: {e}")
+        except OSError as e:
+            logging.error("Failed to create PDF metadata for %s: %s", notebook['name'], e)
             return None
     
     def run_backup(self, force_convert_all: bool = False) -> bool:
@@ -397,7 +396,7 @@ class ReMarkableBackup:
         
         # Find all notebooks
         all_notebooks = self.find_notebooks()
-        logging.info(f"Found {len(all_notebooks)} notebooks/documents")
+        logging.info("Found %d notebooks/documents", len(all_notebooks))
         
         # Determine which notebooks to convert
         if force_convert_all:
@@ -413,7 +412,7 @@ class ReMarkableBackup:
         # Convert notebooks to PDFs
         if notebooks_to_convert:
             action = "Converting" if force_convert_all else "Converting updated"
-            logging.info(f"{action} {len(notebooks_to_convert)} notebooks to PDF...")
+            logging.info("%s %d notebooks to PDF...", action, len(notebooks_to_convert))
             with tqdm(notebooks_to_convert, desc="Converting") as pbar:
                 for notebook in pbar:
                     pbar.set_postfix_str(notebook['name'])
@@ -425,9 +424,9 @@ class ReMarkableBackup:
         
         # Show summary
         if force_convert_all:
-            logging.info(f"Converted all {len(notebooks_to_convert)} notebooks to PDF")
+            logging.info("Converted all %d notebooks to PDF", len(notebooks_to_convert))
         elif updated_notebook_uuids:
-            logging.info(f"Updated {len(updated_notebook_uuids)} notebooks, converted {len(notebooks_to_convert)} to PDF")
+            logging.info("Updated %d notebooks, converted %d to PDF", len(updated_notebook_uuids), len(notebooks_to_convert))
         
         logging.info("Backup process completed successfully")
         return True
@@ -451,7 +450,7 @@ def setup_logging(verbose: bool = False):
 @click.option('--verbose', '-v', is_flag=True, help='Enable verbose logging')
 @click.option('--force-convert-all', '-f', is_flag=True, 
               help='Convert all notebooks to PDF regardless of sync status')
-def main(backup_dir: Path, password: str, verbose: bool, force_convert_all: bool):
+def cli(backup_dir: Path, password: Optional[str], verbose: bool, force_convert_all: bool) -> None:
     """ReMarkable Tablet Backup Tool"""
     
     setup_logging(verbose)
@@ -478,10 +477,17 @@ def main(backup_dir: Path, password: str, verbose: bool, force_convert_all: bool
     except KeyboardInterrupt:
         print("\n\n[INTERRUPTED] Backup interrupted by user")
         sys.exit(130)
-    except Exception as e:
-        logging.error(f"Unexpected error: {e}")
+    except (OSError, paramiko.SSHException) as e:
+        logging.error("Unexpected error: %s", e)
         print(f"\n[ERROR] Unexpected error: {e}")
         sys.exit(1)
+
+
+def main() -> None:
+    """Entry point for the application."""
+    # Note: Click decorators handle argument parsing automatically
+    # Pylance doesn't understand this, but the code is correct
+    cli()  # type: ignore
 
 
 if __name__ == "__main__":
