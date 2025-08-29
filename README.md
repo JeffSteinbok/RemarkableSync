@@ -2,6 +2,8 @@
 
 A comprehensive Python toolkit for backing up and converting reMarkable tablet notebooks to PDF with proper folder hierarchy preservation.
 
+[![GitHub](https://img.shields.io/badge/GitHub-RemarkableSync-blue?logo=github)](https://github.com/JeffSteinbok/RemarkableSync)
+
 ## Features
 
 ### 🔄 Backup & Sync
