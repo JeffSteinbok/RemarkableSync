@@ -34,6 +34,10 @@ def setup_logging(verbose: bool = False):
         format='%(asctime)s - %(levelname)s - %(message)s',
         datefmt='%Y-%m-%d %H:%M:%S'
     )
+    
+    # Suppress verbose debug messages from svglib that clutter the output
+    logging.getLogger('svglib.svglib').setLevel(logging.WARNING)
+    logging.getLogger('reportlab').setLevel(logging.WARNING)
 
 def find_notebooks(backup_dir: Path) -> List[Dict]:
     """Find and parse notebook metadata from backup.
