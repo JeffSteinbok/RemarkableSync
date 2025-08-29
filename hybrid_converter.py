@@ -24,13 +24,15 @@ Usage:
 
 import json
 import logging
-import subprocess
 import sys
 import warnings
 from pathlib import Path
 from typing import Dict, List, Optional
 import click
 from tqdm import tqdm
+
+# Import modular converter classes
+from converters import V4Converter, V5Converter, V6Converter
 
 # Suppress warnings from third-party libraries to reduce output noise
 warnings.filterwarnings("ignore")
@@ -55,6 +57,11 @@ def setup_logging(verbose: bool = False):
     # Suppress verbose debug messages from svglib that clutter the output
     logging.getLogger('svglib.svglib').setLevel(logging.WARNING)
     logging.getLogger('reportlab').setLevel(logging.WARNING)
+
+# Initialize converter instances as module-level objects for reuse
+v4_converter = V4Converter()
+v5_converter = V5Converter()
+v6_converter = V6Converter()
 
 def find_notebooks(backup_dir: Path) -> List[Dict]:
     """Find and parse notebook metadata from backup directory.
@@ -151,11 +158,10 @@ def find_notebooks(backup_dir: Path) -> List[Dict]:
     return notebooks
 
 def svg_to_pdf(svg_file: Path, pdf_file: Path) -> bool:
-    """Convert SVG to PDF using svglib and reportlab.
+    """Convert SVG to PDF using modular converter utilities.
     
-    This function handles the SVG-to-PDF conversion step that's common
-    to both rmrl and rmc conversion pipelines. Both tools can output
-    SVG format, which we then convert to PDF for final output.
+    This is a wrapper function that maintains backward compatibility
+    while using the new modular converter architecture.
     
     Args:
         svg_file: Path to input SVG file
@@ -163,28 +169,9 @@ def svg_to_pdf(svg_file: Path, pdf_file: Path) -> bool:
         
     Returns:
         bool: True if conversion successful, False otherwise
-        
-    Note:
-        Requires svglib and reportlab packages. Uses lazy import to
-        allow graceful degradation if packages are not installed.
     """
-    try:
-        # Lazy import to handle missing dependencies gracefully
-        from svglib.svglib import svg2rlg
-        from reportlab.graphics import renderPDF
-        
-        # Convert SVG to ReportLab drawing object
-        drawing = svg2rlg(str(svg_file))
-        
-        # Render the drawing to PDF file
-        renderPDF.drawToFile(drawing, str(pdf_file))
-        
-        # Verify successful conversion by checking file exists and has content
-        return pdf_file.exists() and pdf_file.stat().st_size > 0
-        
-    except Exception as e:
-        logging.debug("SVG to PDF conversion failed: %s", e)
-        return False
+    # Use any converter instance for the utility method since it's in the base class
+    return v6_converter.svg_to_pdf(svg_file, pdf_file)
 
 def merge_pdfs(pdf_files: List[Path], output_file: Path) -> bool:
     """Merge multiple PDF files into a single PDF document.
@@ -297,12 +284,10 @@ def get_folder_hierarchy(notebook: Dict, backup_dir: Path) -> List[str]:
     return hierarchy
 
 def convert_v6_file_with_rmc(rm_file: Path, output_file: Path) -> bool:
-    """Convert v6 format .rm file to PDF using rmc tool.
+    """Convert v6 format .rm file to PDF using modular V6Converter.
     
-    The rmc tool is specifically designed for version 6 ReMarkable files
-    (the current format). This function uses a two-step conversion:
-    1. rmc converts .rm file to SVG format
-    2. svglib converts SVG to final PDF
+    This is a wrapper function that maintains backward compatibility
+    while using the new modular converter architecture.
     
     Args:
         rm_file: Path to the v6 format .rm file
@@ -310,111 +295,57 @@ def convert_v6_file_with_rmc(rm_file: Path, output_file: Path) -> bool:
         
     Returns:
         bool: True if conversion successful, False otherwise
-        
-    Note:
-        Requires rmc tool to be installed and available in PATH.
-        Creates temporary SVG files that are cleaned up automatically.
     """
-    try:
-        # Create temporary SVG file
-        svg_file = output_file.with_suffix('.svg')
-        
-        # Convert to SVG first
-        result = subprocess.run([
-            'rmc', '-t', 'svg', '-o', str(svg_file), str(rm_file)
-        ], capture_output=True, text=True, timeout=30)
-        
-        if result.returncode == 0 and svg_file.exists():
-            # Convert SVG to PDF
-            success = svg_to_pdf(svg_file, output_file)
-            # Clean up temporary SVG
-            try:
-                svg_file.unlink()
-            except:
-                pass
-            return success
-        else:
-            logging.debug(f"rmc SVG failed for {rm_file.name}: {result.stderr}")
-            return False
-            
-    except Exception as e:
-        logging.debug(f"rmc error for {rm_file.name}: {e}")
-        return False
+    return v6_converter.convert_to_pdf(rm_file, output_file)
 
 def convert_v5_file_with_rmrl(rm_file: Path, output_file: Path) -> bool:
-    """Convert v5 .rm file to PDF using rmrl via SVG intermediate."""
-    try:
-        import rmrl
+    """Convert v5 format .rm file to PDF using modular V5Converter.
+    
+    This is a wrapper function that maintains backward compatibility
+    while using the new modular converter architecture.
+    
+    Args:
+        rm_file: Path to the v5 format .rm file
+        output_file: Path where PDF should be saved
         
-        # Create output directory
-        output_file.parent.mkdir(parents=True, exist_ok=True)
-        if not rm_file.exists():
-            logging.debug("v5 source missing: %s (cwd=%s)", rm_file, Path.cwd())
-            return False
-        logging.debug("v5 source present: %s size=%d", rm_file, rm_file.stat().st_size)
-        sibling_sample = [p.name for p in rm_file.parent.glob('*')][:20]
-        logging.debug("v5 sibling sample (%d total): %s", len(list(rm_file.parent.glob('*'))), sibling_sample)
-        
-        # Create temporary SVG file
-        svg_file = output_file.with_suffix('.svg')
-        
-        # Try to render to SVG first (rmrl might support SVG output)
-        try:
-            svg_data = rmrl.render(str(rm_file), template='svg')
-            if svg_data:
-                with open(svg_file, 'wb') as f:
-                    f.write(svg_data)
-                # Convert SVG to PDF
-                success = svg_to_pdf(svg_file, output_file)
-                # Clean up temporary SVG
-                try:
-                    svg_file.unlink()
-                except:
-                    pass
-                return success
-        except:
-            # Fall back to original method if SVG doesn't work
-            pdf_data = rmrl.render(str(rm_file))
-            if pdf_data:
-                with open(output_file, 'wb') as f:
-                    f.write(pdf_data)
-                return True
-            
-        return False
-            
-    except Exception as e:
-        logging.debug(f"rmrl error for {rm_file.name}: {e}")
-        return False
+    Returns:
+        bool: True if conversion successful, False otherwise
+    """
+    return v5_converter.convert_to_pdf(rm_file, output_file)
 
 def convert_v4_file_with_rmrl(rm_file: Path, output_file: Path) -> bool:
-    """Best-effort convert v4 .rm file using rmrl (may fail)."""
-    try:
-        import rmrl  # type: ignore
-        output_file.parent.mkdir(parents=True, exist_ok=True)
-        if not rm_file.exists():
-            logging.debug("v4 source missing: %s (cwd=%s)", rm_file, Path.cwd())
-            return False
-        logging.debug("v4 source present: %s size=%d", rm_file, rm_file.stat().st_size)
-        pdf_data = rmrl.render(str(rm_file))  # Some v4 files may render; if not, exception thrown
-        if pdf_data:
-            with open(output_file, 'wb') as f:
-                f.write(pdf_data)
-            return True
-        return False
-    except Exception:
-        logging.debug("v4 render failure for %s", rm_file, exc_info=True)
-        return False
+    """Convert v4 format .rm file to PDF using modular V4Converter.
+    
+    This is a wrapper function that maintains backward compatibility
+    while using the new modular converter architecture.
+    
+    Args:
+        rm_file: Path to the v4 format .rm file
+        output_file: Path where PDF should be saved
+        
+    Returns:
+        bool: True if conversion successful, False otherwise
+        
+    Note:
+        v4 format support is limited and may fail for many files.
+    """
+    return v4_converter.convert_to_pdf(rm_file, output_file)
 
 def copy_existing_pdf(pdf_file: Path, output_file: Path) -> bool:
-    """Copy existing PDF file."""
-    try:
-        output_file.parent.mkdir(parents=True, exist_ok=True)
-        with open(pdf_file, 'rb') as src, open(output_file, 'wb') as dst:
-            dst.write(src.read())
-        return True
-    except Exception as e:
-        logging.debug(f"PDF copy error for {pdf_file.name}: {e}")
-        return False
+    """Copy existing PDF file using base converter utility.
+    
+    This is a wrapper function that maintains backward compatibility
+    while using the modular converter architecture.
+    
+    Args:
+        pdf_file: Path to the source PDF file
+        output_file: Path where PDF should be copied
+        
+    Returns:
+        bool: True if copy successful, False otherwise
+    """
+    # Use any converter instance for the utility method since it's in the base class
+    return v6_converter.copy_existing_pdf(pdf_file, output_file)
 
 def convert_notebook(notebook: Dict, output_dir: Path, backup_dir: Path) -> Dict:
     """Convert a notebook using appropriate tools for each file type.
