@@ -230,12 +230,16 @@ class ReMarkableBackup:
         self.remote_xochitl_dir = "/home/root/.local/share/remarkable/xochitl"
         self.remote_templates_dir = "/usr/share/remarkable/templates"
     
-    def backup_files(self) -> bool:
-        """Backup files from ReMarkable tablet."""
+    def backup_files(self) -> Tuple[bool, Set[str]]:
+        """Backup files from ReMarkable tablet.
+        
+        Returns:
+            Tuple of (success, set of notebook UUIDs that were updated)
+        """
         logging.info("Starting file backup...")
         
         if not self.connection.connect():
-            return False
+            return False, set()
         
         try:
             # Get list of remote files
@@ -243,7 +247,7 @@ class ReMarkableBackup:
             
             if not remote_files:
                 logging.warning("No files found on ReMarkable tablet")
-                return True
+                return True, set()
             
             # Filter files that need syncing
             files_to_sync = []
@@ -256,9 +260,12 @@ class ReMarkableBackup:
             
             if not files_to_sync:
                 logging.info("All files are up to date")
-                return True
+                return True, set()
             
             logging.info(f"Syncing {len(files_to_sync)} files...")
+            
+            # Track which notebooks have been updated
+            updated_notebooks = set()
             
             # Download files with progress bar
             with tqdm(total=len(files_to_sync), desc="Downloading") as pbar:
@@ -276,6 +283,29 @@ class ReMarkableBackup:
                         # Update metadata
                         self.metadata.update_file_metadata(remote_file, local_path)
                         
+                        # Track notebook UUID if this file belongs to a notebook
+                        # Handle both top-level files and files in subdirectories
+                        relative_path = os.path.relpath(remote_file['path'], self.remote_xochitl_dir)
+                        path_parts = relative_path.split(os.sep)
+                        
+                        # Check if this is a notebook-related file
+                        notebook_uuid = None
+                        if len(path_parts) >= 1:
+                            # Top-level files like uuid.metadata, uuid.content
+                            first_part = path_parts[0].split('.')[0]
+                            if (len(first_part) == 36 and  # UUID length
+                                first_part not in ['templates', 'version']):
+                                notebook_uuid = first_part
+                        
+                        if len(path_parts) >= 2:
+                            # Files in subdirectories like uuid/page.rm
+                            if (len(path_parts[0]) == 36 and
+                                path_parts[0] not in ['templates', 'version']):
+                                notebook_uuid = path_parts[0]
+                        
+                        if notebook_uuid:
+                            updated_notebooks.add(notebook_uuid)
+                        
                         pbar.set_postfix_str(f"Downloaded {local_path.name}")
                         
                     except Exception as e:
@@ -285,12 +315,16 @@ class ReMarkableBackup:
             
             # Save metadata
             self.metadata.save()
-            logging.info("File backup completed successfully")
-            return True
+            
+            if updated_notebooks:
+                logging.debug(f"Updated notebook UUIDs: {sorted(updated_notebooks)}")
+            
+            logging.info(f"File backup completed successfully. Updated {len(updated_notebooks)} notebooks.")
+            return True, updated_notebooks
             
         except Exception as e:
             logging.error(f"Backup failed: {e}")
-            return False
+            return False, set()
         
         finally:
             self.connection.disconnect()
@@ -348,25 +382,52 @@ class ReMarkableBackup:
             logging.error(f"Failed to create PDF metadata for {notebook['name']}: {e}")
             return None
     
-    def run_backup(self) -> bool:
-        """Run complete backup process."""
+    def run_backup(self, force_convert_all: bool = False) -> bool:
+        """Run complete backup process.
+        
+        Args:
+            force_convert_all: If True, convert all notebooks to PDF regardless of sync status
+        """
         logging.info("Starting ReMarkable backup process")
         
-        # Backup files
-        if not self.backup_files():
+        # Backup files and get list of updated notebooks
+        success, updated_notebook_uuids = self.backup_files()
+        if not success:
             return False
         
-        # Find notebooks
-        notebooks = self.find_notebooks()
-        logging.info(f"Found {len(notebooks)} notebooks/documents")
+        # Find all notebooks
+        all_notebooks = self.find_notebooks()
+        logging.info(f"Found {len(all_notebooks)} notebooks/documents")
         
-        # Convert to PDFs
-        if notebooks:
-            logging.info("Creating PDF metadata files...")
-            with tqdm(notebooks, desc="Processing") as pbar:
+        # Determine which notebooks to convert
+        if force_convert_all:
+            notebooks_to_convert = all_notebooks
+            logging.info("Force conversion enabled - converting all notebooks to PDF")
+        else:
+            # Filter to only notebooks that were updated
+            notebooks_to_convert = [
+                notebook for notebook in all_notebooks 
+                if notebook['uuid'] in updated_notebook_uuids
+            ]
+        
+        # Convert notebooks to PDFs
+        if notebooks_to_convert:
+            action = "Converting" if force_convert_all else "Converting updated"
+            logging.info(f"{action} {len(notebooks_to_convert)} notebooks to PDF...")
+            with tqdm(notebooks_to_convert, desc="Converting") as pbar:
                 for notebook in pbar:
                     pbar.set_postfix_str(notebook['name'])
                     self.convert_to_pdf(notebook)
+        elif updated_notebook_uuids:
+            logging.info("Some files were updated but no notebooks found for conversion")
+        else:
+            logging.info("No notebooks were updated - skipping PDF conversion")
+        
+        # Show summary
+        if force_convert_all:
+            logging.info(f"Converted all {len(notebooks_to_convert)} notebooks to PDF")
+        elif updated_notebook_uuids:
+            logging.info(f"Updated {len(updated_notebook_uuids)} notebooks, converted {len(notebooks_to_convert)} to PDF")
         
         logging.info("Backup process completed successfully")
         return True
@@ -388,7 +449,9 @@ def setup_logging(verbose: bool = False):
               help='Directory to store backup files')
 @click.option('--password', '-p', type=str, help='ReMarkable SSH password')
 @click.option('--verbose', '-v', is_flag=True, help='Enable verbose logging')
-def main(backup_dir: Path, password: str, verbose: bool):
+@click.option('--force-convert-all', '-f', is_flag=True, 
+              help='Convert all notebooks to PDF regardless of sync status')
+def main(backup_dir: Path, password: str, verbose: bool, force_convert_all: bool):
     """ReMarkable Tablet Backup Tool"""
     
     setup_logging(verbose)
@@ -397,10 +460,13 @@ def main(backup_dir: Path, password: str, verbose: bool):
     print("=" * 40)
     print(f"Backup directory: {backup_dir.absolute()}")
     
+    if force_convert_all:
+        print("Force conversion mode: All notebooks will be converted to PDF")
+    
     backup_tool = ReMarkableBackup(backup_dir, password)
     
     try:
-        success = backup_tool.run_backup()
+        success = backup_tool.run_backup(force_convert_all=force_convert_all)
         if success:
             print("\n[SUCCESS] Backup completed successfully!")
             print(f"Files backed up to: {backup_tool.files_dir}")
