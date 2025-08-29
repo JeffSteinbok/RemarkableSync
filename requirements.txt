@@ -1,0 +1,8 @@
+paramiko>=3.0.0
+scp>=0.14.5
+requests>=2.31.0
+tqdm>=4.66.0
+python-dateutil>=2.8.2
+click>=8.1.0
+pathlib2>=2.3.7
+cryptography>=41.0.0
