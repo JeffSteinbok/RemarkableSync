@@ -89,7 +89,7 @@ jobs:
           fi
           cp QUICK_START.md RemarkableSync-macOS/
           cp README.md RemarkableSync-macOS/
-          # Create ZIP using safer approach
+          # Create ZIP using subshell to avoid changing working directory
           (cd RemarkableSync-macOS && zip -r ../RemarkableSync-macOS.zip .)
 
       - name: Upload macOS artifacts
@@ -135,7 +135,7 @@ jobs:
           cp dist/RemarkableConverter RemarkableSync-Linux/
           cp QUICK_START.md RemarkableSync-Linux/
           cp README.md RemarkableSync-Linux/
-          # Create tarball using safer approach
+          # Create tarball using subshell to avoid changing working directory
           (cd RemarkableSync-Linux && tar -czf ../RemarkableSync-Linux.tar.gz .)
 
       - name: Upload Linux artifacts
