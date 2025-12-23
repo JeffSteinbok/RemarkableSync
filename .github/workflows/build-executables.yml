@@ -89,10 +89,8 @@ jobs:
           fi
           cp QUICK_START.md RemarkableSync-macOS/
           cp README.md RemarkableSync-macOS/
-          # Create ZIP
-          cd RemarkableSync-macOS
-          zip -r ../RemarkableSync-macOS.zip .
-          cd ..
+          # Create ZIP using safer approach
+          (cd RemarkableSync-macOS && zip -r ../RemarkableSync-macOS.zip .)
 
       - name: Upload macOS artifacts
         uses: actions/upload-artifact@v4
@@ -137,9 +135,8 @@ jobs:
           cp dist/RemarkableConverter RemarkableSync-Linux/
           cp QUICK_START.md RemarkableSync-Linux/
           cp README.md RemarkableSync-Linux/
-          cd RemarkableSync-Linux
-          tar -czf ../RemarkableSync-Linux.tar.gz .
-          cd ..
+          # Create tarball using safer approach
+          (cd RemarkableSync-Linux && tar -czf ../RemarkableSync-Linux.tar.gz .)
 
       - name: Upload Linux artifacts
         uses: actions/upload-artifact@v4
