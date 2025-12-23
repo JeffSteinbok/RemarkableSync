@@ -10,21 +10,50 @@ The RemarkableSync project provides two main tools:
 
 Both tools can be packaged as standalone executables that don't require Python installation.
 
-## Prerequisites
+## Automated Builds (Recommended for Releases)
 
-### For Building on macOS
+The project includes a GitHub Actions workflow that automatically builds executables for Windows, macOS, and Linux when you create a release.
+
+### Creating a Release with Automated Builds
+
+1. Go to your GitHub repository
+2. Click on "Releases" → "Draft a new release"
+3. Create a new tag (e.g., `v1.0.0`)
+4. Fill in release title and description
+5. Click "Publish release"
+6. The workflow automatically builds executables for all platforms
+7. Download the artifacts from the release page:
+   - `RemarkableSync-Windows.zip`
+   - `RemarkableSync-macOS.zip`
+   - `RemarkableSync-Linux.tar.gz`
+
+### Manual Workflow Trigger
+
+You can also trigger the build workflow manually:
+1. Go to "Actions" tab in your repository
+2. Select "Build Executables" workflow
+3. Click "Run workflow"
+4. Download artifacts from the workflow run
+
+## Manual Local Builds
+
+If you prefer to build locally or need custom modifications, follow these instructions.
+
+### Prerequisites
+
+#### For Building on macOS
 - macOS 10.13 or later
 - Python 3.7 or higher installed
 - Xcode Command Line Tools: `xcode-select --install`
 
-### For Building on Windows
+#### For Building on Windows
 - Windows 10 or later
 - Python 3.7 or higher installed from [python.org](https://www.python.org/downloads/)
 - Make sure Python is added to PATH during installation
 
-## Building Executables
+### Building Executables
 
-### macOS Build
+#### macOS Build
 
 1. Clone the repository and navigate to the project directory:
    ```bash
@@ -41,7 +70,7 @@ Both tools can be packaged as standalone executables that don't require Python i
    - `dist/RemarkableBackup` or `dist/RemarkableBackup.app`
    - `dist/RemarkableConverter` or `dist/RemarkableConverter.app`
 
-### Windows Build
+#### Windows Build
 
 1. Clone the repository and navigate to the project directory:
    ```cmd
