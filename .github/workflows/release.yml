@@ -1,0 +1,114 @@
+name: Create Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_bump:
+        description: 'Version bump type'
+        required: true
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+        default: 'patch'
+
+jobs:
+  bump-version:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Get current version
+        id: get_version
+        run: |
+          CURRENT_VERSION=$(grep -oP "version=\"\K[0-9]+\.[0-9]+\.[0-9]+" setup.py)
+          echo "current_version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+          echo "Current version: $CURRENT_VERSION"
+
+      - name: Calculate new version
+        id: calc_version
+        run: |
+          CURRENT="${{ steps.get_version.outputs.current_version }}"
+          IFS='.' read -r major minor patch <<< "$CURRENT"
+          
+          case "${{ github.event.inputs.version_bump }}" in
+            major)
+              major=$((major + 1))
+              minor=0
+              patch=0
+              ;;
+            minor)
+              minor=$((minor + 1))
+              patch=0
+              ;;
+            patch)
+              patch=$((patch + 1))
+              ;;
+          esac
+          
+          NEW_VERSION="${major}.${minor}.${patch}"
+          echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "New version: $NEW_VERSION"
+
+      - name: Update version in setup.py
+        run: |
+          sed -i 's/version="[0-9]\+\.[0-9]\+\.[0-9]\+"/version="${{ steps.calc_version.outputs.new_version }}"/' setup.py
+          echo "Updated setup.py with version ${{ steps.calc_version.outputs.new_version }}"
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Commit version bump
+        run: |
+          git add setup.py
+          git commit -m "Bump version to ${{ steps.calc_version.outputs.new_version }}"
+          git push
+
+      - name: Create Git tag
+        run: |
+          git tag -a "v${{ steps.calc_version.outputs.new_version }}" -m "Release v${{ steps.calc_version.outputs.new_version }}"
+          git push origin "v${{ steps.calc_version.outputs.new_version }}"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ steps.calc_version.outputs.new_version }}
+          name: Release v${{ steps.calc_version.outputs.new_version }}
+          body: |
+            ## Release v${{ steps.calc_version.outputs.new_version }}
+            
+            ### What's New
+            - Automatic release created via GitHub Actions
+            
+            ### Installation
+            
+            Download the appropriate package for your platform:
+            - **Windows**: `RemarkableSync-Windows.zip`
+            - **macOS**: `RemarkableSync-macOS.zip`
+            - **Linux**: `RemarkableSync-Linux.tar.gz`
+            
+            Extract and follow the instructions in `QUICK_START.md`.
+            
+            ### Platform Support
+            - Windows 10/11 (64-bit)
+            - macOS 10.13+ (Intel and Apple Silicon)
+            - Linux (Ubuntu 20.04+)
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -12,24 +12,43 @@ Both tools can be packaged as standalone executables that don't require Python i
 
 ## Automated Builds (Recommended for Releases)
 
-The project includes a GitHub Actions workflow that automatically builds executables for Windows, macOS, and Linux when you create a release.
+The project includes GitHub Actions workflows that automate the entire release process, including version bumping and building executables for all platforms.
 
-### Creating a Release with Automated Builds
+### Automated Release with Version Bump (Easiest)
 
-1. Go to your GitHub repository
-2. Click on "Releases" → "Draft a new release"
-3. Create a new tag (e.g., `v1.0.0`)
-4. Fill in release title and description
-5. Click "Publish release"
-6. The workflow automatically builds executables for all platforms
-7. Download the artifacts from the release page:
+1. Go to "Actions" tab in your GitHub repository
+2. Select "Create Release" workflow
+3. Click "Run workflow"
+4. Choose version bump type:
+   - `patch` (1.0.0 → 1.0.1) for bug fixes
+   - `minor` (1.0.0 → 1.1.0) for new features
+   - `major` (1.0.0 → 2.0.0) for breaking changes
+5. Click "Run workflow"
+
+**What happens automatically:**
+- Version in `setup.py` is updated and committed
+- Git tag is created
+- GitHub Release is created
+- Executables are built for all platforms
+- Build artifacts are uploaded to the release
+
+### Manual Release Creation with Automated Builds
+
+If you prefer to manage versions manually:
+
+1. Update version in `setup.py`
+2. Create a new tag (e.g., `v1.0.0`)
+3. Push the tag: `git push origin v1.0.0`
+4. Create a GitHub Release with that tag
+5. The build workflow automatically triggers
+6. Download the artifacts from the release page:
    - `RemarkableSync-Windows.zip`
    - `RemarkableSync-macOS.zip`
    - `RemarkableSync-Linux.tar.gz`
 
-### Manual Workflow Trigger
+### Manual Build Workflow Trigger
 
-You can also trigger the build workflow manually:
+You can also trigger just the build workflow manually:
 1. Go to "Actions" tab in your repository
 2. Select "Build Executables" workflow
 3. Click "Run workflow"

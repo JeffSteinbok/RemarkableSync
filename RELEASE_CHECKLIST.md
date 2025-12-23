@@ -6,31 +6,64 @@ Use this checklist when creating a new release of RemarkableSync.
 
 - [ ] Test backup functionality with a real reMarkable tablet
 - [ ] Test PDF conversion on sample notebooks
-- [ ] Update version numbers in relevant files
-- [ ] Update CHANGELOG.md with new features and fixes
 - [ ] Review and update documentation if needed
+- [ ] Update CHANGELOG.md with new features and fixes (optional)
 
-## Creating the Release
+## Creating the Release (Automated)
 
-1. **Create a Git Tag**
+### Option 1: Automated Version Bump (Recommended)
+
+1. **Trigger the Release Workflow**
+   - Go to: https://github.com/JeffSteinbok/RemarkableSync/actions/workflows/release.yml
+   - Click "Run workflow"
+   - Select the version bump type:
+     - `patch` (1.0.0 → 1.0.1) - Bug fixes
+     - `minor` (1.0.0 → 1.1.0) - New features (backward compatible)
+     - `major` (1.0.0 → 2.0.0) - Breaking changes
+   - Click "Run workflow"
+
+2. **What Happens Automatically**
+   - Version in `setup.py` is updated
+   - Changes are committed and pushed
+   - Git tag is created (e.g., `v1.0.1`)
+   - GitHub Release is created with the tag
+   - Build executables workflow is triggered automatically
+   - Executables are built and uploaded to the release
+
+3. **Wait for Builds**
+   - Check the "Actions" tab to monitor progress
+   - Builds typically complete in 5-10 minutes
+
+4. **Verify Release Artifacts**
+   - Download each platform package from the release
+   - Test at least one executable per platform
+   - Verify QUICK_START.md and README.md are included
+
+### Option 2: Manual Release Creation
+
+1. **Update Version Manually**
+   - Edit `setup.py` and update the version number
+   - Commit the change
+
+2. **Create a Git Tag**
    ```bash
    git tag -a v1.0.0 -m "Release version 1.0.0"
    git push origin v1.0.0
    ```
 
-2. **Create GitHub Release**
+3. **Create GitHub Release**
    - Go to: https://github.com/JeffSteinbok/RemarkableSync/releases/new
    - Select the tag you just created
    - Release title: `RemarkableSync v1.0.0`
    - Add release notes (see template below)
    - Click "Publish release"
 
-3. **Wait for Automated Builds**
+4. **Wait for Automated Builds**
    - GitHub Actions will automatically build executables
    - Check the "Actions" tab to monitor progress
    - Builds typically complete in 5-10 minutes
 
-4. **Verify Release Artifacts**
+5. **Verify Release Artifacts**
    - Download each platform package
    - Test at least one executable per platform
    - Verify QUICK_START.md and README.md are included
