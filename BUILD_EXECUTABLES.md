@@ -203,7 +203,9 @@ pip install -r requirements.txt
 
 ### Large Executable Size
 - The executables include Python runtime and all dependencies
-- Typical size: 40-80 MB per executable
+- Typical size: 15-25 MB total (both executables combined)
+  - RemarkableBackup: ~15 MB
+  - RemarkableConverter: ~9 MB
 - This is normal for self-contained applications
 
 ### macOS Code Signing (Optional)

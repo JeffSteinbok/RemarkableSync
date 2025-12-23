@@ -47,6 +47,10 @@ a = Analysis(
         'pathlib2',
         'requests',
         'dateutil',
+        # PDF conversion dependencies (used when --convert-pdf flag is used)
+        'PyPDF2',
+        'svglib',
+        'reportlab',
         # Additional hidden imports for paramiko/cryptography
         'cryptography.hazmat.backends.openssl',
         'cryptography.hazmat.bindings._openssl',
