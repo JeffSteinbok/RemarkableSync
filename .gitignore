@@ -55,4 +55,8 @@ output/
 .Trashes
 ehthumbs.db
 Thumbs.db
-# Email configuration updated
+
+# PyInstaller distribution packages
+*.app
+*.dmg
+*.pkg

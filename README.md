@@ -36,6 +36,20 @@ A comprehensive Python toolkit for backing up and converting reMarkable tablet n
 
 ## Installation
 
+### Option 1: Pre-built Executables (For Non-Technical Users)
+
+**macOS and Windows users** can download ready-to-use executables that don't require Python installation:
+
+1. Download the latest release from the [Releases page](https://github.com/JeffSteinbok/RemarkableSync/releases)
+2. Extract the ZIP file
+3. Run the executables:
+   - **macOS**: `RemarkableBackup` and `RemarkableConverter`
+   - **Windows**: `RemarkableBackup.exe` and `RemarkableConverter.exe`
+
+For detailed instructions on building executables yourself, see [BUILD_EXECUTABLES.md](BUILD_EXECUTABLES.md).
+
+### Option 2: Python Installation (For Developers)
+
 1. Clone this repository:
    ```bash
    git clone https://github.com/yourusername/RemarkableSync.git
@@ -48,6 +62,30 @@ A comprehensive Python toolkit for backing up and converting reMarkable tablet n
    ```
 
 ## Usage
+
+### Quick Start (Pre-built Executables)
+
+If you're using the pre-built executables:
+
+**1. Backup Your Device:**
+```bash
+# macOS
+./RemarkableBackup -d remarkable_backup -v
+
+# Windows
+RemarkableBackup.exe -d remarkable_backup -v
+```
+
+**2. Convert to PDFs:**
+```bash
+# macOS
+./RemarkableConverter -d remarkable_backup -o output_pdfs -v
+
+# Windows
+RemarkableConverter.exe -d remarkable_backup -o output_pdfs -v
+```
+
+### Python Command Line Usage
 
 ### 1. Backup Your Device
 ```bash
