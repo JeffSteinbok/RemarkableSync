@@ -44,11 +44,13 @@ class ReMarkableBackup:  # pylint: disable=too-many-instance-attributes
         self.backup_dir = backup_dir
         self.files_dir = backup_dir / "files"
         self.pdfs_dir = backup_dir / "pdfs"
+        self.templates_dir = backup_dir / "templates"
         self.metadata_file = backup_dir / "sync_metadata.json"
 
         # Create directories
         self.files_dir.mkdir(parents=True, exist_ok=True)
         self.pdfs_dir.mkdir(parents=True, exist_ok=True)
+        self.templates_dir.mkdir(parents=True, exist_ok=True)
 
         # Initialize components
         self.connection = ReMarkableConnection(password=password)
@@ -162,6 +164,79 @@ class ReMarkableBackup:  # pylint: disable=too-many-instance-attributes
         finally:
             self.connection.disconnect()
 
+    def backup_templates(self) -> bool:
+        """Backup template files from ReMarkable tablet.
+
+        Templates are stored in /usr/share/remarkable/templates/ and include
+        PNG/SVG template images and a templates.json configuration file.
+
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        logging.info("Starting template backup...")
+
+        if not self.connection.connect():
+            return False
+
+        try:
+            # Get list of template files
+            remote_files = self.connection.list_files(self.remote_templates_dir)
+
+            if not remote_files:
+                logging.warning("No template files found on ReMarkable tablet")
+                return True
+
+            # Filter templates that need syncing
+            files_to_sync = []
+            for remote_file in remote_files:
+                relative_path = os.path.relpath(remote_file['path'], self.remote_templates_dir)
+                local_path = self.templates_dir / relative_path
+
+                if self.metadata.should_sync_file(remote_file, local_path):
+                    files_to_sync.append((remote_file, local_path))
+
+            if not files_to_sync:
+                logging.info("All template files are up to date")
+                return True
+
+            logging.info("Syncing %d template files...", len(files_to_sync))
+
+            # Download template files with progress bar
+            with tqdm(total=len(files_to_sync), desc="Downloading templates") as pbar:
+                for remote_file, local_path in files_to_sync:
+                    try:
+                        # Create local directory if needed
+                        local_path.parent.mkdir(parents=True, exist_ok=True)
+
+                        # Download file
+                        self.connection.scp_client.get(
+                            remote_file['path'],
+                            str(local_path)
+                        )
+
+                        # Update metadata
+                        self.metadata.update_file_metadata(remote_file, local_path)
+
+                        pbar.set_postfix_str(f"Downloaded {local_path.name}")
+
+                    except (OSError, SCPException) as e:
+                        logging.error("Failed to download %s: %s", remote_file['path'], e)
+
+                    pbar.update(1)
+
+            # Save metadata
+            self.metadata.save()
+
+            logging.info("Template backup completed successfully")
+            return True
+
+        except (paramiko.SSHException, OSError) as e:
+            logging.error("Template backup failed: %s", e)
+            return False
+
+        finally:
+            self.connection.disconnect()
+
     def find_notebooks(self) -> List[Dict]:
         """Find and parse notebook metadata.
 
@@ -232,12 +307,13 @@ class ReMarkableBackup:  # pylint: disable=too-many-instance-attributes
             logging.error("Failed to create PDF metadata for %s: %s", notebook['name'], e)
             return None
 
-    def run_backup(self, force_convert_all: bool = False, convert_to_pdf: bool = False) -> bool:
+    def run_backup(self, force_convert_all: bool = False, convert_to_pdf: bool = False, backup_templates: bool = True) -> bool:
         """Run complete backup process with optional PDF conversion.
 
         Args:
             force_convert_all: If True, convert all notebooks to PDF regardless of sync status
             convert_to_pdf: If True, automatically convert notebooks to PDF using hybrid converter
+            backup_templates: If True, backup template files from the tablet (default: True)
 
         Returns:
             bool: True if backup successful, False otherwise
@@ -248,6 +324,12 @@ class ReMarkableBackup:  # pylint: disable=too-many-instance-attributes
         success, updated_notebook_uuids = self.backup_files()
         if not success:
             return False
+
+        # Backup templates if requested
+        if backup_templates:
+            templates_success = self.backup_templates()
+            if not templates_success:
+                logging.warning("Template backup failed, but continuing with main backup")
 
         # Automatic PDF conversion using hybrid converter
         if convert_to_pdf:

@@ -27,12 +27,13 @@ import logging
 import sys
 import warnings
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 import click
 from tqdm import tqdm
 
 # Import modular converter classes
 from converters import V4Converter, V5Converter, V6Converter
+from template_renderer import TemplateRenderer
 
 # Suppress warnings from third-party libraries to reduce output noise
 warnings.filterwarnings("ignore")
@@ -172,6 +173,57 @@ def svg_to_pdf(svg_file: Path, pdf_file: Path) -> bool:
     """
     # Use any converter instance for the utility method since it's in the base class
     return v6_converter.svg_to_pdf(svg_file, pdf_file)
+
+def merge_pdf_with_template(content_pdf: Path, template_pdf: Optional[Path], output_pdf: Path) -> bool:
+    """Merge a content PDF with a template background PDF.
+
+    Args:
+        content_pdf: Path to PDF with notebook content
+        template_pdf: Path to PDF with template background (None for no template)
+        output_pdf: Path where merged PDF should be saved
+
+    Returns:
+        bool: True if merge successful, False otherwise
+    """
+    try:
+        from PyPDF2 import PdfWriter, PdfReader
+
+        if not content_pdf.exists():
+            return False
+
+        content_reader = PdfReader(str(content_pdf))
+        writer = PdfWriter()
+
+        # If we have a template, merge it with the content
+        if template_pdf and template_pdf.exists():
+            template_reader = PdfReader(str(template_pdf))
+            if len(template_reader.pages) > 0:
+                template_page = template_reader.pages[0]
+
+                # Merge template under content for each content page
+                for content_page in content_reader.pages:
+                    # Create a new page with template as background
+                    template_page.merge_page(content_page)
+                    writer.add_page(template_page)
+            else:
+                # No template pages, just copy content
+                for page in content_reader.pages:
+                    writer.add_page(page)
+        else:
+            # No template, just copy content
+            for page in content_reader.pages:
+                writer.add_page(page)
+
+        output_pdf.parent.mkdir(parents=True, exist_ok=True)
+        with open(output_pdf, 'wb') as f:
+            writer.write(f)
+
+        return output_pdf.exists() and output_pdf.stat().st_size > 0
+
+    except Exception as e:
+        logging.debug(f"PDF template merge failed: {e}")
+        return False
+
 
 def merge_pdfs(pdf_files: List[Path], output_file: Path) -> bool:
     """Merge multiple PDF files into a single PDF document.
@@ -347,7 +399,43 @@ def copy_existing_pdf(pdf_file: Path, output_file: Path) -> bool:
     # Use any converter instance for the utility method since it's in the base class
     return v6_converter.copy_existing_pdf(pdf_file, output_file)
 
-def convert_notebook(notebook: Dict, output_dir: Path, backup_dir: Path) -> Dict:
+def get_page_templates(content_file: Path) -> Dict[str, str]:
+    """Extract template names for each page from .content file.
+
+    Args:
+        content_file: Path to the .content JSON file
+
+    Returns:
+        Dictionary mapping page IDs to template names
+    """
+    page_templates = {}
+
+    if not content_file or not content_file.exists():
+        return page_templates
+
+    try:
+        with open(content_file, 'r', encoding='utf-8') as f:
+            content_data = json.load(f)
+
+        # Extract pages from cPages structure
+        c_pages = content_data.get('cPages', {})
+        pages = c_pages.get('pages', [])
+
+        for page in pages:
+            page_id = page.get('id')
+            template_info = page.get('template', {})
+            template_name = template_info.get('value', 'Blank')
+
+            if page_id:
+                page_templates[page_id] = template_name
+
+    except Exception as e:
+        logging.debug(f"Failed to extract page templates from {content_file}: {e}")
+
+    return page_templates
+
+
+def convert_notebook(notebook: Dict, output_dir: Path, backup_dir: Path, template_renderer: Optional[TemplateRenderer] = None) -> Dict:
     """Convert a notebook using appropriate tools for each file type.
 
     Creates a single PDF per notebook with all pages merged together.
@@ -386,9 +474,20 @@ def convert_notebook(notebook: Dict, output_dir: Path, backup_dir: Path) -> Dict
     temp_dir = output_notebook_dir / "temp_pages"
     temp_dir.mkdir(exist_ok=True)
 
+    # Template directory for rendered templates
+    template_temp_dir = output_notebook_dir / "temp_templates"
+    if template_renderer:
+        template_temp_dir.mkdir(exist_ok=True)
+
     try:
         # Resolve ordered pages using .content file if present (v5 ordering)
         content_path = notebook.get('metadata_file').with_suffix('.content') if notebook.get('metadata_file') else None
+
+        # Extract page templates from content file
+        page_templates = {}
+        if template_renderer and content_path:
+            page_templates = get_page_templates(content_path)
+
         ordered_v5_pages: List[Path] = []
         if content_path and content_path.exists():
             try:
@@ -414,17 +513,63 @@ def convert_notebook(notebook: Dict, output_dir: Path, backup_dir: Path) -> Dict
 
         # Convert v5 files in determined order
         for i, rm_file in enumerate(ordered_v5_pages):
-            temp_pdf = temp_dir / f"v5_page_{i+1:03d}.pdf"
-            if convert_v5_file_with_rmrl(rm_file, temp_pdf):
-                temp_pdfs.append(temp_pdf)
-                results['v5_converted'] += 1
+            temp_pdf_content = temp_dir / f"v5_page_{i+1:03d}_content.pdf"
+            if convert_v5_file_with_rmrl(rm_file, temp_pdf_content):
+                # Apply template if available
+                if template_renderer:
+                    page_id = rm_file.stem
+                    template_name = page_templates.get(page_id, 'Blank')
+
+                    if template_name and template_name != 'Blank':
+                        temp_template_pdf = template_temp_dir / f"template_{i+1:03d}.pdf"
+                        temp_pdf_final = temp_dir / f"v5_page_{i+1:03d}.pdf"
+
+                        if template_renderer.render_template_to_pdf(template_name, temp_template_pdf):
+                            if merge_pdf_with_template(temp_pdf_content, temp_template_pdf, temp_pdf_final):
+                                temp_pdfs.append(temp_pdf_final)
+                                results['v5_converted'] += 1
+                            else:
+                                temp_pdfs.append(temp_pdf_content)
+                                results['v5_converted'] += 1
+                        else:
+                            temp_pdfs.append(temp_pdf_content)
+                            results['v5_converted'] += 1
+                    else:
+                        temp_pdfs.append(temp_pdf_content)
+                        results['v5_converted'] += 1
+                else:
+                    temp_pdfs.append(temp_pdf_content)
+                    results['v5_converted'] += 1
 
         # Convert v6 files
         for i, rm_file in enumerate(notebook['v6_files']):
-            temp_pdf = temp_dir / f"v6_page_{i+1:03d}.pdf"
-            if convert_v6_file_with_rmc(rm_file, temp_pdf):
-                temp_pdfs.append(temp_pdf)
-                results['v6_converted'] += 1
+            temp_pdf_content = temp_dir / f"v6_page_{i+1:03d}_content.pdf"
+            if convert_v6_file_with_rmc(rm_file, temp_pdf_content):
+                # Apply template if available
+                if template_renderer:
+                    page_id = rm_file.stem
+                    template_name = page_templates.get(page_id, 'Blank')
+
+                    if template_name and template_name != 'Blank':
+                        temp_template_pdf = template_temp_dir / f"template_{i+1:03d}.pdf"
+                        temp_pdf_final = temp_dir / f"v6_page_{i+1:03d}.pdf"
+
+                        if template_renderer.render_template_to_pdf(template_name, temp_template_pdf):
+                            if merge_pdf_with_template(temp_pdf_content, temp_template_pdf, temp_pdf_final):
+                                temp_pdfs.append(temp_pdf_final)
+                                results['v6_converted'] += 1
+                            else:
+                                temp_pdfs.append(temp_pdf_content)
+                                results['v6_converted'] += 1
+                        else:
+                            temp_pdfs.append(temp_pdf_content)
+                            results['v6_converted'] += 1
+                    else:
+                        temp_pdfs.append(temp_pdf_content)
+                        results['v6_converted'] += 1
+                else:
+                    temp_pdfs.append(temp_pdf_content)
+                    results['v6_converted'] += 1
 
         # Convert v4 files (best-effort; may not succeed)
         for i, rm_file in enumerate(notebook.get('v4_files', [])):
@@ -478,6 +623,11 @@ def convert_notebook(notebook: Dict, output_dir: Path, backup_dir: Path) -> Dict
                     temp_pdf.unlink()
             if temp_dir.exists():
                 temp_dir.rmdir()
+            if template_renderer and template_temp_dir.exists():
+                # Clean up template temp files
+                for temp_file in template_temp_dir.glob("*"):
+                    temp_file.unlink()
+                template_temp_dir.rmdir()
         except Exception as e:
             logging.debug(f"Cleanup error: {e}")
 
@@ -575,6 +725,19 @@ def main(backup_dir: Path, output_dir: Optional[Path], verbose: bool, sample: Op
     print(f"- v3 files detected (unsupported): {total_v3}")
     print(f"- Existing PDFs to copy: {total_pdfs}")
 
+    # Initialize template renderer if templates directory exists
+    templates_dir = backup_dir / "templates"
+    template_renderer = None
+    if templates_dir.exists():
+        try:
+            template_renderer = TemplateRenderer(templates_dir)
+            print(f"\n[TEMPLATES] Template rendering enabled ({len(template_renderer.templates_metadata)} templates loaded)")
+        except Exception as e:
+            logging.warning(f"Failed to initialize template renderer: {e}")
+            print(f"\n[WARNING] Template rendering disabled")
+    else:
+        print(f"\n[INFO] No templates directory found - templates will not be rendered")
+
     # Convert notebooks
     total_v5_converted = 0
     total_v6_converted = 0
@@ -587,7 +750,7 @@ def main(backup_dir: Path, output_dir: Optional[Path], verbose: bool, sample: Op
         for notebook in pbar:
             pbar.set_postfix_str(notebook['name'][:30])
 
-            results = convert_notebook(notebook, output_dir, backup_dir)
+            results = convert_notebook(notebook, output_dir, backup_dir, template_renderer)
 
             if results['output_files']:
                 successful_notebooks += 1

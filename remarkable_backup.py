@@ -45,7 +45,9 @@ def setup_logging(verbose: bool = False):
               help='Convert all notebooks to PDF regardless of sync status')
 @click.option('--convert-pdf', '-c', is_flag=True,
               help='Automatically convert notebooks to PDF using hybrid converter')
-def cli(backup_dir: Path, password: Optional[str], verbose: bool, force_convert_all: bool, convert_pdf: bool) -> None:
+@click.option('--skip-templates', is_flag=True,
+              help='Skip backing up template files')
+def cli(backup_dir: Path, password: Optional[str], verbose: bool, force_convert_all: bool, convert_pdf: bool, skip_templates: bool) -> None:
     """ReMarkable Tablet Backup Tool
 
     Connects to your ReMarkable tablet via USB and backs up files with
@@ -67,10 +69,12 @@ def cli(backup_dir: Path, password: Optional[str], verbose: bool, force_convert_
     backup_tool = ReMarkableBackup(backup_dir, password)
 
     try:
-        success = backup_tool.run_backup(force_convert_all=force_convert_all, convert_to_pdf=convert_pdf)
+        success = backup_tool.run_backup(force_convert_all=force_convert_all, convert_to_pdf=convert_pdf, backup_templates=not skip_templates)
         if success:
             print("\n[SUCCESS] Backup completed successfully!")
             print(f"Files backed up to: {backup_tool.files_dir}")
+            if not skip_templates:
+                print(f"Templates backed up to: {backup_tool.templates_dir}")
             if convert_pdf:
                 pdfs_final_dir = backup_dir / "pdfs_final"
                 if pdfs_final_dir.exists():

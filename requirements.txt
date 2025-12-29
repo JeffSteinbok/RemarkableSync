@@ -7,3 +7,6 @@ click>=8.1.0
 pathlib2>=2.3.7
 cryptography>=41.0.0
 PyPDF2>=3.0.0
+svglib>=1.5.0
+reportlab>=4.0.0
+rmc>=0.3.0 
