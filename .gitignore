@@ -32,6 +32,9 @@ ENV/
 *.swp
 *.swo
 
+# Claude Code
+.claude/settings.local.json
+
 # ReMarkable specific
 remarkable_backup/
 *.pdf
