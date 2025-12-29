@@ -23,11 +23,13 @@ setup(
     long_description_content_type="text/markdown",
     author="ReMarkable Backup Tool",
     python_requires=">=3.7",
-    py_modules=["remarkable_backup"],
+    packages=["src", "src.backup", "src.converters"],
+    package_dir={"src": "src"},
     install_requires=requirements,
     entry_points={
         "console_scripts": [
-            "remarkable-backup=remarkable_backup:main",
+            "remarkable-backup=src.remarkable_backup:main",
+            "remarkable-converter=src.hybrid_converter:main",
         ],
     },
     classifiers=[

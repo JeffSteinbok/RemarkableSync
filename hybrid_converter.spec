@@ -24,15 +24,17 @@ a = Analysis(
     pathex=[],
     binaries=[],
     datas=[
-        # Include the converters module
-        ('converters', 'converters'),
+        # Include the src package modules
+        ('src/converters', 'src/converters'),
     ],
     hiddenimports=[
-        'converters',
-        'converters.base_converter',
-        'converters.v4_converter',
-        'converters.v5_converter',
-        'converters.v6_converter',
+        'src',
+        'src.converters',
+        'src.converters.base_converter',
+        'src.converters.v4_converter',
+        'src.converters.v5_converter',
+        'src.converters.v6_converter',
+        'src.template_renderer',
         'click',
         'tqdm',
         'pathlib2',
