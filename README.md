@@ -45,35 +45,43 @@ A comprehensive Python toolkit for backing up and converting reMarkable tablet n
 
 ## Installation
 
-### Option 1: Homebrew (macOS) - Recommended
+### Option 1: Homebrew (Recommended for macOS)
 
-The easiest way to install on macOS:
+**macOS users** can install RemarkableSync using Homebrew:
 
 ```bash
-# Add the tap
+# Add the tap (one time only)
 brew tap jeffsteinbok/remarkablesync
 
 # Install RemarkableSync
 brew install remarkablesync
-
-# Or in one command
-brew install jeffsteinbok/remarkablesync/remarkablesync
 ```
 
-Homebrew automatically handles all dependencies (Python, Cairo, etc.) and avoids macOS Gatekeeper issues.
+This will automatically:
+- Install Python 3.13 and all dependencies
+- Install the `rmc` tool for v6 format conversion
+- Set up everything needed for PDF conversion
 
-### Option 2: Pre-built Executables (For Non-Technical Users)
+**Updating to latest version:**
+```bash
+brew upgrade remarkablesync
+```
 
-**macOS and Windows users** can download ready-to-use executables that don't require Python installation:
+**Uninstalling:**
+```bash
+brew uninstall remarkablesync
+brew untap jeffsteinbok/remarkablesync
+```
+
+### Option 2: Pre-built Executables (Windows)
+
+**Windows users** can download ready-to-use executables that don't require Python installation:
 
 1. Download the latest release from the [Releases page](https://github.com/JeffSteinbok/RemarkableSync/releases)
 2. Extract the archive
-3. **macOS users**: First run requires bypassing Gatekeeper:
-   - Right-click the executable → Open → Click "Open" in the dialog
-   - Or run: `xattr -cr /path/to/RemarkableSync`
-4. Run `RemarkableSync` (or `RemarkableSync.exe` on Windows)
+3. Run `RemarkableSync.exe`
 
-For detailed instructions on building executables yourself, see [release/BUILD_EXECUTABLES.md](release/BUILD_EXECUTABLES.md).
+For detailed instructions on building executables yourself, see [BUILD_EXECUTABLES.md](BUILD_EXECUTABLES.md).
 
 ### Option 3: Python Installation (For Developers)
 
@@ -96,10 +104,13 @@ The simplest way to get started:
 2. **Get your SSH password** from Settings → Help → Copyright and licenses on your tablet
 3. **Run RemarkableSync**:
    ```bash
-   # Using pre-built executable
+   # If installed via Homebrew (macOS)
+   RemarkableSync
+
+   # If using pre-built executable
    ./RemarkableSync
 
-   # Using Python
+   # If using Python
    python3 RemarkableSync.py
    ```
 4. Enter your password when prompted (you can save it for future use)
@@ -119,10 +130,13 @@ RemarkableSync provides a single entry point with three main commands:
 The most common workflow - backs up your device and converts only updated notebooks:
 
 ```bash
-# Using pre-built executable
+# If installed via Homebrew
+RemarkableSync
+
+# If using pre-built executable
 ./RemarkableSync
 
-# Using Python
+# If using Python
 python3 RemarkableSync.py
 ```
 
@@ -135,41 +149,49 @@ This will:
 
 **Backup only** (no conversion):
 ```bash
+# Homebrew
+RemarkableSync backup
+
+# Python
 python3 RemarkableSync.py backup
 ```
 
 **Convert only** (from existing backup):
 ```bash
+# Homebrew
+RemarkableSync convert
+
+# Python
 python3 RemarkableSync.py convert
 ```
 
 **Sync with options**:
 ```bash
 # Force full backup and conversion (ignore sync status)
-python3 RemarkableSync.py sync --force-backup --force-convert
+RemarkableSync sync --force-backup --force-convert
 
 # Skip template backup
-python3 RemarkableSync.py sync --skip-templates
+RemarkableSync sync --skip-templates
 
 # Verbose output
-python3 RemarkableSync.py sync -v
+RemarkableSync sync -v
 ```
 
 #### Testing and Selective Conversion
 
 **Convert a single notebook** (by name or UUID):
 ```bash
-python3 RemarkableSync.py convert --notebook "My Notebook"
+RemarkableSync convert --notebook "My Notebook"
 ```
 
 **Convert first N notebooks** (for testing):
 ```bash
-python3 RemarkableSync.py convert --sample 5
+RemarkableSync convert --sample 5
 ```
 
 **Force convert all notebooks** (ignore sync status):
 ```bash
-python3 RemarkableSync.py convert --force-all
+RemarkableSync convert --force-all
 ```
 
 ### Command Line Options
