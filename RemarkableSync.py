@@ -16,26 +16,35 @@ from src.backup import ReMarkableBackup
 from src.converter import run_conversion
 
 
+def print_header():
+    """Print the application header."""
+    click.echo(f"RemarkableSync v{__version__} by Jeff Steinbok")
+    click.echo(f"Repository: {__repository__}")
+    click.echo()
+
+
 def version_callback(ctx, param, value):
     """Display version information."""
     if not value or ctx.resilient_parsing:
         return
-    click.echo(f"RemarkableSync v{__version__}")
-    click.echo(f"Repository: {__repository__}")
+    print_header()
     ctx.exit()
 
 
-@click.group()
+@click.group(invoke_without_command=False)
 @click.option('--version', is_flag=True, callback=version_callback,
               expose_value=False, is_eager=True,
               help='Show version and repository information')
-def cli():
+@click.pass_context
+def cli(ctx):
     """RemarkableSync - Backup and convert ReMarkable tablet files.
 
     A unified tool to backup your ReMarkable tablet via USB and convert
     notebooks to PDF format with template support.
     """
-    pass
+    # Print header for all commands (unless it's --version which handles it itself)
+    if ctx.invoked_subcommand and not ctx.resilient_parsing:
+        print_header()
 
 
 @cli.command()

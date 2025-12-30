@@ -84,7 +84,7 @@ def run_conversion(backup_dir: Path, output_dir: Path, verbose: bool = False,
         notebooks = notebooks[:sample]
 
     # Initialize template renderer if templates directory exists
-    templates_dir = backup_dir / "templates"
+    templates_dir = backup_dir / "Templates"
     template_renderer = None
     if templates_dir.exists():
         try:

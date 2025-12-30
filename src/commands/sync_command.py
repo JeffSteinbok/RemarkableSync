@@ -55,9 +55,9 @@ def run_sync_command(backup_dir: Path, password: Optional[str], verbose: bool,
             if not skip_templates:
                 print(f"Templates backed up to: {backup_tool.templates_dir}")
 
-            pdfs_final_dir = backup_dir / "pdfs_final"
-            if pdfs_final_dir.exists():
-                print(f"PDFs generated in: {pdfs_final_dir}")
+            pdfs_dir = backup_dir / "PDF"
+            if pdfs_dir.exists():
+                print(f"PDFs generated in: {pdfs_dir}")
             return 0
         else:
             print("\n[ERROR] Sync failed. Check logs for details.")

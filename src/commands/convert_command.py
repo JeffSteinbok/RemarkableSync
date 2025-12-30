@@ -31,7 +31,7 @@ def run_convert_command(backup_dir: Path, output_dir: Optional[Path], verbose: b
 
     # Set default output directory
     if not output_dir:
-        output_dir = backup_dir / "pdfs_final"
+        output_dir = backup_dir / "PDF"
 
     print("ReMarkable PDF Converter")
     print("=" * 40)

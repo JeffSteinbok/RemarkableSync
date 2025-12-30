@@ -24,7 +24,9 @@ Usage:
 
 import json
 import logging
+import shutil
 import sys
+import tempfile
 import warnings
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
@@ -473,13 +475,12 @@ def convert_notebook(notebook: Dict, output_dir: Path, backup_dir: Path, templat
 
     # Collect all PDF pages to merge
     temp_pdfs = []
-    temp_dir = output_notebook_dir / "temp_pages"
-    temp_dir.mkdir(exist_ok=True)
 
-    # Template directory for rendered templates
-    template_temp_dir = output_notebook_dir / "temp_templates"
+    # Create temporary directories in OS standard temp location
+    temp_dir = Path(tempfile.mkdtemp(prefix="remarkable_pages_"))
+    template_temp_dir = None
     if template_renderer:
-        template_temp_dir.mkdir(exist_ok=True)
+        template_temp_dir = Path(tempfile.mkdtemp(prefix="remarkable_templates_"))
 
     try:
         # Resolve ordered pages using .content file if present (v5 ordering)
@@ -618,18 +619,12 @@ def convert_notebook(notebook: Dict, output_dir: Path, backup_dir: Path, templat
                 logging.debug("Could not write unsupported info for %s: %s", notebook['name'], e)
 
     finally:
-        # Clean up temporary files
+        # Clean up temporary directories in OS temp location
         try:
-            for temp_pdf in temp_pdfs:
-                if temp_pdf.exists():
-                    temp_pdf.unlink()
-            if temp_dir.exists():
-                temp_dir.rmdir()
-            if template_renderer and template_temp_dir.exists():
-                # Clean up template temp files
-                for temp_file in template_temp_dir.glob("*"):
-                    temp_file.unlink()
-                template_temp_dir.rmdir()
+            if temp_dir and temp_dir.exists():
+                shutil.rmtree(temp_dir, ignore_errors=True)
+            if template_temp_dir and template_temp_dir.exists():
+                shutil.rmtree(template_temp_dir, ignore_errors=True)
         except Exception as e:
             logging.debug(f"Cleanup error: {e}")
 
@@ -656,7 +651,7 @@ def main(backup_dir: Path, output_dir: Optional[Path], verbose: bool, sample: Op
 
     # Set default output directory
     if not output_dir:
-        output_dir = backup_dir / "pdfs_final"
+        output_dir = backup_dir / "PDF"
 
     output_dir.mkdir(parents=True, exist_ok=True)
 

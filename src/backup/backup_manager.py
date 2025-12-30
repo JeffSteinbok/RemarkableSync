@@ -42,9 +42,9 @@ class ReMarkableBackup:  # pylint: disable=too-many-instance-attributes
             password: SSH password for tablet (prompted if not provided)
         """
         self.backup_dir = backup_dir
-        self.files_dir = backup_dir / "files"
-        self.pdfs_dir = backup_dir / "pdfs"
-        self.templates_dir = backup_dir / "templates"
+        self.files_dir = backup_dir / "Notebooks"  # Clean folder name
+        self.pdfs_dir = backup_dir / "PDF"  # Clean folder name
+        self.templates_dir = backup_dir / "Templates"  # Clean folder name
         self.metadata_file = backup_dir / "sync_metadata.json"
 
         # Create directories

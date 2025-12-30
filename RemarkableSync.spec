@@ -1,7 +1,7 @@
 # -*- mode: python ; coding: utf-8 -*-
 """
-PyInstaller spec file for ReMarkable Backup Tool
-This creates a standalone executable for backing up reMarkable tablet files.
+PyInstaller spec file for RemarkableSync Unified Tool
+This creates a standalone executable for the unified backup and conversion tool.
 """
 
 import sys
@@ -20,16 +20,19 @@ else:
     icon_file = None
 
 a = Analysis(
-    ['remarkable_backup.py'],
+    ['RemarkableSync.py'],
     pathex=[],
     binaries=[],
     datas=[
-        # Include the src package modules
+        # Include all src package modules
         ('src/backup', 'src/backup'),
         ('src/converters', 'src/converters'),
+        ('src/commands', 'src/commands'),
+        ('src/utils', 'src/utils'),
     ],
     hiddenimports=[
         'src',
+        'src.__version__',
         'src.backup',
         'src.backup.backup_manager',
         'src.backup.connection',
@@ -40,6 +43,14 @@ a = Analysis(
         'src.converters.v5_converter',
         'src.converters.v6_converter',
         'src.template_renderer',
+        'src.converter',
+        'src.hybrid_converter',
+        'src.commands',
+        'src.commands.backup_command',
+        'src.commands.convert_command',
+        'src.commands.sync_command',
+        'src.utils',
+        'src.utils.logging',
         'paramiko',
         'scp',
         'click',
@@ -48,7 +59,8 @@ a = Analysis(
         'pathlib2',
         'requests',
         'dateutil',
-        # PDF conversion dependencies (used when --convert-pdf flag is used)
+        'keyring',
+        # PDF conversion dependencies
         'PyPDF2',
         'svglib',
         'reportlab',
@@ -83,7 +95,7 @@ exe = EXE(
     a.zipfiles,
     a.datas,
     [],
-    name='RemarkableBackup',
+    name='RemarkableSync',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
@@ -103,9 +115,9 @@ exe = EXE(
 if sys.platform == 'darwin':
     app = BUNDLE(
         exe,
-        name='RemarkableBackup.app',
+        name='RemarkableSync.app',
         icon=icon_file,
-        bundle_identifier='com.remarkablesync.backup',
+        bundle_identifier='com.remarkablesync.app',
         info_plist={
             'NSPrincipalClass': 'NSApplication',
             'NSHighResolutionCapable': 'True',

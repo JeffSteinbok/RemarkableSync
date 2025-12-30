@@ -1,6 +1,12 @@
 name: Build Executables
 
 on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
   release:
     types: [created]
   workflow_dispatch:  # Allow manual trigger
@@ -23,17 +29,14 @@ jobs:
           pip install pyinstaller
           pip install -r requirements.txt
 
-      - name: Build Windows executables
+      - name: Build Windows executable
         run: |
-          pyinstaller --clean remarkable_backup.spec
-          pyinstaller --clean hybrid_converter.spec
+          pyinstaller --clean RemarkableSync.spec
 
       - name: Create Windows distribution package
         run: |
           mkdir RemarkableSync-Windows
-          copy dist\RemarkableBackup.exe RemarkableSync-Windows\
-          copy dist\RemarkableConverter.exe RemarkableSync-Windows\
-          copy QUICK_START.md RemarkableSync-Windows\
+          copy dist\RemarkableSync.exe RemarkableSync-Windows\
           copy README.md RemarkableSync-Windows\
           powershell Compress-Archive -Path RemarkableSync-Windows -DestinationPath RemarkableSync-Windows.zip
 
@@ -68,26 +71,19 @@ jobs:
           pip install pyinstaller
           pip install -r requirements.txt
 
-      - name: Build macOS executables
+      - name: Build macOS executable
         run: |
-          pyinstaller --clean remarkable_backup.spec
-          pyinstaller --clean hybrid_converter.spec
+          pyinstaller --clean RemarkableSync.spec
 
       - name: Create macOS distribution package
         run: |
           mkdir -p RemarkableSync-macOS
-          # Copy executables (either .app bundles or standalone)
-          if [ -d "dist/RemarkableBackup.app" ]; then
-            cp -r dist/RemarkableBackup.app RemarkableSync-macOS/
+          # Copy executable (either .app bundle or standalone)
+          if [ -d "dist/RemarkableSync.app" ]; then
+            cp -r dist/RemarkableSync.app RemarkableSync-macOS/
           else
-            cp dist/RemarkableBackup RemarkableSync-macOS/
+            cp dist/RemarkableSync RemarkableSync-macOS/
           fi
-          if [ -d "dist/RemarkableConverter.app" ]; then
-            cp -r dist/RemarkableConverter.app RemarkableSync-macOS/
-          else
-            cp dist/RemarkableConverter RemarkableSync-macOS/
-          fi
-          cp QUICK_START.md RemarkableSync-macOS/
           cp README.md RemarkableSync-macOS/
           # Create ZIP using subshell to avoid changing working directory
           (cd RemarkableSync-macOS && zip -r ../RemarkableSync-macOS.zip .)
@@ -123,17 +119,14 @@ jobs:
           pip install pyinstaller
           pip install -r requirements.txt
 
-      - name: Build Linux executables
+      - name: Build Linux executable
         run: |
-          pyinstaller --clean remarkable_backup.spec
-          pyinstaller --clean hybrid_converter.spec
+          pyinstaller --clean RemarkableSync.spec
 
       - name: Create Linux distribution package
         run: |
           mkdir -p RemarkableSync-Linux
-          cp dist/RemarkableBackup RemarkableSync-Linux/
-          cp dist/RemarkableConverter RemarkableSync-Linux/
-          cp QUICK_START.md RemarkableSync-Linux/
+          cp dist/RemarkableSync RemarkableSync-Linux/
           cp README.md RemarkableSync-Linux/
           # Create tarball using subshell to avoid changing working directory
           (cd RemarkableSync-Linux && tar -czf ../RemarkableSync-Linux.tar.gz .)

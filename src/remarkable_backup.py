@@ -76,9 +76,9 @@ def cli(backup_dir: Path, password: Optional[str], verbose: bool, force_convert_
             if not skip_templates:
                 print(f"Templates backed up to: {backup_tool.templates_dir}")
             if convert_pdf:
-                pdfs_final_dir = backup_dir / "pdfs_final"
-                if pdfs_final_dir.exists():
-                    print(f"PDFs generated in: {pdfs_final_dir}")
+                pdfs_dir = backup_dir / "PDF"
+                if pdfs_dir.exists():
+                    print(f"PDFs generated in: {pdfs_dir}")
                 else:
                     print(f"PDF metadata created in: {backup_tool.pdfs_dir}")
         else:

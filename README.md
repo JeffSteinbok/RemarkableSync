@@ -2,6 +2,8 @@
 
 A comprehensive Python toolkit for backing up and converting reMarkable tablet notebooks to PDF with template support and proper folder hierarchy preservation.
 
+> **Note**: This tool has been tested exclusively on reMarkable 2. Compatibility with reMarkable 1 is not guaranteed.
+
 [![GitHub](https://img.shields.io/badge/GitHub-RemarkableSync-blue?logo=github)](https://github.com/JeffSteinbok/RemarkableSync)
 
 ## Features
@@ -61,6 +63,26 @@ For detailed instructions on building executables yourself, see [BUILD_EXECUTABL
    ```bash
    pip install -r requirements.txt
    ```
+
+## Quick Start
+
+The simplest way to get started:
+
+1. **Connect your reMarkable tablet** via USB
+2. **Get your SSH password** from Settings → Help → Copyright and licenses on your tablet
+3. **Run RemarkableSync**:
+   ```bash
+   # Using pre-built executable
+   ./RemarkableSync
+
+   # Using Python
+   python3 RemarkableSync.py
+   ```
+4. Enter your password when prompted (you can save it for future use)
+5. Your notebooks will be backed up to `./remarkable_backup/Notebooks/`
+6. PDFs will be created in `./remarkable_backup/PDF/`
+
+That's it! The tool will only sync changed files and convert updated notebooks on subsequent runs.
 
 ## Usage
 
@@ -160,19 +182,22 @@ python3 RemarkableSync.py convert --force-all
 
 ## File Structure
 
-After backup, your directory will contain:
+After backup, your directory will contain three clean folders:
 
 ```
 remarkable_backup/
-├── [uuid].metadata           # Document metadata files
-├── [uuid].content            # Document content info
-├── [uuid]/                   # Notebook directories
-│   ├── [uuid]-metadata.json  # Page metadata
-│   └── *.rm                  # Drawing/writing data (v5 or v6 format)
-├── templates/                # Template files from device
+├── Notebooks/                # All notebook files and metadata
+│   ├── [uuid].metadata       # Document metadata files
+│   ├── [uuid].content        # Document content info
+│   └── [uuid]/               # Notebook directories
+│       ├── [uuid]-metadata.json  # Page metadata
+│       └── *.rm              # Drawing/writing data (v5 or v6 format)
+├── Templates/                # Template files from device
 │   ├── *.png                 # Template preview images
-│   └── *.json                # Template metadata/definitions
-├── pdfs_final/               # Generated PDF outputs (default output)
+│   ├── *.template            # Template definition files
+│   └── templates.json        # Template metadata
+├── PDF/                      # Generated PDF outputs
+│   └── [notebook folders with PDFs preserving hierarchy]
 ├── sync_metadata.json        # Sync state tracking
 ├── updated_notebooks.txt     # List of notebooks updated in last backup
 └── .remarkable_backup.log    # Backup operation log

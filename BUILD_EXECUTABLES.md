@@ -2,6 +2,8 @@
 
 This guide explains how to build self-contained executables for macOS and Windows that can be distributed to non-technical users.
 
+**Note: This tool has been tested exclusively on reMarkable 2. Compatibility with reMarkable 1 is not guaranteed.**
+
 ## Overview
 
 The RemarkableSync project provides a unified command-line tool:
@@ -160,7 +162,7 @@ dist\RemarkableSync.exe sync --help
 
 #### Option 2: DMG (Recommended)
 1. Create a DMG using Disk Utility or `hdiutil`
-2. Include the executable, QUICK_START.md, and a README
+2. Include the executable and README.md
 3. Users can drag the app to their Applications folder
 
 **First Run Notice for macOS Users:**
@@ -185,7 +187,7 @@ dist\RemarkableSync.exe sync --help
 
 ## Usage for End Users
 
-For detailed usage instructions, refer to [QUICK_START.md](QUICK_START.md).
+For detailed usage instructions, refer to the [README.md](README.md) file included with the distribution.
 
 ### Basic Usage
 
