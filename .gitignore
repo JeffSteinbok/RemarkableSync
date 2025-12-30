@@ -38,7 +38,9 @@ ENV/
 remarkable_backup/
 *.pdf
 *.svg
-test_*
+test_*.pdf
+test_*.svg
+test_output/
 temp_*
 
 # Output directories
