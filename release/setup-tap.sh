@@ -7,6 +7,10 @@ echo "RemarkableSync Homebrew Tap Setup"
 echo "=================================="
 echo ""
 
+# Get the script directory and main repo path BEFORE changing directory
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+MAIN_REPO="$SCRIPT_DIR/.."
+
 # Check if tap repo directory is provided
 TAP_DIR="${1:-../homebrew-remarkablesync}"
 
@@ -27,10 +31,6 @@ if [ ! -d "Formula" ]; then
     echo "Creating Formula directory..."
     mkdir -p Formula
 fi
-
-# Get the latest version from the main repo
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-MAIN_REPO="$SCRIPT_DIR/.."
 
 # Copy the formula
 echo "Copying formula file..."
