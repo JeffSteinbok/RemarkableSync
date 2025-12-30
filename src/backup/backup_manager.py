@@ -95,6 +95,11 @@ class ReMarkableBackup:  # pylint: disable=too-many-instance-attributes
             # Track which notebooks have been updated
             updated_notebooks = set()
 
+            # Verify SCP client is available
+            if not self.connection.scp_client:
+                logging.error("SCP client not initialized")
+                return False, set()
+
             # Download files with progress bar
             with tqdm(total=len(files_to_sync), desc="Downloading") as pbar:
                 for remote_file, local_path in files_to_sync:
@@ -198,6 +203,11 @@ class ReMarkableBackup:  # pylint: disable=too-many-instance-attributes
                 return True
 
             logging.info("Syncing %d template files...", len(files_to_sync))
+
+            # Verify SCP client is available
+            if not self.connection.scp_client:
+                logging.error("SCP client not initialized")
+                return False
 
             # Download template files with progress bar
             with tqdm(total=len(files_to_sync), desc="Downloading templates") as pbar:

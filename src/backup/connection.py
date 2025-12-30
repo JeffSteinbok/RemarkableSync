@@ -32,7 +32,7 @@ class ReMarkableConnection:
     KEYRING_USERNAME = "remarkable_ssh"
 
     def __init__(
-        self, host: str = "10.11.99.1", username: str = "root", port: int = 22, password: str = None
+        self, host: str = "10.11.99.1", username: str = "root", port: int = 22, password: str | None = None
     ):
         """Initialize connection parameters.
 
@@ -50,7 +50,7 @@ class ReMarkableConnection:
         self.password = password
         self.password_saved = False
 
-    def get_saved_password(self) -> str:
+    def get_saved_password(self) -> str | None:
         """Get saved password from system keyring.
 
         Returns:
@@ -176,7 +176,10 @@ class ReMarkableConnection:
                             look_for_keys=False,
                         )
 
-                        self.scp_client = SCPClient(self.ssh_client.get_transport())
+                        transport = self.ssh_client.get_transport()
+                        if transport is None:
+                            raise ConnectionError("Failed to get SSH transport")
+                        self.scp_client = SCPClient(transport)
                         logging.info("Connected to ReMarkable tablet at %s", self.host)
 
                         # Connection successful! Ask if user wants to save password
