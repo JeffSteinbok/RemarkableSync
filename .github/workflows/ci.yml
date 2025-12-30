@@ -44,18 +44,6 @@ jobs:
           mypy src/
         continue-on-error: true  # Don't fail CI on type errors initially
 
-  test-ubuntu-311:
-    uses: ./.github/workflows/common-test.yml
-    with:
-      python-version: '3.11'
-      os: ubuntu-latest
-
-  test-ubuntu-313:
-    uses: ./.github/workflows/common-test.yml
-    with:
-      python-version: '3.13'
-      os: ubuntu-latest
-
   test-macos-311:
     uses: ./.github/workflows/common-test.yml
     with:
