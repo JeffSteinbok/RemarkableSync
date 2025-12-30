@@ -64,3 +64,5 @@ Thumbs.db
 *.app
 *.dmg
 *.pkg
+
+test_backup
