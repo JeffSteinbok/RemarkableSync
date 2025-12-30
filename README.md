@@ -45,17 +45,37 @@ A comprehensive Python toolkit for backing up and converting reMarkable tablet n
 
 ## Installation
 
-### Option 1: Pre-built Executables (For Non-Technical Users)
+### Option 1: Homebrew (macOS) - Recommended
+
+The easiest way to install on macOS:
+
+```bash
+# Add the tap
+brew tap jeffsteinbok/remarkablesync
+
+# Install RemarkableSync
+brew install remarkablesync
+
+# Or in one command
+brew install jeffsteinbok/remarkablesync/remarkablesync
+```
+
+Homebrew automatically handles all dependencies (Python, Cairo, etc.) and avoids macOS Gatekeeper issues.
+
+### Option 2: Pre-built Executables (For Non-Technical Users)
 
 **macOS and Windows users** can download ready-to-use executables that don't require Python installation:
 
 1. Download the latest release from the [Releases page](https://github.com/JeffSteinbok/RemarkableSync/releases)
 2. Extract the archive
-3. Run `RemarkableSync` (or `RemarkableSync.exe` on Windows)
+3. **macOS users**: First run requires bypassing Gatekeeper:
+   - Right-click the executable → Open → Click "Open" in the dialog
+   - Or run: `xattr -cr /path/to/RemarkableSync`
+4. Run `RemarkableSync` (or `RemarkableSync.exe` on Windows)
 
-For detailed instructions on building executables yourself, see [BUILD_EXECUTABLES.md](BUILD_EXECUTABLES.md).
+For detailed instructions on building executables yourself, see [release/BUILD_EXECUTABLES.md](release/BUILD_EXECUTABLES.md).
 
-### Option 2: Python Installation (For Developers)
+### Option 3: Python Installation (For Developers)
 
 1. Clone this repository:
    ```bash

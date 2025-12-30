@@ -300,3 +300,58 @@ jobs:
           prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Update Homebrew formula after release
+  update-homebrew:
+    needs: [bump-version, create-release]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout RemarkableSync repository
+        uses: actions/checkout@v4
+        with:
+          ref: v${{ needs.bump-version.outputs.new_version }}
+
+      - name: Calculate SHA256
+        id: calc_sha
+        run: |
+          # Download the release tarball
+          curl -sL https://github.com/JeffSteinbok/RemarkableSync/archive/refs/tags/v${{ needs.bump-version.outputs.new_version }}.tar.gz -o remarkablesync.tar.gz
+
+          # Calculate SHA256
+          SHA256=$(shasum -a 256 remarkablesync.tar.gz | cut -d' ' -f1)
+          echo "sha256=$SHA256" >> $GITHUB_OUTPUT
+          echo "Calculated SHA256: $SHA256"
+
+      - name: Checkout homebrew-remarkablesync repository
+        uses: actions/checkout@v4
+        with:
+          repository: JeffSteinbok/homebrew-remarkablesync
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          path: homebrew-remarkablesync
+
+      - name: Update Homebrew formula
+        run: |
+          cd homebrew-remarkablesync
+
+          # Create Formula directory if it doesn't exist
+          mkdir -p Formula
+
+          # Copy and update formula
+          cp ../release/remarkablesync.rb Formula/remarkablesync.rb
+
+          # Update version and SHA256 in formula
+          sed -i 's|url ".*"|url "https://github.com/JeffSteinbok/RemarkableSync/archive/refs/tags/v${{ needs.bump-version.outputs.new_version }}.tar.gz"|' Formula/remarkablesync.rb
+          sed -i 's|sha256 ".*"|sha256 "${{ steps.calc_sha.outputs.sha256 }}"|' Formula/remarkablesync.rb
+
+          # Show the updated formula
+          echo "Updated formula:"
+          cat Formula/remarkablesync.rb
+
+      - name: Commit and push formula update
+        run: |
+          cd homebrew-remarkablesync
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Formula/remarkablesync.rb
+          git commit -m "Update RemarkableSync to v${{ needs.bump-version.outputs.new_version }}"
+          git push
