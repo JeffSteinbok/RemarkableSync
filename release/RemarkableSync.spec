@@ -20,15 +20,15 @@ else:
     icon_file = None
 
 a = Analysis(
-    ['RemarkableSync.py'],
-    pathex=[],
+    ['../RemarkableSync.py'],
+    pathex=['..'],
     binaries=[],
     datas=[
         # Include all src package modules
-        ('src/backup', 'src/backup'),
-        ('src/converters', 'src/converters'),
-        ('src/commands', 'src/commands'),
-        ('src/utils', 'src/utils'),
+        ('../src/backup', 'src/backup'),
+        ('../src/converters', 'src/converters'),
+        ('../src/commands', 'src/commands'),
+        ('../src/utils', 'src/utils'),
     ],
     hiddenimports=[
         'src',
@@ -64,6 +64,16 @@ a = Analysis(
         'PyPDF2',
         'svglib',
         'reportlab',
+        'reportlab.pdfgen',
+        'reportlab.lib',
+        'reportlab.lib.utils',
+        # PIL/Pillow - required by reportlab
+        'PIL',
+        'PIL.Image',
+        'PIL.ImageDraw',
+        'PIL.ImageFont',
+        'PIL.ImageColor',
+        'PIL._imaging',
         # Additional hidden imports for paramiko/cryptography
         'cryptography.hazmat.backends.openssl',
         'cryptography.hazmat.bindings._openssl',
@@ -77,7 +87,6 @@ a = Analysis(
         'numpy',
         'pandas',
         'scipy',
-        'PIL',
         'tkinter',
     ],
     win_no_prefer_redirects=False,
@@ -110,16 +119,3 @@ exe = EXE(
     entitlements_file=None,
     icon=icon_file,
 )
-
-# Create a macOS .app bundle (optional, only on macOS)
-if sys.platform == 'darwin':
-    app = BUNDLE(
-        exe,
-        name='RemarkableSync.app',
-        icon=icon_file,
-        bundle_identifier='com.remarkablesync.app',
-        info_plist={
-            'NSPrincipalClass': 'NSApplication',
-            'NSHighResolutionCapable': 'True',
-        },
-    )
