@@ -61,7 +61,7 @@ class ReMarkableBackup:  # pylint: disable=too-many-instance-attributes
         self.templates_dir.mkdir(parents=True, exist_ok=True)
 
         # Initialize components
-        self.connection = ReMarkableConnection(password = password)
+        self.connection = ReMarkableConnection(password=password)
         self.metadata = FileMetadata(self.metadata_file)
 
         # ReMarkable paths

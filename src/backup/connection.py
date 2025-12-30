@@ -32,11 +32,11 @@ class ReMarkableConnection:
     KEYRING_USERNAME = "remarkable_ssh"
 
     def __init__(
-        self, 
-        host: str = "10.11.99.1", 
-        username: str = "root", 
-        port: int = 22, 
-        password: str | None = None
+        self,
+        host: str = "10.11.99.1",
+        username: str = "root",
+        port: int = 22,
+        password: str | None = None,
     ):
         """Initialize connection parameters.
 

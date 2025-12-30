@@ -19,13 +19,10 @@ This module provides:
 import json
 import logging
 import shutil
-import sys
 import tempfile
 import warnings
 from pathlib import Path
 from typing import Dict, List, Optional
-
-from tqdm import tqdm
 
 # Import modular converter classes
 from .converters import V4Converter, V5Converter, V6Converter
@@ -656,4 +653,3 @@ def convert_notebook(
             logging.debug(f"Cleanup error: {e}")
 
     return results
-
