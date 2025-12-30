@@ -3,5 +3,37 @@
         "tests"
     ],
     "python.testing.unittestEnabled": false,
-    "python.testing.pytestEnabled": true
+    "python.testing.pytestEnabled": true,
+
+    // Linting configuration matching CI pipeline
+    "[python]": {
+        "editor.formatOnSave": true,
+        "editor.codeActionsOnSave": {
+            "source.organizeImports": "explicit"
+        },
+        "editor.defaultFormatter": "ms-python.black-formatter"
+    },
+
+    // Black formatter
+    "black-formatter.args": [
+        "--line-length=100"
+    ],
+
+    // Ruff linter
+    "ruff.enable": true,
+    "ruff.lint.args": [],
+    "ruff.importStrategy": "fromEnvironment",
+
+    // isort
+    "isort.args": [
+        "--profile=black",
+        "--line-length=100"
+    ],
+
+    // mypy
+    "mypy-type-checker.args": [],
+    "mypy-type-checker.importStrategy": "fromEnvironment",
+
+    // Python analysis
+    "python.analysis.typeCheckingMode": "basic"
 }
