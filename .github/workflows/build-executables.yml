@@ -86,11 +86,9 @@ jobs:
       - name: Create macOS distribution package
         run: |
           mkdir -p RemarkableSync-macOS
-          # Copy executable (either .app bundle or standalone)
-          if [ -d "dist/RemarkableSync.app" ]; then
-            cp -r dist/RemarkableSync.app RemarkableSync-macOS/
-          else
-            cp dist/RemarkableSync RemarkableSync-macOS/
+          # Copy the entire RemarkableSync directory (one-folder mode)
+          if [ -d "dist/RemarkableSync" ]; then
+            cp -r dist/RemarkableSync RemarkableSync-macOS/
           fi
           cp README.md RemarkableSync-macOS/
           # Create ZIP using subshell to avoid changing working directory
