@@ -32,7 +32,7 @@ class ReMarkableBackup:  # pylint: disable=too-many-instance-attributes
     - Progress tracking and detailed logging
     """
 
-    def __init__(self, backup_dir: Path, password: str = None):
+    def __init__(self, backup_dir: Path, password: str | None = None):
         """Initialize backup orchestrator.
 
         Args:

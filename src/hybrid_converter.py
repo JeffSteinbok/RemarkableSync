@@ -96,7 +96,7 @@ def find_notebooks(backup_dir: Path) -> List[Dict]:
         - pdf_files: Any existing PDF files in the notebook directory
     """
     notebooks: List[Dict] = []
-    files_dir = backup_dir / "files"
+    files_dir = backup_dir / "Notebooks"
 
     if not files_dir.exists():
         logging.error(f"Backup files directory not found: {files_dir}")
