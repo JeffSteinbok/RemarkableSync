@@ -150,18 +150,18 @@ dist\RemarkableSync.exe sync --help
 ### macOS Distribution
 
 #### Option 1: ZIP Archive
-1. Create a ZIP file with the executables:
+1. Create a ZIP file with the executable:
    ```bash
    cd dist
-   zip -r RemarkableSync-macOS.zip RemarkableBackup RemarkableConverter
+   zip -r RemarkableSync-macOS.zip RemarkableSync
    ```
 
 2. Share the ZIP file with users
 
 #### Option 2: DMG (Recommended)
 1. Create a DMG using Disk Utility or `hdiutil`
-2. Include both executables and a README
-3. Users can drag the apps to their Applications folder
+2. Include the executable, QUICK_START.md, and a README
+3. Users can drag the app to their Applications folder
 
 **First Run Notice for macOS Users:**
 - When running the app for the first time, macOS may show a security warning
@@ -170,10 +170,10 @@ dist\RemarkableSync.exe sync --help
 
 ### Windows Distribution
 
-1. Create a ZIP file with the executables:
+1. Create a ZIP file with the executable:
    ```cmd
    cd dist
-   powershell Compress-Archive -Path RemarkableBackup.exe,RemarkableConverter.exe -DestinationPath RemarkableSync-Windows.zip
+   powershell Compress-Archive -Path RemarkableSync.exe -DestinationPath RemarkableSync-Windows.zip
    ```
 
 2. Share the ZIP file with users
@@ -185,43 +185,58 @@ dist\RemarkableSync.exe sync --help
 
 ## Usage for End Users
 
-### Using RemarkableBackup
+For detailed usage instructions, refer to [QUICK_START.md](QUICK_START.md).
+
+### Basic Usage
 
 1. Connect your reMarkable tablet via USB
 2. Run the executable:
-   - **macOS**: Double-click `RemarkableBackup` or run from Terminal
-   - **Windows**: Double-click `RemarkableBackup.exe` or run from Command Prompt
+   - **macOS**: Double-click `RemarkableSync` or run from Terminal
+   - **Windows**: Double-click `RemarkableSync.exe` or run from Command Prompt
 
-3. Basic usage:
+3. Default usage (backup + convert):
    ```bash
    # macOS
-   ./RemarkableBackup -d ./my_backup -v
-   
+   ./RemarkableSync
+
    # Windows
-   RemarkableBackup.exe -d .\my_backup -v
+   RemarkableSync.exe
    ```
 
 4. The tool will:
    - Prompt for your reMarkable SSH password (found in Settings > Help)
    - Connect to your tablet at 10.11.99.1
-   - Back up all files to the specified directory
+   - Back up all changed files (including templates)
+   - Convert notebooks updated in this backup to PDF
 
-### Using RemarkableConverter
+### Individual Commands
 
-1. After backing up your files, run the converter:
-   - **macOS**: Double-click `RemarkableConverter` or run from Terminal
-   - **Windows**: Double-click `RemarkableConverter.exe` or run from Command Prompt
+**Backup only:**
+```bash
+# macOS
+./RemarkableSync backup -d ./my_backup -v
 
-2. Basic usage:
-   ```bash
-   # macOS
-   ./RemarkableConverter -d ./my_backup -o ./pdfs -v
-   
-   # Windows
-   RemarkableConverter.exe -d .\my_backup -o .\pdfs -v
-   ```
+# Windows
+RemarkableSync.exe backup -d .\my_backup -v
+```
 
-3. The tool will convert all notebooks to PDF format
+**Convert only:**
+```bash
+# macOS
+./RemarkableSync convert -d ./my_backup -v
+
+# Windows
+RemarkableSync.exe convert -d .\my_backup -v
+```
+
+**Full sync with options:**
+```bash
+# macOS
+./RemarkableSync sync --force-backup --force-convert -v
+
+# Windows
+RemarkableSync.exe sync --force-backup --force-convert -v
+```
 
 ## Troubleshooting Build Issues
 
@@ -236,20 +251,24 @@ pip install -r requirements.txt
 ```
 
 ### Import Errors
-- Check the `.spec` files to ensure all modules are included in `hiddenimports`
-- Add any missing modules to the appropriate spec file
+- Check `RemarkableSync.spec` to ensure all modules are included in `hiddenimports`
+- Add any missing modules from the `src/` directory structure
+- Common hidden imports needed:
+  - `src.backup`
+  - `src.converters`
+  - `src.commands`
+  - `src.utils`
+  - `src.template_renderer`
 
 ### Large Executable Size
-- The executables include Python runtime and all dependencies
-- Typical size: 15-25 MB total (both executables combined)
-  - RemarkableBackup: ~15 MB
-  - RemarkableConverter: ~9 MB
-- This is normal for self-contained applications
+- The executable includes Python runtime and all dependencies
+- Typical size: 20-30 MB
+- This is normal for self-contained applications with PDF rendering capabilities
 
 ### macOS Code Signing (Optional)
 For professional distribution, consider signing the app:
 ```bash
-codesign --deep --force --sign "Developer ID Application: Your Name" dist/RemarkableBackup.app
+codesign --deep --force --sign "Developer ID Application: Your Name" dist/RemarkableSync.app
 ```
 
 ### Windows Code Signing (Optional)
@@ -262,7 +281,7 @@ For professional distribution, consider signing the executable with a code signi
 **macOS Universal Binary:**
 ```bash
 # Build for both Intel and Apple Silicon
-pyinstaller --target-arch universal2 remarkable_backup.spec
+pyinstaller --target-arch universal2 RemarkableSync.spec
 ```
 
 **Windows 32-bit:**
@@ -284,7 +303,7 @@ pyinstaller --target-arch universal2 remarkable_backup.spec
 
 Build with debug mode:
 ```bash
-pyinstaller --debug all remarkable_backup.spec
+pyinstaller --debug all RemarkableSync.spec
 ```
 
 ## Clean Up

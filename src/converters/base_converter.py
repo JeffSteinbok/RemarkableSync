@@ -80,8 +80,31 @@ class BaseConverter(ABC):
                 self.logger.debug("Failed to parse SVG file: %s", svg_file.name)
                 return False
 
-            # Render drawing to PDF
-            renderPDF.drawToFile(drawing, str(pdf_file))
+            # Log drawing dimensions for debugging
+            self.logger.debug("SVG drawing dimensions: width=%s, height=%s",
+                            drawing.width, drawing.height)
+
+            # ReMarkable 2 dimensions in PDF points (72 points per inch at 226 DPI)
+            REMARKABLE_WIDTH = 447.5  # 1404 pixels / 226 DPI * 72
+            REMARKABLE_HEIGHT = 596.7  # 1872 pixels / 226 DPI * 72
+
+            # Scale the drawing to fit ReMarkable dimensions if needed
+            if drawing.width > 0 and drawing.height > 0:
+                scale_x = REMARKABLE_WIDTH / drawing.width
+                scale_y = REMARKABLE_HEIGHT / drawing.height
+                # Use the smaller scale to fit within bounds
+                scale = min(scale_x, scale_y)
+
+                if abs(scale - 1.0) > 0.01:  # Only scale if significantly different
+                    self.logger.debug("Scaling drawing by factor: %s", scale)
+                    drawing.width = REMARKABLE_WIDTH
+                    drawing.height = REMARKABLE_HEIGHT
+                    drawing.scale(scale, scale)
+
+            # Render drawing to PDF with explicit page size
+            renderPDF.drawToFile(drawing, str(pdf_file),
+                               fmt='PDF',
+                               configPIL={'pagesize': (REMARKABLE_WIDTH, REMARKABLE_HEIGHT)})
 
             # Verify PDF was created and has reasonable size
             if pdf_file.exists() and pdf_file.stat().st_size > 500:

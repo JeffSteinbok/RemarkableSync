@@ -198,13 +198,15 @@ def merge_pdf_with_template(content_pdf: Path, template_pdf: Optional[Path], out
         if template_pdf and template_pdf.exists():
             template_reader = PdfReader(str(template_pdf))
             if len(template_reader.pages) > 0:
-                template_page = template_reader.pages[0]
-
-                # Merge template under content for each content page
+                # For each content page, start with a fresh copy of the template
                 for content_page in content_reader.pages:
-                    # Create a new page with template as background
-                    template_page.merge_page(content_page)
-                    writer.add_page(template_page)
+                    # Get a fresh copy of the template page (always use first template page)
+                    from copy import copy
+                    template_copy = PdfReader(str(template_pdf)).pages[0]
+
+                    # Merge content on top of template
+                    template_copy.merge_page(content_page)
+                    writer.add_page(template_copy)
             else:
                 # No template pages, just copy content
                 for page in content_reader.pages:

@@ -77,7 +77,7 @@ The most common workflow - backs up your device and converts only updated notebo
 ./RemarkableSync
 
 # Using Python
-python RemarkableSync.py
+python3 RemarkableSync.py
 ```
 
 This will:
@@ -89,41 +89,41 @@ This will:
 
 **Backup only** (no conversion):
 ```bash
-python RemarkableSync.py backup
+python3 RemarkableSync.py backup
 ```
 
 **Convert only** (from existing backup):
 ```bash
-python RemarkableSync.py convert
+python3 RemarkableSync.py convert
 ```
 
 **Sync with options**:
 ```bash
 # Force full backup and conversion (ignore sync status)
-python RemarkableSync.py sync --force-backup --force-convert
+python3 RemarkableSync.py sync --force-backup --force-convert
 
 # Skip template backup
-python RemarkableSync.py sync --skip-templates
+python3 RemarkableSync.py sync --skip-templates
 
 # Verbose output
-python RemarkableSync.py sync -v
+python3 RemarkableSync.py sync -v
 ```
 
 #### Testing and Selective Conversion
 
 **Convert a single notebook** (by name or UUID):
 ```bash
-python RemarkableSync.py convert --notebook "My Notebook"
+python3 RemarkableSync.py convert --notebook "My Notebook"
 ```
 
 **Convert first N notebooks** (for testing):
 ```bash
-python RemarkableSync.py convert --sample 5
+python3 RemarkableSync.py convert --sample 5
 ```
 
 **Force convert all notebooks** (ignore sync status):
 ```bash
-python RemarkableSync.py convert --force-all
+python3 RemarkableSync.py convert --force-all
 ```
 
 ### Command Line Options
