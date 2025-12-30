@@ -8,6 +8,8 @@ import logging
 from pathlib import Path
 from typing import Optional
 
+from tqdm import tqdm
+
 from .hybrid_converter import convert_notebook, find_notebooks, organize_notebooks_by_structure
 from .template_renderer import TemplateRenderer
 
@@ -99,15 +101,21 @@ def run_conversion(
         except Exception as e:
             logging.warning(f"Failed to initialize template renderer: {e}")
 
-    # Convert notebooks
+    # Convert notebooks with progress bar
     successful = 0
-    for notebook in notebooks:
-        try:
-            results = convert_notebook(notebook, output_dir, backup_dir, template_renderer)
-            if results["output_files"]:
-                successful += 1
-        except Exception as e:
-            logging.error(f"Failed to convert {notebook['name']}: {e}")
+    logging.info(f"Converting {len(notebooks)} notebooks...")
+
+    with tqdm(notebooks, desc="Converting", unit="notebook") as pbar:
+        for notebook in pbar:
+            # Show current notebook name in progress bar
+            pbar.set_postfix_str(notebook["name"][:40])
+
+            try:
+                results = convert_notebook(notebook, output_dir, backup_dir, template_renderer)
+                if results["output_files"]:
+                    successful += 1
+            except Exception as e:
+                logging.error(f"Failed to convert {notebook['name']}: {e}")
 
     logging.info(f"Conversion complete: {successful}/{len(notebooks)} notebooks converted")
     return successful > 0

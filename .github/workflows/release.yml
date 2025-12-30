@@ -237,10 +237,9 @@ jobs:
       - name: Create macOS distribution package
         run: |
           mkdir -p RemarkableSync-macOS
-          if [ -d "dist/RemarkableSync.app" ]; then
-            cp -r dist/RemarkableSync.app RemarkableSync-macOS/
-          else
-            cp dist/RemarkableSync RemarkableSync-macOS/
+          # Copy the entire RemarkableSync directory (one-folder mode)
+          if [ -d "dist/RemarkableSync" ]; then
+            cp -r dist/RemarkableSync RemarkableSync-macOS/
           fi
           cp README.md RemarkableSync-macOS/
           (cd RemarkableSync-macOS && zip -r ../RemarkableSync-macOS.zip .)
@@ -296,7 +295,7 @@ jobs:
           files: |
             RemarkableSync-Windows.zip
             RemarkableSync-macOS.zip
-          draft: false
+          draft: true
           prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
