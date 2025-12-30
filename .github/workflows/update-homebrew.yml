@@ -1,0 +1,61 @@
+name: Update Homebrew Formula
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  update-formula:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout main repo
+        uses: actions/checkout@v4
+
+      - name: Get release info
+        id: release
+        run: |
+          VERSION="${{ github.event.release.tag_name }}"
+          VERSION_NO_V="${VERSION#v}"
+          echo "version=$VERSION_NO_V" >> $GITHUB_OUTPUT
+          echo "tag=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Download release tarball and calculate SHA256
+        id: sha256
+        run: |
+          TARBALL_URL="https://github.com/${{ github.repository }}/archive/refs/tags/${{ steps.release.outputs.tag }}.tar.gz"
+          curl -L "$TARBALL_URL" -o release.tar.gz
+          SHA256=$(shasum -a 256 release.tar.gz | awk '{print $1}')
+          echo "sha256=$SHA256" >> $GITHUB_OUTPUT
+          echo "Tarball SHA256: $SHA256"
+
+      - name: Update formula file
+        run: |
+          sed -i '' "s|url \".*\"|url \"https://github.com/${{ github.repository }}/archive/refs/tags/${{ steps.release.outputs.tag }}.tar.gz\"|" release/remarkablesync.rb
+          sed -i '' "s|sha256 \".*\"|sha256 \"${{ steps.sha256.outputs.sha256 }}\"|" release/remarkablesync.rb
+
+      - name: Commit and push to tap repository
+        env:
+          TAP_REPO: ${{ secrets.HOMEBREW_TAP_REPO }}  # Should be "jeffsteinbok/homebrew-remarkablesync"
+          GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        run: |
+          # Clone the tap repository
+          git clone https://${GH_TOKEN}@github.com/${TAP_REPO}.git tap-repo
+          cd tap-repo
+
+          # Copy updated formula
+          cp ../release/remarkablesync.rb Formula/remarkablesync.rb
+
+          # Configure git
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Commit and push
+          git add Formula/remarkablesync.rb
+          git commit -m "Update RemarkableSync to ${{ steps.release.outputs.version }}"
+          git push origin main
+
+      - name: Test formula
+        run: |
+          brew tap ${{ secrets.HOMEBREW_TAP_REPO }}
+          brew install remarkablesync
+          brew test remarkablesync
