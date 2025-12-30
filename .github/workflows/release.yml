@@ -1,0 +1,140 @@
+name: Create Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_bump:
+        description: 'Version bump type'
+        required: true
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+        default: 'patch'
+
+jobs:
+  # Run tests before creating release
+  test-macos-311:
+    uses: ./.github/workflows/common-test.yml
+    with:
+      python-version: '3.11'
+      os: macos-latest
+
+  test-macos-313:
+    uses: ./.github/workflows/common-test.yml
+    with:
+      python-version: '3.13'
+      os: macos-latest
+
+  test-windows-311:
+    uses: ./.github/workflows/common-test.yml
+    with:
+      python-version: '3.11'
+      os: windows-latest
+
+  test-windows-313:
+    uses: ./.github/workflows/common-test.yml
+    with:
+      python-version: '3.13'
+      os: windows-latest
+
+  bump-version:
+    runs-on: ubuntu-latest
+    needs: [test-macos-311, test-macos-313, test-windows-311, test-windows-313]
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Get current version
+        id: get_version
+        run: |
+          CURRENT_VERSION=$(grep -oP '__version__\s*=\s*"\K[0-9]+\.[0-9]+\.[0-9]+' src/__version__.py)
+          echo "current_version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+          echo "Current version: $CURRENT_VERSION"
+
+      - name: Calculate new version
+        id: calc_version
+        run: |
+          CURRENT="${{ steps.get_version.outputs.current_version }}"
+          IFS='.' read -r major minor patch <<< "$CURRENT"
+          
+          case "${{ github.event.inputs.version_bump }}" in
+            major)
+              major=$((major + 1))
+              minor=0
+              patch=0
+              ;;
+            minor)
+              minor=$((minor + 1))
+              patch=0
+              ;;
+            patch)
+              patch=$((patch + 1))
+              ;;
+          esac
+          
+          NEW_VERSION="${major}.${minor}.${patch}"
+          echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "New version: $NEW_VERSION"
+
+      - name: Update version in src/__version__.py
+        run: |
+          sed -i 's/__version__\s*=\s*"[0-9]\+\.[0-9]\+\.[0-9]\+"/__version__ = "${{ steps.calc_version.outputs.new_version }}"/' src/__version__.py
+          echo "Updated src/__version__.py with version ${{ steps.calc_version.outputs.new_version }}"
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Commit version bump
+        run: |
+          git add src/__version__.py
+          git commit -m "Bump version to ${{ steps.calc_version.outputs.new_version }}"
+          git push
+
+      - name: Create Git tag
+        run: |
+          git tag -a "v${{ steps.calc_version.outputs.new_version }}" -m "Release v${{ steps.calc_version.outputs.new_version }}"
+          git push origin "v${{ steps.calc_version.outputs.new_version }}"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ steps.calc_version.outputs.new_version }}
+          name: Release v${{ steps.calc_version.outputs.new_version }}
+          body: |
+            ## Release v${{ steps.calc_version.outputs.new_version }}
+
+            ### What's New
+            - Automatic release created via GitHub Actions
+
+            ### Installation
+
+            Download the appropriate package for your platform:
+            - **Windows**: `RemarkableSync-Windows.zip`
+            - **macOS**: `RemarkableSync-macOS.zip`
+
+            Extract and follow the instructions in `README.md`.
+
+            ### Platform Support
+            - Windows 10/11 (64-bit)
+            - macOS 10.13+ (Intel and Apple Silicon)
+
+            > **Note**: This tool has been tested exclusively on reMarkable 2. Compatibility with reMarkable 1 is not guaranteed.
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,0 +1,111 @@
+name: Build Executables
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  release:
+    types: [created]
+  workflow_dispatch:  # Allow manual trigger
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install system dependencies
+        run: |
+          choco install -y pkgconfiglite
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyinstaller
+          pip install -r requirements.txt
+
+      - name: Build Windows executable
+        run: |
+          pyinstaller --clean RemarkableSync.spec
+
+      - name: Create Windows distribution package
+        run: |
+          mkdir RemarkableSync-Windows
+          copy dist\RemarkableSync.exe RemarkableSync-Windows\
+          copy README.md RemarkableSync-Windows\
+          powershell Compress-Archive -Path RemarkableSync-Windows -DestinationPath RemarkableSync-Windows.zip
+
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: RemarkableSync-Windows
+          path: RemarkableSync-Windows.zip
+
+      - name: Upload to Release
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v1
+        with:
+          files: RemarkableSync-Windows.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install system dependencies
+        run: |
+          brew install cairo pkg-config
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyinstaller
+          pip install -r requirements.txt
+
+      - name: Build macOS executable
+        run: |
+          pyinstaller --clean RemarkableSync.spec
+
+      - name: Create macOS distribution package
+        run: |
+          mkdir -p RemarkableSync-macOS
+          # Copy executable (either .app bundle or standalone)
+          if [ -d "dist/RemarkableSync.app" ]; then
+            cp -r dist/RemarkableSync.app RemarkableSync-macOS/
+          else
+            cp dist/RemarkableSync RemarkableSync-macOS/
+          fi
+          cp README.md RemarkableSync-macOS/
+          # Create ZIP using subshell to avoid changing working directory
+          (cd RemarkableSync-macOS && zip -r ../RemarkableSync-macOS.zip .)
+
+      - name: Upload macOS artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: RemarkableSync-macOS
+          path: RemarkableSync-macOS.zip
+
+      - name: Upload to Release
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v1
+        with:
+          files: RemarkableSync-macOS.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

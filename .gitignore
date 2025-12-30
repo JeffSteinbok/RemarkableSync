@@ -27,16 +27,20 @@ env/
 ENV/
 
 # IDE
-.vscode/
 .idea/
 *.swp
 *.swo
+
+# Claude Code
+.claude/settings.local.json
 
 # ReMarkable specific
 remarkable_backup/
 *.pdf
 *.svg
-test_*
+test_*.pdf
+test_*.svg
+test_output/
 temp_*
 
 # Output directories
@@ -55,4 +59,10 @@ output/
 .Trashes
 ehthumbs.db
 Thumbs.db
-# Email configuration updated
+
+# PyInstaller distribution packages
+*.app
+*.dmg
+*.pkg
+
+test_backup

@@ -38,7 +38,7 @@ class FileMetadata:
         """
         if self.metadata_file.exists():
             try:
-                with open(self.metadata_file, 'r', encoding='utf-8') as f:
+                with open(self.metadata_file, "r", encoding="utf-8") as f:
                     self.data = json.load(f)
             except (OSError, json.JSONDecodeError) as e:
                 logging.warning("Failed to load metadata: %s", e)
@@ -52,7 +52,7 @@ class FileMetadata:
         """
         try:
             self.metadata_file.parent.mkdir(parents=True, exist_ok=True)
-            with open(self.metadata_file, 'w', encoding='utf-8') as f:
+            with open(self.metadata_file, "w", encoding="utf-8") as f:
                 json.dump(self.data, f, indent=2)
         except (OSError, TypeError) as e:
             logging.error("Failed to save metadata: %s", e)
@@ -71,7 +71,7 @@ class FileMetadata:
         """
         hash_md5 = hashlib.md5()
         try:
-            with open(file_path, 'rb') as f:
+            with open(file_path, "rb") as f:
                 for chunk in iter(lambda: f.read(4096), b""):
                     hash_md5.update(chunk)
         except OSError:
@@ -91,7 +91,7 @@ class FileMetadata:
         Returns:
             bool: True if file should be synced, False if up-to-date
         """
-        remote_path = remote_file['path']
+        remote_path = remote_file["path"]
 
         # File doesn't exist locally
         if not local_path.exists():
@@ -101,17 +101,16 @@ class FileMetadata:
         if remote_path not in self.data:
             return True
 
-        stored_mtime = self.data[remote_path].get('mtime', 0)
-        stored_size = self.data[remote_path].get('size', 0)
+        stored_mtime = self.data[remote_path].get("mtime", 0)
+        stored_size = self.data[remote_path].get("size", 0)
 
         # Check if remote file has changed
-        if (remote_file['mtime'] != stored_mtime or
-            remote_file['size'] != stored_size):
+        if remote_file["mtime"] != stored_mtime or remote_file["size"] != stored_size:
             return True
 
         # Verify local file integrity
         current_hash = self.get_file_hash(local_path)
-        stored_hash = self.data[remote_path].get('hash', '')
+        stored_hash = self.data[remote_path].get("hash", "")
 
         return current_hash != stored_hash
 
@@ -126,9 +125,9 @@ class FileMetadata:
             local_path: Local path of the synced file
         """
         file_hash = self.get_file_hash(local_path)
-        self.data[remote_file['path']] = {
-            'mtime': remote_file['mtime'],
-            'size': remote_file['size'],
-            'hash': file_hash,
-            'last_sync': datetime.now(timezone.utc).isoformat()
+        self.data[remote_file["path"]] = {
+            "mtime": remote_file["mtime"],
+            "size": remote_file["size"],
+            "hash": file_hash,
+            "last_sync": datetime.now(timezone.utc).isoformat(),
         }

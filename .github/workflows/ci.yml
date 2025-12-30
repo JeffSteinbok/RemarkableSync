@@ -1,0 +1,73 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install system dependencies
+        run: |
+          choco install -y pkgconfiglite
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+
+      - name: Run ruff linter
+        run: |
+          ruff check src/ tests/
+
+      - name: Run black formatter check
+        run: |
+          black --check src/ tests/
+
+      - name: Run isort import sorting check
+        run: |
+          isort --check-only src/ tests/
+
+      - name: Run mypy type checking
+        run: |
+          mypy src/
+        continue-on-error: true  # Don't fail CI on type errors initially
+
+  test-macos-311:
+    uses: ./.github/workflows/common-test.yml
+    with:
+      python-version: '3.11'
+      os: macos-latest
+
+  test-macos-313:
+    uses: ./.github/workflows/common-test.yml
+    with:
+      python-version: '3.13'
+      os: macos-latest
+
+  test-windows-311:
+    uses: ./.github/workflows/common-test.yml
+    with:
+      python-version: '3.11'
+      os: windows-latest
+
+  test-windows-313:
+    uses: ./.github/workflows/common-test.yml
+    with:
+      python-version: '3.13'
+      os: windows-latest

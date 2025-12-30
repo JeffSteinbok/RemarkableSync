@@ -65,13 +65,18 @@ class V6Converter(BaseConverter):
 
                 # Step 1: Convert .rm to SVG using rmc
                 self.logger.debug("Converting %s to SVG using rmc", rm_file.name)
-                result = subprocess.run([
-                    'rmc', '-t', 'svg', '-o', str(svg_file), str(rm_file)
-                ], capture_output=True, text=True, timeout=30, check=False)
+                result = subprocess.run(
+                    ["rmc", "-t", "svg", "-o", str(svg_file), str(rm_file)],
+                    capture_output=True,
+                    text=True,
+                    timeout=30,
+                    check=False,
+                )
 
                 if result.returncode != 0:
-                    self.logger.debug("rmc conversion failed for %s: %s",
-                                    rm_file.name, result.stderr)
+                    self.logger.debug(
+                        "rmc conversion failed for %s: %s", rm_file.name, result.stderr
+                    )
                     return False
 
                 if not svg_file.exists():
@@ -88,8 +93,9 @@ class V6Converter(BaseConverter):
                 success = self.svg_to_pdf(svg_file, output_file)
 
                 if success:
-                    self.logger.debug("v6 conversion successful: %s -> %s",
-                                    rm_file.name, output_file.name)
+                    self.logger.debug(
+                        "v6 conversion successful: %s -> %s", rm_file.name, output_file.name
+                    )
                     return True
 
                 self.logger.debug("SVG to PDF conversion failed for %s", rm_file.name)
@@ -109,8 +115,9 @@ class V6Converter(BaseConverter):
             bool: True if rmc command is available, False otherwise
         """
         try:
-            result = subprocess.run(['rmc', '--version'],
-                                  capture_output=True, text=True, timeout=5, check=False)
+            result = subprocess.run(
+                ["rmc", "--version"], capture_output=True, text=True, timeout=5, check=False
+            )
             return result.returncode == 0
         except (subprocess.TimeoutExpired, FileNotFoundError):
             return False
@@ -121,8 +128,4 @@ class V6Converter(BaseConverter):
         Returns:
             list[str]: List of required external tools/libraries
         """
-        return [
-            "rmc command-line tool",
-            "svglib Python library",
-            "reportlab Python library"
-        ]
+        return ["rmc command-line tool", "svglib Python library", "reportlab Python library"]

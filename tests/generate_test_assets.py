@@ -18,24 +18,24 @@ def create_v3_test_file(output_path: Path):
     """
     # V3 format typically has a simple binary structure
     # Create a minimal valid v3 file
-    with open(output_path, 'wb') as f:
+    with open(output_path, "wb") as f:
         # V3 header (simplified)
-        f.write(b'reMarkable lines with selections and layers\n')
-        f.write(struct.pack('<I', 3))  # Version number
-        f.write(struct.pack('<I', 1))  # Number of layers
+        f.write(b"reMarkable lines with selections and layers\n")
+        f.write(struct.pack("<I", 3))  # Version number
+        f.write(struct.pack("<I", 1))  # Number of layers
 
         # Layer data
-        f.write(struct.pack('<I', 1))  # Number of strokes
+        f.write(struct.pack("<I", 1))  # Number of strokes
 
         # Stroke data (pen type, color, unknown, width)
-        f.write(struct.pack('<I', 2))  # Pen type (ballpoint)
-        f.write(struct.pack('<I', 0))  # Color (black)
-        f.write(struct.pack('<I', 0))  # Unknown
-        f.write(struct.pack('<f', 2.0))  # Width
-        f.write(struct.pack('<I', 0))  # Unknown
+        f.write(struct.pack("<I", 2))  # Pen type (ballpoint)
+        f.write(struct.pack("<I", 0))  # Color (black)
+        f.write(struct.pack("<I", 0))  # Unknown
+        f.write(struct.pack("<f", 2.0))  # Width
+        f.write(struct.pack("<I", 0))  # Unknown
 
         # Points data
-        f.write(struct.pack('<I', 3))  # Number of points
+        f.write(struct.pack("<I", 3))  # Number of points
 
         # Sample points (x, y, speed, direction, width, pressure)
         points = [
@@ -45,7 +45,7 @@ def create_v3_test_file(output_path: Path):
         ]
 
         for x, y, speed, direction, width, pressure in points:
-            f.write(struct.pack('<ffffff', x, y, speed, direction, width, pressure))
+            f.write(struct.pack("<ffffff", x, y, speed, direction, width, pressure))
 
 
 def create_v4_test_file(output_path: Path):
@@ -55,24 +55,24 @@ def create_v4_test_file(output_path: Path):
         output_path: Path where the test file should be created
     """
     # V4 format is similar to v3 but with slight differences
-    with open(output_path, 'wb') as f:
+    with open(output_path, "wb") as f:
         # V4 header
-        f.write(b'reMarkable lines with selections and layers\n')
-        f.write(struct.pack('<I', 4))  # Version number
-        f.write(struct.pack('<I', 1))  # Number of layers
+        f.write(b"reMarkable lines with selections and layers\n")
+        f.write(struct.pack("<I", 4))  # Version number
+        f.write(struct.pack("<I", 1))  # Number of layers
 
         # Layer data
-        f.write(struct.pack('<I', 1))  # Number of strokes
+        f.write(struct.pack("<I", 1))  # Number of strokes
 
         # Stroke data
-        f.write(struct.pack('<I', 2))  # Pen type
-        f.write(struct.pack('<I', 0))  # Color
-        f.write(struct.pack('<I', 0))  # Unknown
-        f.write(struct.pack('<f', 2.0))  # Width
-        f.write(struct.pack('<I', 0))  # Unknown
+        f.write(struct.pack("<I", 2))  # Pen type
+        f.write(struct.pack("<I", 0))  # Color
+        f.write(struct.pack("<I", 0))  # Unknown
+        f.write(struct.pack("<f", 2.0))  # Width
+        f.write(struct.pack("<I", 0))  # Unknown
 
         # Points data
-        f.write(struct.pack('<I', 4))  # Number of points
+        f.write(struct.pack("<I", 4))  # Number of points
 
         # Sample points with slightly different format
         points = [
@@ -83,7 +83,7 @@ def create_v4_test_file(output_path: Path):
         ]
 
         for x, y, speed, direction, width, pressure in points:
-            f.write(struct.pack('<ffffff', x, y, speed, direction, width, pressure))
+            f.write(struct.pack("<ffffff", x, y, speed, direction, width, pressure))
 
 
 def create_v5_test_file(output_path: Path):
@@ -93,21 +93,21 @@ def create_v5_test_file(output_path: Path):
         output_path: Path where the test file should be created
     """
     # V5 format has a more complex structure
-    with open(output_path, 'wb') as f:
+    with open(output_path, "wb") as f:
         # V5 header
-        f.write(b'reMarkable .lines file, version=5          ')
-        f.write(struct.pack('<I', 1))  # Number of layers
+        f.write(b"reMarkable .lines file, version=5          ")
+        f.write(struct.pack("<I", 1))  # Number of layers
 
         # Layer data
-        f.write(struct.pack('<I', 2))  # Number of strokes
+        f.write(struct.pack("<I", 2))  # Number of strokes
 
         # First stroke
-        f.write(struct.pack('<I', 2))  # Pen type
-        f.write(struct.pack('<I', 0))  # Color
-        f.write(struct.pack('<I', 0))  # Unknown
-        f.write(struct.pack('<f', 1.5))  # Width
-        f.write(struct.pack('<I', 0))  # Unknown
-        f.write(struct.pack('<I', 3))  # Number of points
+        f.write(struct.pack("<I", 2))  # Pen type
+        f.write(struct.pack("<I", 0))  # Color
+        f.write(struct.pack("<I", 0))  # Unknown
+        f.write(struct.pack("<f", 1.5))  # Width
+        f.write(struct.pack("<I", 0))  # Unknown
+        f.write(struct.pack("<I", 3))  # Number of points
 
         # Points for first stroke
         points1 = [
@@ -117,15 +117,15 @@ def create_v5_test_file(output_path: Path):
         ]
 
         for x, y, speed, direction, width, pressure in points1:
-            f.write(struct.pack('<ffffff', x, y, speed, direction, width, pressure))
+            f.write(struct.pack("<ffffff", x, y, speed, direction, width, pressure))
 
         # Second stroke
-        f.write(struct.pack('<I', 3))  # Pen type (marker)
-        f.write(struct.pack('<I', 1))  # Color (gray)
-        f.write(struct.pack('<I', 0))  # Unknown
-        f.write(struct.pack('<f', 3.0))  # Width
-        f.write(struct.pack('<I', 0))  # Unknown
-        f.write(struct.pack('<I', 2))  # Number of points
+        f.write(struct.pack("<I", 3))  # Pen type (marker)
+        f.write(struct.pack("<I", 1))  # Color (gray)
+        f.write(struct.pack("<I", 0))  # Unknown
+        f.write(struct.pack("<f", 3.0))  # Width
+        f.write(struct.pack("<I", 0))  # Unknown
+        f.write(struct.pack("<I", 2))  # Number of points
 
         # Points for second stroke
         points2 = [
@@ -134,7 +134,7 @@ def create_v5_test_file(output_path: Path):
         ]
 
         for x, y, speed, direction, width, pressure in points2:
-            f.write(struct.pack('<ffffff', x, y, speed, direction, width, pressure))
+            f.write(struct.pack("<ffffff", x, y, speed, direction, width, pressure))
 
 
 def create_v6_test_file(output_path: Path):
@@ -144,21 +144,21 @@ def create_v6_test_file(output_path: Path):
         output_path: Path where the test file should be created
     """
     # V6 format (current format) - more sophisticated structure
-    with open(output_path, 'wb') as f:
+    with open(output_path, "wb") as f:
         # V6 header
-        f.write(b'reMarkable .lines file, version=6          ')
-        f.write(struct.pack('<I', 1))  # Number of layers
+        f.write(b"reMarkable .lines file, version=6          ")
+        f.write(struct.pack("<I", 1))  # Number of layers
 
         # Layer data
-        f.write(struct.pack('<I', 3))  # Number of strokes
+        f.write(struct.pack("<I", 3))  # Number of strokes
 
         # First stroke - pen
-        f.write(struct.pack('<I', 2))  # Pen type (ballpoint)
-        f.write(struct.pack('<I', 0))  # Color (black)
-        f.write(struct.pack('<I', 0))  # Unknown
-        f.write(struct.pack('<f', 1.875))  # Width
-        f.write(struct.pack('<I', 0))  # Unknown
-        f.write(struct.pack('<I', 5))  # Number of points
+        f.write(struct.pack("<I", 2))  # Pen type (ballpoint)
+        f.write(struct.pack("<I", 0))  # Color (black)
+        f.write(struct.pack("<I", 0))  # Unknown
+        f.write(struct.pack("<f", 1.875))  # Width
+        f.write(struct.pack("<I", 0))  # Unknown
+        f.write(struct.pack("<I", 5))  # Number of points
 
         # Points for pen stroke (curved line)
         pen_points = [
@@ -170,15 +170,15 @@ def create_v6_test_file(output_path: Path):
         ]
 
         for x, y, speed, direction, width, pressure in pen_points:
-            f.write(struct.pack('<ffffff', x, y, speed, direction, width, pressure))
+            f.write(struct.pack("<ffffff", x, y, speed, direction, width, pressure))
 
         # Second stroke - marker
-        f.write(struct.pack('<I', 3))  # Pen type (marker)
-        f.write(struct.pack('<I', 1))  # Color (gray)
-        f.write(struct.pack('<I', 0))  # Unknown
-        f.write(struct.pack('<f', 5.0))  # Width
-        f.write(struct.pack('<I', 0))  # Unknown
-        f.write(struct.pack('<I', 3))  # Number of points
+        f.write(struct.pack("<I", 3))  # Pen type (marker)
+        f.write(struct.pack("<I", 1))  # Color (gray)
+        f.write(struct.pack("<I", 0))  # Unknown
+        f.write(struct.pack("<f", 5.0))  # Width
+        f.write(struct.pack("<I", 0))  # Unknown
+        f.write(struct.pack("<I", 3))  # Number of points
 
         # Points for marker stroke (thick line)
         marker_points = [
@@ -188,15 +188,15 @@ def create_v6_test_file(output_path: Path):
         ]
 
         for x, y, speed, direction, width, pressure in marker_points:
-            f.write(struct.pack('<ffffff', x, y, speed, direction, width, pressure))
+            f.write(struct.pack("<ffffff", x, y, speed, direction, width, pressure))
 
         # Third stroke - pencil
-        f.write(struct.pack('<I', 1))  # Pen type (pencil)
-        f.write(struct.pack('<I', 0))  # Color (black)
-        f.write(struct.pack('<I', 0))  # Unknown
-        f.write(struct.pack('<f', 1.0))  # Width
-        f.write(struct.pack('<I', 0))  # Unknown
-        f.write(struct.pack('<I', 4))  # Number of points
+        f.write(struct.pack("<I", 1))  # Pen type (pencil)
+        f.write(struct.pack("<I", 0))  # Color (black)
+        f.write(struct.pack("<I", 0))  # Unknown
+        f.write(struct.pack("<f", 1.0))  # Width
+        f.write(struct.pack("<I", 0))  # Unknown
+        f.write(struct.pack("<I", 4))  # Number of points
 
         # Points for pencil stroke (light sketch)
         pencil_points = [
@@ -207,7 +207,7 @@ def create_v6_test_file(output_path: Path):
         ]
 
         for x, y, speed, direction, width, pressure in pencil_points:
-            f.write(struct.pack('<ffffff', x, y, speed, direction, width, pressure))
+            f.write(struct.pack("<ffffff", x, y, speed, direction, width, pressure))
 
 
 def main():

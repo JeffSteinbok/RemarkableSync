@@ -67,8 +67,8 @@ class BaseConverter(ABC):
         """
         try:
             # Import conversion libraries at runtime to avoid hard dependencies
-            from svglib.svglib import svg2rlg  # pylint: disable=import-outside-toplevel
             from reportlab.graphics import renderPDF  # pylint: disable=import-outside-toplevel
+            from svglib.svglib import svg2rlg  # pylint: disable=import-outside-toplevel
         except ImportError:
             self.logger.debug("svglib/reportlab not available for SVG to PDF conversion")
             return False
@@ -80,8 +80,35 @@ class BaseConverter(ABC):
                 self.logger.debug("Failed to parse SVG file: %s", svg_file.name)
                 return False
 
-            # Render drawing to PDF
-            renderPDF.drawToFile(drawing, str(pdf_file))
+            # Log drawing dimensions for debugging
+            self.logger.debug(
+                "SVG drawing dimensions: width=%s, height=%s", drawing.width, drawing.height
+            )
+
+            # ReMarkable 2 dimensions in PDF points (72 points per inch at 226 DPI)
+            REMARKABLE_WIDTH = 447.5  # 1404 pixels / 226 DPI * 72
+            REMARKABLE_HEIGHT = 596.7  # 1872 pixels / 226 DPI * 72
+
+            # Scale the drawing to fit ReMarkable dimensions if needed
+            if drawing.width > 0 and drawing.height > 0:
+                scale_x = REMARKABLE_WIDTH / drawing.width
+                scale_y = REMARKABLE_HEIGHT / drawing.height
+                # Use the smaller scale to fit within bounds
+                scale = min(scale_x, scale_y)
+
+                if abs(scale - 1.0) > 0.01:  # Only scale if significantly different
+                    self.logger.debug("Scaling drawing by factor: %s", scale)
+                    drawing.width = REMARKABLE_WIDTH
+                    drawing.height = REMARKABLE_HEIGHT
+                    drawing.scale(scale, scale)
+
+            # Render drawing to PDF with explicit page size
+            renderPDF.drawToFile(
+                drawing,
+                str(pdf_file),
+                fmt="PDF",
+                configPIL={"pagesize": (REMARKABLE_WIDTH, REMARKABLE_HEIGHT)},
+            )
 
             # Verify PDF was created and has reasonable size
             if pdf_file.exists() and pdf_file.stat().st_size > 500:
@@ -137,17 +164,17 @@ class BaseConverter(ABC):
             Optional[str]: Version string (e.g., "5", "6") or None if undetectable
         """
         try:
-            with open(rm_file, 'rb') as f:
-                header = f.read(8).decode('utf-8', errors='ignore')
+            with open(rm_file, "rb") as f:
+                header = f.read(8).decode("utf-8", errors="ignore")
 
                 # Check for known version patterns
-                if 'version=6' in header:
+                if "version=6" in header:
                     return "6"
-                if 'version=5' in header:
+                if "version=5" in header:
                     return "5"
-                if 'version=4' in header:
+                if "version=4" in header:
                     return "4"
-                if 'version=3' in header:
+                if "version=3" in header:
                     return "3"
 
                 # Try to detect by file size and content patterns
