@@ -11,8 +11,6 @@ from pathlib import Path
 from typing import Dict, Optional
 
 from reportlab.pdfgen import canvas
-from reportlab.lib.pagesizes import letter
-from reportlab.lib.units import inch
 
 
 class TemplateRenderer:
@@ -53,10 +51,10 @@ class TemplateRenderer:
             return
 
         try:
-            with open(self.templates_json_path, 'r', encoding='utf-8') as f:
+            with open(self.templates_json_path, "r", encoding="utf-8") as f:
                 data = json.load(f)
-                for template in data.get('templates', []):
-                    name = template.get('name', '')
+                for template in data.get("templates", []):
+                    name = template.get("name", "")
                     if name:
                         self.templates_metadata[name] = template
             logging.info(f"Loaded {len(self.templates_metadata)} template definitions")
@@ -78,7 +76,7 @@ class TemplateRenderer:
         # Try to get filename from metadata
         template_info = self.templates_metadata.get(template_name)
         if template_info:
-            filename = template_info.get('filename', template_name)
+            filename = template_info.get("filename", template_name)
         else:
             filename = template_name
 
@@ -112,7 +110,7 @@ class TemplateRenderer:
             return None
 
         try:
-            with open(template_file, 'r', encoding='utf-8') as f:
+            with open(template_file, "r", encoding="utf-8") as f:
                 template_data = json.load(f)
                 self.template_cache[template_name] = template_data
                 return template_data
@@ -144,15 +142,16 @@ class TemplateRenderer:
 
         try:
             # Create PDF with ReMarkable dimensions
-            c = canvas.Canvas(str(output_pdf),
-                            pagesize=(self.REMARKABLE_WIDTH, self.REMARKABLE_HEIGHT))
+            c = canvas.Canvas(
+                str(output_pdf), pagesize=(self.REMARKABLE_WIDTH, self.REMARKABLE_HEIGHT)
+            )
 
             # Basic rendering: draw grid lines if it's a grid template
-            if 'Grid' in template_name or 'grid' in template_name.lower():
+            if "Grid" in template_name or "grid" in template_name.lower():
                 self._render_grid(c, template_data)
-            elif 'Lines' in template_name or 'lines' in template_name.lower():
+            elif "Lines" in template_name or "lines" in template_name.lower():
                 self._render_lines(c, template_data)
-            elif 'Dots' in template_name or 'dots' in template_name.lower():
+            elif "Dots" in template_name or "dots" in template_name.lower():
                 self._render_dots(c, template_data)
 
             c.save()
@@ -172,8 +171,9 @@ class TemplateRenderer:
             bool: True if successful
         """
         try:
-            c = canvas.Canvas(str(output_pdf),
-                            pagesize=(self.REMARKABLE_WIDTH, self.REMARKABLE_HEIGHT))
+            c = canvas.Canvas(
+                str(output_pdf), pagesize=(self.REMARKABLE_WIDTH, self.REMARKABLE_HEIGHT)
+            )
             c.save()
             return True
         except Exception as e:
@@ -193,10 +193,10 @@ class TemplateRenderer:
 
         # Try to extract grid size from template (in template pixels)
         grid_size_pixels = 52  # default for small grid
-        constants = template_data.get('constants', [])
+        constants = template_data.get("constants", [])
         for const in constants:
-            if 'gridSize' in const:
-                grid_size_pixels = const['gridSize']
+            if "gridSize" in const:
+                grid_size_pixels = const["gridSize"]
                 break
 
         # Convert grid size from template pixels to PDF points
@@ -228,10 +228,10 @@ class TemplateRenderer:
         # Try to extract line spacing from template (in template pixels)
         # Typical reMarkable line spacing is around 40 pixels
         line_spacing_pixels = 40
-        constants = template_data.get('constants', [])
+        constants = template_data.get("constants", [])
         for const in constants:
-            if 'lineHeight' in const:
-                line_spacing_pixels = const['lineHeight']
+            if "lineHeight" in const:
+                line_spacing_pixels = const["lineHeight"]
                 break
 
         # Convert line spacing from template pixels to PDF points
@@ -256,10 +256,10 @@ class TemplateRenderer:
         # Try to extract dot spacing from template (in template pixels)
         # Typical reMarkable dot spacing is around 30-40 pixels
         dot_spacing_pixels = 35
-        constants = template_data.get('constants', [])
+        constants = template_data.get("constants", [])
         for const in constants:
-            if 'dotSpacing' in const or 'gridSize' in const:
-                key = 'dotSpacing' if 'dotSpacing' in const else 'gridSize'
+            if "dotSpacing" in const or "gridSize" in const:
+                key = "dotSpacing" if "dotSpacing" in const else "gridSize"
                 dot_spacing_pixels = const[key]
                 break
 

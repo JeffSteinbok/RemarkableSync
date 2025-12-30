@@ -8,8 +8,14 @@ from ..converter import run_conversion
 from ..utils.logging import setup_logging
 
 
-def run_convert_command(backup_dir: Path, output_dir: Optional[Path], verbose: bool,
-                       force_all: bool, sample: Optional[int], notebook: Optional[str]) -> int:
+def run_convert_command(
+    backup_dir: Path,
+    output_dir: Optional[Path],
+    verbose: bool,
+    force_all: bool,
+    sample: Optional[int],
+    notebook: Optional[str],
+) -> int:
     """Execute the convert command.
 
     Args:
@@ -53,7 +59,7 @@ def run_convert_command(backup_dir: Path, output_dir: Optional[Path], verbose: b
             updated_list = backup_dir / "updated_notebooks.txt"
             if updated_list.exists():
                 updated_only_file = updated_list
-                print(f"Converting recently updated notebooks only")
+                print("Converting recently updated notebooks only")
 
         success = run_conversion(
             backup_dir=backup_dir,
@@ -61,7 +67,7 @@ def run_convert_command(backup_dir: Path, output_dir: Optional[Path], verbose: b
             verbose=verbose,
             sample=sample,
             notebook_filter=notebook,
-            updated_only=updated_only_file
+            updated_only=updated_only_file,
         )
 
         return 0 if success else 1

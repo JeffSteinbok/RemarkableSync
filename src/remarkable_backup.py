@@ -29,25 +29,41 @@ def setup_logging(verbose: bool = False):
     """
     level = logging.DEBUG if verbose else logging.INFO
     logging.basicConfig(
-        level=level,
-        format='%(asctime)s - %(levelname)s - %(message)s',
-        datefmt='%Y-%m-%d %H:%M:%S'
+        level=level, format="%(asctime)s - %(levelname)s - %(message)s", datefmt="%Y-%m-%d %H:%M:%S"
     )
 
 
 @click.command()
-@click.option('--backup-dir', '-d', type=click.Path(path_type=Path),
-              default=Path('./remarkable_backup'),
-              help='Directory to store backup files')
-@click.option('--password', '-p', type=str, help='ReMarkable SSH password')
-@click.option('--verbose', '-v', is_flag=True, help='Enable verbose logging')
-@click.option('--force-convert-all', '-f', is_flag=True,
-              help='Convert all notebooks to PDF regardless of sync status')
-@click.option('--convert-pdf', '-c', is_flag=True,
-              help='Automatically convert notebooks to PDF using hybrid converter')
-@click.option('--skip-templates', is_flag=True,
-              help='Skip backing up template files')
-def cli(backup_dir: Path, password: Optional[str], verbose: bool, force_convert_all: bool, convert_pdf: bool, skip_templates: bool) -> None:
+@click.option(
+    "--backup-dir",
+    "-d",
+    type=click.Path(path_type=Path),
+    default=Path("./remarkable_backup"),
+    help="Directory to store backup files",
+)
+@click.option("--password", "-p", type=str, help="ReMarkable SSH password")
+@click.option("--verbose", "-v", is_flag=True, help="Enable verbose logging")
+@click.option(
+    "--force-convert-all",
+    "-f",
+    is_flag=True,
+    help="Convert all notebooks to PDF regardless of sync status",
+)
+@click.option(
+    "--convert-pdf",
+    "-c",
+    is_flag=True,
+    help="Automatically convert notebooks to PDF using hybrid converter",
+)
+@click.option("--skip-templates", is_flag=True, help="Skip backing up template files")
+def cli(
+    backup_dir: Path,
+    password: Optional[str],
+    verbose: bool,
+    force_convert_all: bool,
+    convert_pdf: bool,
+    skip_templates: bool,
+) -> None:
     """ReMarkable Tablet Backup Tool
 
     Connects to your ReMarkable tablet via USB and backs up files with
@@ -69,7 +85,11 @@ def cli(backup_dir: Path, password: Optional[str], verbose: bool, force_convert_
     backup_tool = ReMarkableBackup(backup_dir, password)
 
     try:
-        success = backup_tool.run_backup(force_convert_all=force_convert_all, convert_to_pdf=convert_pdf, backup_templates=not skip_templates)
+        success = backup_tool.run_backup(
+            force_convert_all=force_convert_all,
+            convert_to_pdf=convert_pdf,
+            backup_templates=not skip_templates,
+        )
         if success:
             print("\n[SUCCESS] Backup completed successfully!")
             print(f"Files backed up to: {backup_tool.files_dir}")

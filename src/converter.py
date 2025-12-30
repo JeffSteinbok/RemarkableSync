@@ -8,17 +8,18 @@ import logging
 from pathlib import Path
 from typing import Optional
 
-from .hybrid_converter import (
-    find_notebooks,
-    organize_notebooks_by_structure,
-    convert_notebook
-)
+from .hybrid_converter import convert_notebook, find_notebooks, organize_notebooks_by_structure
 from .template_renderer import TemplateRenderer
 
 
-def run_conversion(backup_dir: Path, output_dir: Path, verbose: bool = False,
-                  sample: Optional[int] = None, notebook_filter: Optional[str] = None,
-                  updated_only: Optional[Path] = None) -> bool:
+def run_conversion(
+    backup_dir: Path,
+    output_dir: Path,
+    verbose: bool = False,
+    sample: Optional[int] = None,
+    notebook_filter: Optional[str] = None,
+    updated_only: Optional[Path] = None,
+) -> bool:
     """Run PDF conversion on backed up notebooks.
 
     Args:
@@ -42,8 +43,8 @@ def run_conversion(backup_dir: Path, output_dir: Path, verbose: bool = False,
     updated_uuids = None
     if updated_only and updated_only.exists():
         try:
-            with open(updated_only, 'r', encoding='utf-8') as f:
-                updated_uuids = set(line.strip() for line in f if line.strip())
+            with open(updated_only, "r", encoding="utf-8") as f:
+                updated_uuids = {line.strip() for line in f if line.strip()}
             logging.info(f"Converting only {len(updated_uuids)} updated notebooks")
         except OSError as e:
             logging.error(f"Failed to read updated notebooks file: {e}")
@@ -58,22 +59,25 @@ def run_conversion(backup_dir: Path, output_dir: Path, verbose: bool = False,
 
     # Filter by updated UUIDs if provided
     if updated_uuids:
-        all_items = [item for item in all_items if item['uuid'] in updated_uuids]
+        all_items = [item for item in all_items if item["uuid"] in updated_uuids]
         if not all_items:
             logging.info("No updated notebooks found for conversion")
             return True  # Not an error
 
     # Filter by notebook name/UUID if provided
     if notebook_filter:
-        all_items = [item for item in all_items
-                    if item['uuid'] == notebook_filter or item['name'] == notebook_filter]
+        all_items = [
+            item
+            for item in all_items
+            if item["uuid"] == notebook_filter or item["name"] == notebook_filter
+        ]
         if not all_items:
             logging.error(f"Notebook not found: {notebook_filter}")
             return False
 
     # Organize into folder structure
     organization = organize_notebooks_by_structure(all_items, backup_dir)
-    notebooks = organization['documents_to_convert']
+    notebooks = organization["documents_to_convert"]
 
     if not notebooks:
         logging.warning("No convertible notebooks found")
@@ -89,7 +93,9 @@ def run_conversion(backup_dir: Path, output_dir: Path, verbose: bool = False,
     if templates_dir.exists():
         try:
             template_renderer = TemplateRenderer(templates_dir)
-            logging.info(f"Template rendering enabled ({len(template_renderer.templates_metadata)} templates loaded)")
+            logging.info(
+                f"Template rendering enabled ({len(template_renderer.templates_metadata)} templates loaded)"
+            )
         except Exception as e:
             logging.warning(f"Failed to initialize template renderer: {e}")
 
@@ -98,7 +104,7 @@ def run_conversion(backup_dir: Path, output_dir: Path, verbose: bool = False,
     for notebook in notebooks:
         try:
             results = convert_notebook(notebook, output_dir, backup_dir, template_renderer)
-            if results['output_files']:
+            if results["output_files"]:
                 successful += 1
         except Exception as e:
             logging.error(f"Failed to convert {notebook['name']}: {e}")

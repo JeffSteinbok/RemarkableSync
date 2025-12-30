@@ -8,8 +8,9 @@ from ..backup import ReMarkableBackup
 from ..utils.logging import setup_logging
 
 
-def run_backup_command(backup_dir: Path, password: Optional[str], verbose: bool,
-                      skip_templates: bool, force: bool) -> int:
+def run_backup_command(
+    backup_dir: Path, password: Optional[str], verbose: bool, skip_templates: bool, force: bool
+) -> int:
     """Execute the backup command.
 
     Args:
@@ -39,9 +40,7 @@ def run_backup_command(backup_dir: Path, password: Optional[str], verbose: bool,
         # For now, we'll use the existing run_backup method
         # In force mode, we don't use incremental sync
         success = backup_tool.run_backup(
-            force_convert_all=False,
-            convert_to_pdf=False,
-            backup_templates=not skip_templates
+            force_convert_all=False, convert_to_pdf=False, backup_templates=not skip_templates
         )
 
         if success:

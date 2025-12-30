@@ -1,7 +1,5 @@
 """Basic tests for RemarkableSync."""
 
-import pytest
-
 
 def test_dummy():
     """Dummy test to verify pytest is working."""
@@ -10,7 +8,7 @@ def test_dummy():
 
 def test_version_import():
     """Test that version module can be imported."""
-    from src.__version__ import __version__, __repository__
+    from src.__version__ import __repository__, __version__
 
     assert __version__ is not None
     assert __repository__ is not None

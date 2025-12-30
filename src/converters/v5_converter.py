@@ -82,7 +82,7 @@ class V5Converter(BaseConverter):
                     return False
 
                 # Write SVG data to temporary file
-                with open(svg_file, 'wb') as f:
+                with open(svg_file, "wb") as f:
                     f.write(svg_data)
 
                 # Verify SVG file was created with reasonable content
@@ -95,8 +95,9 @@ class V5Converter(BaseConverter):
                 success = self.svg_to_pdf(svg_file, output_file)
 
                 if success:
-                    self.logger.debug("v5 conversion successful: %s -> %s",
-                                    rm_file.name, output_file.name)
+                    self.logger.debug(
+                        "v5 conversion successful: %s -> %s", rm_file.name, output_file.name
+                    )
                     return True
 
                 self.logger.debug("SVG to PDF conversion failed for %s", rm_file.name)
@@ -121,9 +122,9 @@ class V5Converter(BaseConverter):
         Returns:
             bool: True if conversion was successful, False otherwise
         """
-        try:
-            import rmrl  # type: ignore # pylint: disable=import-outside-toplevel,unused-import
-        except ImportError:
+        import importlib.util
+
+        if importlib.util.find_spec("rmrl") is None:
             return False
 
         try:
@@ -137,8 +138,11 @@ class V5Converter(BaseConverter):
 
             # For now, we'll log the attempt and return False
             # This can be expanded as more rmrl capabilities are discovered
-            self.logger.debug("Alternative conversion not yet implemented for %s -> %s",
-                            rm_file.name, output_file.name)
+            self.logger.debug(
+                "Alternative conversion not yet implemented for %s -> %s",
+                rm_file.name,
+                output_file.name,
+            )
             return False
 
         except (ImportError, OSError, ValueError) as e:
@@ -151,11 +155,9 @@ class V5Converter(BaseConverter):
         Returns:
             bool: True if rmrl library can be imported, False otherwise
         """
-        try:
-            import rmrl  # type: ignore # pylint: disable=import-outside-toplevel,unused-import
-            return True
-        except ImportError:
-            return False
+        import importlib.util
+
+        return importlib.util.find_spec("rmrl") is not None
 
     def get_requirements(self) -> list[str]:
         """Get the external requirements for this converter.
@@ -163,8 +165,4 @@ class V5Converter(BaseConverter):
         Returns:
             list[str]: List of required external tools/libraries
         """
-        return [
-            "rmrl Python library",
-            "svglib Python library",
-            "reportlab Python library"
-        ]
+        return ["rmrl Python library", "svglib Python library", "reportlab Python library"]

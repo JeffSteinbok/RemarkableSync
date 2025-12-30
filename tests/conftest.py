@@ -119,9 +119,9 @@ def is_valid_pdf(pdf_path: Path) -> bool:
         return False
 
     try:
-        with open(pdf_path, 'rb') as f:
+        with open(pdf_path, "rb") as f:
             header = f.read(4)
-            return header == b'%PDF'
+            return header == b"%PDF"
     except (OSError, IOError):
         return False
 

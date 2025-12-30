@@ -67,8 +67,8 @@ class BaseConverter(ABC):
         """
         try:
             # Import conversion libraries at runtime to avoid hard dependencies
-            from svglib.svglib import svg2rlg  # pylint: disable=import-outside-toplevel
             from reportlab.graphics import renderPDF  # pylint: disable=import-outside-toplevel
+            from svglib.svglib import svg2rlg  # pylint: disable=import-outside-toplevel
         except ImportError:
             self.logger.debug("svglib/reportlab not available for SVG to PDF conversion")
             return False
@@ -81,8 +81,9 @@ class BaseConverter(ABC):
                 return False
 
             # Log drawing dimensions for debugging
-            self.logger.debug("SVG drawing dimensions: width=%s, height=%s",
-                            drawing.width, drawing.height)
+            self.logger.debug(
+                "SVG drawing dimensions: width=%s, height=%s", drawing.width, drawing.height
+            )
 
             # ReMarkable 2 dimensions in PDF points (72 points per inch at 226 DPI)
             REMARKABLE_WIDTH = 447.5  # 1404 pixels / 226 DPI * 72
@@ -102,9 +103,12 @@ class BaseConverter(ABC):
                     drawing.scale(scale, scale)
 
             # Render drawing to PDF with explicit page size
-            renderPDF.drawToFile(drawing, str(pdf_file),
-                               fmt='PDF',
-                               configPIL={'pagesize': (REMARKABLE_WIDTH, REMARKABLE_HEIGHT)})
+            renderPDF.drawToFile(
+                drawing,
+                str(pdf_file),
+                fmt="PDF",
+                configPIL={"pagesize": (REMARKABLE_WIDTH, REMARKABLE_HEIGHT)},
+            )
 
             # Verify PDF was created and has reasonable size
             if pdf_file.exists() and pdf_file.stat().st_size > 500:
@@ -160,17 +164,17 @@ class BaseConverter(ABC):
             Optional[str]: Version string (e.g., "5", "6") or None if undetectable
         """
         try:
-            with open(rm_file, 'rb') as f:
-                header = f.read(8).decode('utf-8', errors='ignore')
+            with open(rm_file, "rb") as f:
+                header = f.read(8).decode("utf-8", errors="ignore")
 
                 # Check for known version patterns
-                if 'version=6' in header:
+                if "version=6" in header:
                     return "6"
-                if 'version=5' in header:
+                if "version=5" in header:
                     return "5"
-                if 'version=4' in header:
+                if "version=4" in header:
                     return "4"
-                if 'version=3' in header:
+                if "version=3" in header:
                     return "3"
 
                 # Try to detect by file size and content patterns

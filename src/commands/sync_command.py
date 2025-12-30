@@ -8,8 +8,14 @@ from ..backup import ReMarkableBackup
 from ..utils.logging import setup_logging
 
 
-def run_sync_command(backup_dir: Path, password: Optional[str], verbose: bool,
-                    skip_templates: bool, force_backup: bool, force_convert: bool) -> int:
+def run_sync_command(
+    backup_dir: Path,
+    password: Optional[str],
+    verbose: bool,
+    skip_templates: bool,
+    force_backup: bool,
+    force_convert: bool,
+) -> int:
     """Execute the sync command (backup + convert).
 
     This is the most common workflow: backup the tablet and then convert
@@ -46,7 +52,7 @@ def run_sync_command(backup_dir: Path, password: Optional[str], verbose: bool,
         success = backup_tool.run_backup(
             force_convert_all=force_convert,
             convert_to_pdf=True,
-            backup_templates=not skip_templates
+            backup_templates=not skip_templates,
         )
 
         if success:

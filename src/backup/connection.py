@@ -14,6 +14,7 @@ from scp import SCPClient
 
 try:
     import keyring
+
     KEYRING_AVAILABLE = True
 except ImportError:
     KEYRING_AVAILABLE = False
@@ -31,8 +32,7 @@ class ReMarkableConnection:
     KEYRING_USERNAME = "remarkable_ssh"
 
     def __init__(
-        self, host: str = "10.11.99.1", username: str = "root",
-        port: int = 22, password: str = None
+        self, host: str = "10.11.99.1", username: str = "root", port: int = 22, password: str = None
     ):
         """Initialize connection parameters.
 
@@ -155,34 +155,40 @@ class ReMarkableConnection:
 
                 # Try multiple connection approaches for ReMarkable compatibility
                 connection_attempts = [
-                    {'timeout': 30, 'banner_timeout': 30, 'auth_timeout': 30},
-                    {'timeout': 60, 'banner_timeout': 60, 'auth_timeout': 60},
+                    {"timeout": 30, "banner_timeout": 30, "auth_timeout": 30},
+                    {"timeout": 60, "banner_timeout": 60, "auth_timeout": 60},
                 ]
 
                 for i, params in enumerate(connection_attempts):
                     try:
                         logging.info(
-                            "Connection attempt %d with timeout %ds...",
-                            i+1, params['timeout']
+                            "Connection attempt %d with timeout %ds...", i + 1, params["timeout"]
                         )
                         self.ssh_client.connect(
                             hostname=self.host,
                             username=self.username,
                             password=password,
                             port=self.port,
-                            timeout=params['timeout'],
-                            banner_timeout=params['banner_timeout'],
-                            auth_timeout=params['auth_timeout'],
+                            timeout=params["timeout"],
+                            banner_timeout=params["banner_timeout"],
+                            auth_timeout=params["auth_timeout"],
                             allow_agent=False,
-                            look_for_keys=False
+                            look_for_keys=False,
                         )
 
                         self.scp_client = SCPClient(self.ssh_client.get_transport())
                         logging.info("Connected to ReMarkable tablet at %s", self.host)
 
                         # Connection successful! Ask if user wants to save password
-                        if not used_saved_password and KEYRING_AVAILABLE and not self.password_saved:
-                            if click.confirm("\nWould you like to save this password securely for future use?", default=False):
+                        if (
+                            not used_saved_password
+                            and KEYRING_AVAILABLE
+                            and not self.password_saved
+                        ):
+                            if click.confirm(
+                                "\nWould you like to save this password securely for future use?",
+                                default=False,
+                            ):
                                 if self.save_password(password):
                                     print("Password saved successfully!")
                                 else:
@@ -191,11 +197,13 @@ class ReMarkableConnection:
                         return True
 
                     except paramiko.AuthenticationException as e:
-                        logging.warning("Authentication failed on attempt %d: %s", i+1, e)
+                        logging.warning("Authentication failed on attempt %d: %s", i + 1, e)
                         # Authentication failed - might be wrong password
                         if used_saved_password:
                             print("\nSaved password appears to be incorrect.")
-                            if click.confirm("Would you like to enter a new password?", default=True):
+                            if click.confirm(
+                                "Would you like to enter a new password?", default=True
+                            ):
                                 # Delete the old saved password
                                 self.delete_saved_password()
                                 self.password = None
@@ -215,7 +223,7 @@ class ReMarkableConnection:
                             password_attempt += 1
                             break
                     except (paramiko.SSHException, OSError) as e:
-                        logging.warning("Connection attempt %d failed: %s", i+1, e)
+                        logging.warning("Connection attempt %d failed: %s", i + 1, e)
                         if self.ssh_client:
                             try:
                                 self.ssh_client.close()
@@ -289,15 +297,11 @@ class ReMarkableConnection:
             return []
 
         files = []
-        for line in stdout.strip().split('\n'):
+        for line in stdout.strip().split("\n"):
             if not line:
                 continue
-            parts = line.split(' ', 2)
+            parts = line.split(" ", 2)
             if len(parts) == 3:
-                files.append({
-                    'path': parts[2],
-                    'mtime': int(parts[0]),
-                    'size': int(parts[1])
-                })
+                files.append({"path": parts[2], "mtime": int(parts[0]), "size": int(parts[1])})
 
         return files
