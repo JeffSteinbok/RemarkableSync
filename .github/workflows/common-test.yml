@@ -34,7 +34,7 @@ jobs:
           pytest tests/ -v --cov=src --cov-report=xml --cov-report=term
 
       - name: Upload coverage to Codecov
-        if: inputs.os == 'ubuntu-latest' && inputs.python-version == '3.11'
+        if: inputs.os == 'ubuntu-latest' && inputs.python-version == '3.13'
         uses: codecov/codecov-action@v3
         with:
           files: ./coverage.xml

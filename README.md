@@ -32,7 +32,7 @@ A comprehensive Python toolkit for backing up and converting reMarkable tablet n
    - Get your SSH password from Settings → Help → Copyright and licenses
 
 2. **Python Requirements**:
-   - Python 3.7 or higher
+   - Python 3.11 or higher (required)
    - Required packages (install with `pip install -r requirements.txt`)
 
 3. **External Tools** (for v6 PDF conversion):

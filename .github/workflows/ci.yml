@@ -19,7 +19,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.13'
 
       - name: Install dependencies
         run: |
@@ -44,35 +44,17 @@ jobs:
           mypy src/
         continue-on-error: true  # Don't fail CI on type errors initially
 
-  test-ubuntu-39:
-    uses: ./.github/workflows/common-test.yml
-    with:
-      python-version: '3.9'
-      os: ubuntu-latest
-
-  test-ubuntu-310:
-    uses: ./.github/workflows/common-test.yml
-    with:
-      python-version: '3.10'
-      os: ubuntu-latest
-
   test-ubuntu-311:
     uses: ./.github/workflows/common-test.yml
     with:
       python-version: '3.11'
       os: ubuntu-latest
 
-  test-macos-39:
+  test-ubuntu-313:
     uses: ./.github/workflows/common-test.yml
     with:
-      python-version: '3.9'
-      os: macos-latest
-
-  test-macos-310:
-    uses: ./.github/workflows/common-test.yml
-    with:
-      python-version: '3.10'
-      os: macos-latest
+      python-version: '3.13'
+      os: ubuntu-latest
 
   test-macos-311:
     uses: ./.github/workflows/common-test.yml
@@ -80,20 +62,20 @@ jobs:
       python-version: '3.11'
       os: macos-latest
 
-  test-windows-39:
+  test-macos-313:
     uses: ./.github/workflows/common-test.yml
     with:
-      python-version: '3.9'
-      os: windows-latest
-
-  test-windows-310:
-    uses: ./.github/workflows/common-test.yml
-    with:
-      python-version: '3.10'
-      os: windows-latest
+      python-version: '3.13'
+      os: macos-latest
 
   test-windows-311:
     uses: ./.github/workflows/common-test.yml
     with:
       python-version: '3.11'
+      os: windows-latest
+
+  test-windows-313:
+    uses: ./.github/workflows/common-test.yml
+    with:
+      python-version: '3.13'
       os: windows-latest

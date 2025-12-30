@@ -21,15 +21,27 @@ jobs:
       python-version: '3.11'
       os: macos-latest
 
+  test-macos-313:
+    uses: ./.github/workflows/common-test.yml
+    with:
+      python-version: '3.13'
+      os: macos-latest
+
   test-windows-311:
     uses: ./.github/workflows/common-test.yml
     with:
       python-version: '3.11'
       os: windows-latest
 
+  test-windows-313:
+    uses: ./.github/workflows/common-test.yml
+    with:
+      python-version: '3.13'
+      os: windows-latest
+
   bump-version:
     runs-on: ubuntu-latest
-    needs: [test-macos-311, test-windows-311]
+    needs: [test-macos-311, test-macos-313, test-windows-311, test-windows-313]
     permissions:
       contents: write
 
@@ -43,7 +55,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.13'
 
       - name: Get current version
         id: get_version

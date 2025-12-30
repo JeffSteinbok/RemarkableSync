@@ -9,6 +9,15 @@ import sys
 from pathlib import Path
 from typing import Optional
 
+# Check Python version before importing anything else
+if sys.version_info < (3, 11):
+    print("Error: RemarkableSync requires Python 3.11 or higher.")
+    print(f"You are using Python {sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}")
+    print("\nPlease upgrade your Python installation:")
+    print("  - Download from: https://www.python.org/downloads/")
+    print("  - Or use a package manager (brew, apt, etc.)")
+    sys.exit(1)
+
 import click
 
 from src.__version__ import __version__, __repository__
