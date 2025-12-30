@@ -91,6 +91,9 @@ jobs:
             cp -r dist/RemarkableSync RemarkableSync-macOS/
           fi
           cp README.md RemarkableSync-macOS/
+          # Copy the launch script and make it executable
+          cp release/RemarkableSync.sh RemarkableSync-macOS/
+          chmod +x RemarkableSync-macOS/RemarkableSync.sh
           # Create ZIP using subshell to avoid changing working directory
           (cd RemarkableSync-macOS && zip -r ../RemarkableSync-macOS.zip .)
 

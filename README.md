@@ -1,13 +1,15 @@
 # RemarkableSync
 [![GitHub](https://img.shields.io/badge/GitHub-RemarkableSync-blue?logo=github)](https://github.com/JeffSteinbok/RemarkableSync)
-[![PyPI version](https://img.shields.io/pypi/v/remarkablesync.svg)](https://pypi.org/project/remarkablesync/)
+[![GitHub release](https://img.shields.io/github/v/release/JeffSteinbok/RemarkableSync)](https://github.com/JeffSteinbok/RemarkableSync/releases)
 
 [![CI](https://github.com/JeffSteinbok/RemarkableSync/actions/workflows/ci.yml/badge.svg)](https://github.com/JeffSteinbok/RemarkableSync/actions/workflows/ci.yml)
 [![Build Executables](https://github.com/JeffSteinbok/RemarkableSync/actions/workflows/build-executables.yml/badge.svg)](https://github.com/JeffSteinbok/RemarkableSync/actions/workflows/build-executables.yml)
 [![Release](https://github.com/JeffSteinbok/RemarkableSync/actions/workflows/release.yml/badge.svg)](https://github.com/JeffSteinbok/RemarkableSync/actions/workflows/release.yml)
 
 [![Publish to PyPI](https://github.com/JeffSteinbok/RemarkableSync/actions/workflows/publish-pypi.yml/badge.svg)](https://github.com/JeffSteinbok/RemarkableSync/actions/workflows/publish-pypi.yml)
+[![PyPI version](https://img.shields.io/pypi/v/remarkablesync.svg)](https://pypi.org/project/remarkablesync/)
 [![Homebrew](https://github.com/JeffSteinbok/RemarkableSync/actions/workflows/update-homebrew.yml/badge.svg)](https://github.com/JeffSteinbok/RemarkableSync/actions/workflows/update-homebrew.yml)
+
 
 A comprehensive Python toolkit for backing up and converting reMarkable tablet notebooks to PDF with template support and proper folder hierarchy preservation.
 
@@ -43,10 +45,7 @@ A comprehensive Python toolkit for backing up and converting reMarkable tablet n
 2. **Python Requirements**:
    - Python 3.11 or higher (required)
    - Required packages (install with `pip install -r requirements.txt`)
-
-3. **External Tools** (for v6 PDF conversion):
-   - `rmc` (reMarkable file converter) - Install from https://github.com/ricklupton/rmc
-   - Note: rmc is a Rust tool, not a Python package. Install via cargo or download binaries.
+   - All dependencies including `rmc` are installed automatically
 
 ## Installation
 
@@ -63,8 +62,7 @@ brew install remarkablesync
 ```
 
 This will automatically:
-- Install Python 3.13 and all dependencies
-- Install the `rmc` tool for v6 format conversion
+- Install Python 3.13 and all dependencies (including `rmc`)
 - Set up everything needed for PDF conversion
 
 **Updating to latest version:**
@@ -85,21 +83,6 @@ brew untap jeffsteinbok/remarkablesync
 ```bash
 # Install using pip (recommended: use a virtual environment)
 pip install remarkablesync
-
-# Then install rmc separately
-pip install rmc
-```
-
-**Using a virtual environment** (recommended):
-```bash
-# Create virtual environment
-python -m venv venv
-
-# Activate it
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-
-# Install RemarkableSync
-pip install remarkablesync
 ```
 
 **Updating to latest version:**
@@ -109,17 +92,19 @@ pip install --upgrade remarkablesync
 
 ### Option 3: Pre-built Executables (Windows/macOS)
 
-**For users without Python** or who prefer standalone executables:
+**For users without Python** or who prefer standalone executables, download from the [Releases page](https://github.com/JeffSteinbok/RemarkableSync/releases).
 
-1. Download the latest release from the [Releases page](https://github.com/JeffSteinbok/RemarkableSync/releases)
-2. Extract the archive:
-   - **Windows**: Extract `RemarkableSync-Windows.zip`
-   - **macOS**: Extract `RemarkableSync-macOS.zip`
-3. Run the executable:
-   - **Windows**: `RemarkableSync.exe`
-   - **macOS**: `./RemarkableSync/RemarkableSync`
+> [!IMPORTANT]
+> **macOS Users:** Use the included `RemarkableSync.sh` script to launch the application. This automatically handles macOS Gatekeeper security:
+> ```bash
+> ./RemarkableSync.sh
+> ```
+> The script removes the quarantine flag and runs the executable. You can pass any command-line arguments:
+> ```bash
+> ./RemarkableSync.sh backup -v
+> ./RemarkableSync.sh convert --sample 5
+> ```
 
-For detailed instructions on building executables yourself, see [BUILD_EXECUTABLES.md](BUILD_EXECUTABLES.md).
 
 ### Option 4: From Source (For Developers)
 
@@ -145,9 +130,6 @@ The simplest way to get started:
    # If installed via Homebrew (macOS)
    RemarkableSync
 
-   # If using pre-built executable
-   ./RemarkableSync
-
    # If using Python
    python3 RemarkableSync.py
    ```
@@ -170,9 +152,6 @@ The most common workflow - backs up your device and converts only updated notebo
 ```bash
 # If installed via Homebrew
 RemarkableSync
-
-# If using pre-built executable
-./RemarkableSync
 
 # If using Python
 python3 RemarkableSync.py
@@ -296,12 +275,12 @@ RemarkableSync includes a hybrid converter that supports both v5 and v6 .rm file
 - **Template Rendering**: Custom renderer applies original device templates with accurate scaling (226 DPI → 72 DPI PDF points)
 - **Page Merging**: Uses PyPDF2 to composite template backgrounds with notebook content
 
-### External Tool: rmc
+### rmc Python Package
 
-For v6 notebook conversion, you'll need the `rmc` tool:
+For v6 notebook conversion, RemarkableSync uses the `rmc` Python package:
 - **Repository**: https://github.com/ricklupton/rmc
-- **Installation**: Via Rust cargo or download pre-built binaries
-- **Note**: This is NOT a Python package - install separately
+- **Installation**: Automatically installed as a dependency with RemarkableSync
+- **Note**: This is included in `requirements.txt` and installed via pip
 
 ## Incremental Sync Details
 
