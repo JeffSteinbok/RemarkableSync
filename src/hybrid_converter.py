@@ -499,11 +499,8 @@ def convert_notebook(
 
     try:
         # Resolve ordered pages using .content file if present (v5 ordering)
-        content_path = (
-            notebook.get("metadata_file").with_suffix(".content")
-            if notebook.get("metadata_file")
-            else None
-        )
+        metadata_file = notebook.get("metadata_file")
+        content_path = metadata_file.with_suffix(".content") if metadata_file else None
 
         # Extract page templates from content file
         page_templates = {}
@@ -538,7 +535,7 @@ def convert_notebook(
             temp_pdf_content = temp_dir / f"v5_page_{i+1:03d}_content.pdf"
             if convert_v5_file_with_rmrl(rm_file, temp_pdf_content):
                 # Apply template if available
-                if template_renderer:
+                if template_renderer and template_temp_dir:
                     page_id = rm_file.stem
                     template_name = page_templates.get(page_id, "Blank")
 
@@ -572,7 +569,7 @@ def convert_notebook(
             temp_pdf_content = temp_dir / f"v6_page_{i+1:03d}_content.pdf"
             if convert_v6_file_with_rmc(rm_file, temp_pdf_content):
                 # Apply template if available
-                if template_renderer:
+                if template_renderer and template_temp_dir:
                     page_id = rm_file.stem
                     template_name = page_templates.get(page_id, "Blank")
 

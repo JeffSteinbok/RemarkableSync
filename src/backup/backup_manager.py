@@ -8,8 +8,6 @@ and optional PDF conversion to provide a complete backup solution.
 import json
 import logging
 import os
-import subprocess
-import sys
 from pathlib import Path
 from typing import Dict, List, Optional, Set, Tuple
 
@@ -342,8 +340,8 @@ class ReMarkableBackup:  # pylint: disable=too-many-instance-attributes
 
     def run_pdf_conversion(
         self, updated_notebook_uuids: Set[str], force_convert_all: bool = False
-    ) -> bool:  # pylint: disable=too-many-return-statements
-        """Run PDF conversion using hybrid_converter.py.
+    ) -> bool:
+        """Run PDF conversion using the converter module.
 
         Args:
             updated_notebook_uuids: Set of notebook UUIDs that were updated during sync
@@ -352,26 +350,15 @@ class ReMarkableBackup:  # pylint: disable=too-many-instance-attributes
         Returns:
             bool: True if conversion successful, False otherwise
         """
+        from ..converter import run_conversion
+
         logging.info("Starting PDF conversion...")
 
-        # Path to hybrid_converter.py (assume it's in the same directory)
-        script_dir = Path(__file__).parent.parent  # Go up one level from backup/ to main directory
-        converter_script = script_dir / "hybrid_converter.py"
-
-        if not converter_script.exists():
-            logging.error("hybrid_converter.py not found at %s", converter_script)
-            return False
-
-        # Build command line arguments for hybrid converter
-        cmd_args = [
-            sys.executable,  # Use the same Python interpreter
-            str(converter_script),
-            "-d",
-            str(self.backup_dir),
-            "--verbose",
-        ]
+        # Set output directory
+        output_dir = self.backup_dir / "PDF"
 
         # Determine conversion strategy
+        updated_only_file = None
         if force_convert_all:
             logging.info("Force conversion enabled - converting all notebooks to PDF")
         elif updated_notebook_uuids:
@@ -382,7 +369,7 @@ class ReMarkableBackup:  # pylint: disable=too-many-instance-attributes
                     for uuid in sorted(updated_notebook_uuids):
                         f.write(f"{uuid}\n")
 
-                cmd_args.extend(["--updated-only", str(updated_list_file)])
+                updated_only_file = updated_list_file
                 logging.info("Converting %d updated notebooks to PDF", len(updated_notebook_uuids))
             except OSError as e:
                 logging.error("Failed to create updated notebooks list: %s", e)
@@ -391,38 +378,31 @@ class ReMarkableBackup:  # pylint: disable=too-many-instance-attributes
             logging.info("No notebooks were updated - skipping PDF conversion")
             return True
 
-        # Execute hybrid converter
+        # Run conversion
         try:
-            logging.info("Executing: %s", " ".join(cmd_args))
-            result = subprocess.run(
-                cmd_args,
-                cwd=script_dir,
-                capture_output=True,
-                text=True,
-                timeout=3600,  # 1 hour timeout
-                check=False,
+            success = run_conversion(
+                backup_dir=self.backup_dir,
+                output_dir=output_dir,
+                verbose=True,
+                sample=None,
+                notebook_filter=None,
+                updated_only=updated_only_file,
             )
 
-            if result.returncode == 0:
+            # Clean up temporary file if created
+            if updated_only_file and updated_only_file.exists():
+                try:
+                    updated_only_file.unlink()
+                except OSError:
+                    pass  # Ignore cleanup errors
+
+            if success:
                 logging.info("PDF conversion completed successfully")
+            else:
+                logging.error("PDF conversion failed")
 
-                # Clean up temporary file if created
-                updated_list_file = self.backup_dir / "updated_notebooks.txt"
-                if updated_list_file.exists():
-                    try:
-                        updated_list_file.unlink()
-                    except OSError:
-                        pass  # Ignore cleanup errors
+            return success
 
-                return True
-
-            logging.error("PDF conversion failed with exit code %d", result.returncode)
-            logging.error("Error output: %s", result.stderr)
-            return False
-
-        except subprocess.TimeoutExpired:
-            logging.error("PDF conversion timed out after 1 hour")
-            return False
-        except (OSError, subprocess.SubprocessError) as e:
-            logging.error("Failed to execute PDF converter: %s", e)
+        except Exception as e:  # pylint: disable=broad-except
+            logging.error("Failed to execute PDF conversion: %s", e)
             return False
