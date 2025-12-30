@@ -14,6 +14,46 @@ on:
         default: 'patch'
 
 jobs:
+  # Run linting before creating release
+  lint:
+    name: Lint
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install system dependencies
+        run: |
+          choco install -y pkgconfiglite
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+
+      - name: Run ruff linter
+        run: |
+          ruff check src/ tests/
+
+      - name: Run black formatter check
+        run: |
+          black --check src/ tests/
+
+      - name: Run isort import sorting check
+        run: |
+          isort --check-only src/ tests/
+
+      - name: Run mypy type checking
+        run: |
+          mypy src/
+        continue-on-error: true
+
   # Run tests before creating release
   test-macos-311:
     uses: ./.github/workflows/common-test.yml
@@ -41,7 +81,9 @@ jobs:
 
   bump-version:
     runs-on: ubuntu-latest
-    needs: [test-macos-311, test-macos-313, test-windows-311, test-windows-313]
+    needs: [lint, test-macos-311, test-macos-313, test-windows-311, test-windows-313]
+    outputs:
+      new_version: ${{ steps.calc_version.outputs.new_version }}
     permissions:
       contents: write
 
@@ -69,7 +111,7 @@ jobs:
         run: |
           CURRENT="${{ steps.get_version.outputs.current_version }}"
           IFS='.' read -r major minor patch <<< "$CURRENT"
-          
+
           case "${{ github.event.inputs.version_bump }}" in
             major)
               major=$((major + 1))
@@ -84,7 +126,7 @@ jobs:
               patch=$((patch + 1))
               ;;
           esac
-          
+
           NEW_VERSION="${major}.${minor}.${patch}"
           echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
           echo "New version: $NEW_VERSION"
@@ -110,13 +152,118 @@ jobs:
           git tag -a "v${{ steps.calc_version.outputs.new_version }}" -m "Release v${{ steps.calc_version.outputs.new_version }}"
           git push origin "v${{ steps.calc_version.outputs.new_version }}"
 
+  # Build executables after version bump
+  build-windows:
+    needs: bump-version
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: v${{ needs.bump-version.outputs.new_version }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install system dependencies
+        run: |
+          choco install -y pkgconfiglite
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyinstaller
+          pip install -r requirements.txt
+
+      - name: Build Windows executable
+        run: |
+          pyinstaller --clean RemarkableSync.spec
+
+      - name: Create Windows distribution package
+        run: |
+          mkdir RemarkableSync-Windows
+          copy dist\RemarkableSync.exe RemarkableSync-Windows\
+          copy README.md RemarkableSync-Windows\
+          powershell Compress-Archive -Path RemarkableSync-Windows -DestinationPath RemarkableSync-Windows.zip
+
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: RemarkableSync-Windows
+          path: RemarkableSync-Windows.zip
+
+  build-macos:
+    needs: bump-version
+    runs-on: macos-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: v${{ needs.bump-version.outputs.new_version }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install system dependencies
+        run: |
+          brew install cairo pkg-config
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyinstaller
+          pip install -r requirements.txt
+
+      - name: Build macOS executable
+        run: |
+          pyinstaller --clean RemarkableSync.spec
+
+      - name: Create macOS distribution package
+        run: |
+          mkdir -p RemarkableSync-macOS
+          if [ -d "dist/RemarkableSync.app" ]; then
+            cp -r dist/RemarkableSync.app RemarkableSync-macOS/
+          else
+            cp dist/RemarkableSync RemarkableSync-macOS/
+          fi
+          cp README.md RemarkableSync-macOS/
+          (cd RemarkableSync-macOS && zip -r ../RemarkableSync-macOS.zip .)
+
+      - name: Upload macOS artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: RemarkableSync-macOS
+          path: RemarkableSync-macOS.zip
+
+  # Create release with executables attached
+  create-release:
+    needs: [bump-version, build-windows, build-macos]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download Windows artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: RemarkableSync-Windows
+
+      - name: Download macOS artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: RemarkableSync-macOS
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: v${{ steps.calc_version.outputs.new_version }}
-          name: Release v${{ steps.calc_version.outputs.new_version }}
+          tag_name: v${{ needs.bump-version.outputs.new_version }}
+          name: Release v${{ needs.bump-version.outputs.new_version }}
           body: |
-            ## Release v${{ steps.calc_version.outputs.new_version }}
+            ## Release v${{ needs.bump-version.outputs.new_version }}
 
             ### What's New
             - Automatic release created via GitHub Actions
@@ -134,6 +281,9 @@ jobs:
             - macOS 10.13+ (Intel and Apple Silicon)
 
             > **Note**: This tool has been tested exclusively on reMarkable 2. Compatibility with reMarkable 1 is not guaranteed.
+          files: |
+            RemarkableSync-Windows.zip
+            RemarkableSync-macOS.zip
           draft: false
           prerelease: false
         env:
