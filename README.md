@@ -1,6 +1,6 @@
 # RemarkableSync
 
-A comprehensive Python toolkit for backing up and converting reMarkable tablet notebooks to PDF with proper folder hierarchy preservation.
+A comprehensive Python toolkit for backing up and converting reMarkable tablet notebooks to PDF with template support and proper folder hierarchy preservation.
 
 [![GitHub](https://img.shields.io/badge/GitHub-RemarkableSync-blue?logo=github)](https://github.com/JeffSteinbok/RemarkableSync)
 
@@ -10,13 +10,16 @@ A comprehensive Python toolkit for backing up and converting reMarkable tablet n
 - **USB Connection**: Connects to reMarkable tablet over USB (10.11.99.1)
 - **Incremental Sync**: Only downloads files that have changed since last backup
 - **Complete Backup**: Backs up all notebooks, documents, and metadata
+- **Template Support**: Automatically backs up template files from the device
 - **File Integrity**: MD5 hash verification for synced files
 
 ### 📄 PDF Conversion
 - **Hybrid Converter**: Supports both v5 and v6 .rm file formats
+- **Template Rendering**: Applies original notebook templates (grids, lines, etc.) to PDFs
 - **SVG Pipeline**: Uses rmc → SVG → PDF conversion for high quality output
 - **Folder Hierarchy**: Recreates original device folder structure in output
 - **Single PDF per Notebook**: Merges all pages into one PDF file per notebook
+- **Smart Conversion**: Only converts notebooks updated in the last backup
 - **Progress Tracking**: Visual progress bars and detailed logging
 
 ## Prerequisites
@@ -30,21 +33,19 @@ A comprehensive Python toolkit for backing up and converting reMarkable tablet n
    - Python 3.7 or higher
    - Required packages (install with `pip install -r requirements.txt`)
 
-3. **External Tools** (for PDF conversion):
-   - `rmc` (reMarkable file converter) - install via `pip install rmc`
-   - `rmrl` (optional, for v5 file support) - install via `pip install rmrl`
+3. **External Tools** (for v6 PDF conversion):
+   - `rmc` (reMarkable file converter) - Install from https://github.com/ricklupton/rmc
+   - Note: rmc is a Rust tool, not a Python package. Install via cargo or download binaries.
 
 ## Installation
 
 ### Option 1: Pre-built Executables (For Non-Technical Users)
 
-**macOS and Windows users** can download ready-to-use executables that don't require Python installation:
+**macOS, Windows, and Linux users** can download ready-to-use executables that don't require Python installation:
 
 1. Download the latest release from the [Releases page](https://github.com/JeffSteinbok/RemarkableSync/releases)
-2. Extract the ZIP file
-3. Run the executables:
-   - **macOS**: `RemarkableBackup` and `RemarkableConverter`
-   - **Windows**: `RemarkableBackup.exe` and `RemarkableConverter.exe`
+2. Extract the archive
+3. Run `RemarkableSync` (or `RemarkableSync.exe` on Windows)
 
 For detailed instructions on building executables yourself, see [BUILD_EXECUTABLES.md](BUILD_EXECUTABLES.md).
 
@@ -63,66 +64,99 @@ For detailed instructions on building executables yourself, see [BUILD_EXECUTABL
 
 ## Usage
 
-### Quick Start (Pre-built Executables)
+### Unified Command Line Interface
 
-If you're using the pre-built executables:
+RemarkableSync provides a single entry point with three main commands:
 
-**1. Backup Your Device:**
+#### Default Command: Sync (Backup + Convert)
+
+The most common workflow - backs up your device and converts only updated notebooks:
+
 ```bash
-# macOS
-./RemarkableBackup -d remarkable_backup -v
+# Using pre-built executable
+./RemarkableSync
 
-# Windows
-RemarkableBackup.exe -d remarkable_backup -v
+# Using Python
+python RemarkableSync.py
 ```
 
-**2. Convert to PDFs:**
-```bash
-# macOS
-./RemarkableConverter -d remarkable_backup -o output_pdfs -v
+This will:
+1. Connect to your ReMarkable tablet via USB
+2. Backup all changed files (including templates)
+3. Convert only notebooks that were updated in this backup
 
-# Windows
-RemarkableConverter.exe -d remarkable_backup -o output_pdfs -v
+#### Individual Commands
+
+**Backup only** (no conversion):
+```bash
+python RemarkableSync.py backup
 ```
 
-### Python Command Line Usage
-
-### 1. Backup Your Device
+**Convert only** (from existing backup):
 ```bash
-python remarkable_backup.py
+python RemarkableSync.py convert
 ```
 
-### 2. Convert to PDFs
+**Sync with options**:
 ```bash
-# Basic conversion
-python hybrid_converter.py -d remarkable_backup -o output_pdfs
+# Force full backup and conversion (ignore sync status)
+python RemarkableSync.py sync --force-backup --force-convert
 
-# Convert with folder structure preservation
-python hybrid_converter.py -d remarkable_backup -o output_pdfs --sample 10 --verbose
+# Skip template backup
+python RemarkableSync.py sync --skip-templates
 
-# Full conversion of all notebooks
-python hybrid_converter.py -d remarkable_backup -o output_pdfs --verbose
+# Verbose output
+python RemarkableSync.py sync -v
+```
+
+#### Testing and Selective Conversion
+
+**Convert a single notebook** (by name or UUID):
+```bash
+python RemarkableSync.py convert --notebook "My Notebook"
+```
+
+**Convert first N notebooks** (for testing):
+```bash
+python RemarkableSync.py convert --sample 5
+```
+
+**Force convert all notebooks** (ignore sync status):
+```bash
+python RemarkableSync.py convert --force-all
 ```
 
 ### Command Line Options
 
-**Backup (`remarkable_backup.py`)**:
-- `--backup-dir`: Custom backup directory
-- `--verbose`: Detailed logging
+**Common Options** (all commands):
+- `-d, --backup-dir`: Directory for backups (default: `./remarkable_backup`)
+- `-v, --verbose`: Enable debug logging
+- `--version`: Show version and repository information
 
-**Converter (`hybrid_converter.py`)**:
-- `-d, --data-dir`: Input backup directory (required)
-- `-o, --output-dir`: Output directory for PDFs (required)  
-- `-s, --sample`: Convert only N notebooks for testing
-- `-v, --verbose`: Enable verbose logging
+**Backup/Sync Options**:
+- `-p, --password`: ReMarkable SSH password (will prompt if not provided)
+- `--skip-templates`: Don't backup template files
+- `-f, --force` / `--force-backup`: Backup all files (ignore sync status)
+
+**Convert Options**:
+- `-o, --output-dir`: Output directory for PDFs (default: `backup_dir/pdfs_final`)
+- `-f, --force-all` / `--force-convert`: Convert all notebooks (ignore sync status)
+- `-s, --sample N`: Convert only first N notebooks
+- `-n, --notebook NAME`: Convert only specific notebook (by UUID or name)
 
 ## How It Works
 
 1. **Connection**: Establishes SSH connection to ReMarkable tablet at 10.11.99.1
-2. **File Discovery**: Scans `/home/root/.local/share/remarkable/xochitl/` for all files
-3. **Incremental Sync**: Compares file metadata (size, modification time, hash) to determine what needs updating
-4. **Download**: Uses SCP to efficiently transfer only changed files
-5. **PDF Processing**: Identifies notebooks and prepares metadata for PDF conversion
+2. **File Discovery**: Scans `/home/root/.local/share/remarkable/xochitl/` for notebook files
+3. **Template Backup**: Downloads template files from `/usr/share/remarkable/templates/`
+4. **Incremental Sync**: Compares file metadata (size, modification time, hash) to determine what needs updating
+5. **Download**: Uses SCP to efficiently transfer only changed files
+6. **PDF Conversion**:
+   - Converts .rm files to SVG using rmc (for v6 format)
+   - Renders template backgrounds (grids, lines, dots)
+   - Merges templates with notebook content
+   - Combines all pages into single PDF per notebook
+7. **Smart Updates**: Tracks which notebooks changed and only converts those
 
 ## File Structure
 
@@ -130,24 +164,35 @@ After backup, your directory will contain:
 
 ```
 remarkable_backup/
-├── files/                 # Raw ReMarkable files
-│   ├── *.metadata        # Document metadata
-│   ├── *.content         # Document content info
-│   ├── [uuid]/           # Notebook directories
-│   │   ├── *.rm          # Drawing/writing data
-│   │   └── *.json        # Page metadata
-├── pdfs/                 # PDF outputs (metadata files)
-├── sync_metadata.json    # Sync state tracking
-└── logs/                 # Application logs
+├── [uuid].metadata           # Document metadata files
+├── [uuid].content            # Document content info
+├── [uuid]/                   # Notebook directories
+│   ├── [uuid]-metadata.json  # Page metadata
+│   └── *.rm                  # Drawing/writing data (v5 or v6 format)
+├── templates/                # Template files from device
+│   ├── *.png                 # Template preview images
+│   └── *.json                # Template metadata/definitions
+├── pdfs_final/               # Generated PDF outputs (default output)
+├── sync_metadata.json        # Sync state tracking
+├── updated_notebooks.txt     # List of notebooks updated in last backup
+└── .remarkable_backup.log    # Backup operation log
 ```
 
-## PDF Conversion
+## PDF Conversion Technical Details
 
-This tool creates the file structure needed for PDF conversion but doesn't include the conversion engines. For actual PDF conversion, you can integrate:
+RemarkableSync includes a hybrid converter that supports both v5 and v6 .rm file formats:
 
-- **rmc**: Modern tool for v6 .rm files - `https://github.com/ricklupton/rmc`
-- **rmscene**: Python library for reading .rm files - `https://github.com/ricklupton/rmscene`
-- **rm2pdf**: Legacy tool for older formats - `https://github.com/rorycl/rm2pdf`
+- **v6 Format** (newer tablets): Uses external `rmc` tool to convert .rm → SVG → PDF
+- **v5 Format** (older tablets): Direct Python-based conversion (legacy support)
+- **Template Rendering**: Custom renderer applies original device templates with accurate scaling (226 DPI → 72 DPI PDF points)
+- **Page Merging**: Uses PyPDF2 to composite template backgrounds with notebook content
+
+### External Tool: rmc
+
+For v6 notebook conversion, you'll need the `rmc` tool:
+- **Repository**: https://github.com/ricklupton/rmc
+- **Installation**: Via Rust cargo or download pre-built binaries
+- **Note**: This is NOT a Python package - install separately
 
 ## Incremental Sync Details
 

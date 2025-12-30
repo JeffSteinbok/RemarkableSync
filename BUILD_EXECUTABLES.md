@@ -4,11 +4,10 @@ This guide explains how to build self-contained executables for macOS and Window
 
 ## Overview
 
-The RemarkableSync project provides two main tools:
-1. **RemarkableBackup** - Backs up files from your reMarkable tablet via USB
-2. **RemarkableConverter** - Converts backed up notebooks to PDF format
+The RemarkableSync project provides a unified command-line tool:
+- **RemarkableSync** - Backs up files from your reMarkable tablet via USB and converts notebooks to PDF with template support
 
-Both tools can be packaged as standalone executables that don't require Python installation.
+The tool can be packaged as a standalone executable that doesn't require Python installation.
 
 ## Automated Builds (Recommended for Releases)
 
@@ -26,7 +25,7 @@ The project includes GitHub Actions workflows that automate the entire release p
 5. Click "Run workflow"
 
 **What happens automatically:**
-- Version in `setup.py` is updated and committed
+- Version in `src/__version__.py` is updated and committed
 - Git tag is created
 - GitHub Release is created
 - Executables are built for all platforms
@@ -36,7 +35,7 @@ The project includes GitHub Actions workflows that automate the entire release p
 
 If you prefer to manage versions manually:
 
-1. Update version in `setup.py`
+1. Update version in `src/__version__.py`
 2. Create a new tag (e.g., `v1.0.0`)
 3. Push the tag: `git push origin v1.0.0`
 4. Create a GitHub Release with that tag
@@ -80,14 +79,19 @@ If you prefer to build locally or need custom modifications, follow these instru
    cd RemarkableSync
    ```
 
-2. Run the build script:
+2. Install dependencies:
    ```bash
-   ./build_macos.sh
+   pip install -r requirements.txt
+   pip install pyinstaller
    ```
 
-3. The executables will be created in the `dist/` directory:
-   - `dist/RemarkableBackup` or `dist/RemarkableBackup.app`
-   - `dist/RemarkableConverter` or `dist/RemarkableConverter.app`
+3. Build the executable:
+   ```bash
+   pyinstaller RemarkableSync.spec
+   ```
+
+4. The executable will be created in the `dist/` directory:
+   - `dist/RemarkableSync` or `dist/RemarkableSync.app`
 
 #### Windows Build
 
@@ -97,33 +101,48 @@ If you prefer to build locally or need custom modifications, follow these instru
    cd RemarkableSync
    ```
 
-2. Run the build script:
+2. Install dependencies:
    ```cmd
-   build_windows.bat
+   pip install -r requirements.txt
+   pip install pyinstaller
    ```
 
-3. The executables will be created in the `dist\` directory:
-   - `dist\RemarkableBackup.exe`
-   - `dist\RemarkableConverter.exe`
+3. Build the executable:
+   ```cmd
+   pyinstaller RemarkableSync.spec
+   ```
+
+4. The executable will be created in the `dist\` directory:
+   - `dist\RemarkableSync.exe`
 
 ## Testing the Executables
 
 ### macOS
 ```bash
-# Test the backup tool
-./dist/RemarkableBackup --help
+# Show version
+./dist/RemarkableSync --version
 
-# Test the converter
-./dist/RemarkableConverter --help
+# Show help
+./dist/RemarkableSync --help
+
+# Test individual commands
+./dist/RemarkableSync backup --help
+./dist/RemarkableSync convert --help
+./dist/RemarkableSync sync --help
 ```
 
 ### Windows
 ```cmd
-REM Test the backup tool
-dist\RemarkableBackup.exe --help
+REM Show version
+dist\RemarkableSync.exe --version
 
-REM Test the converter
-dist\RemarkableConverter.exe --help
+REM Show help
+dist\RemarkableSync.exe --help
+
+REM Test individual commands
+dist\RemarkableSync.exe backup --help
+dist\RemarkableSync.exe convert --help
+dist\RemarkableSync.exe sync --help
 ```
 
 ## Distributing to Users

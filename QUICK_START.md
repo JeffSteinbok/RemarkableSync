@@ -1,11 +1,10 @@
 # RemarkableSync - Quick Start Guide
 
-Welcome! This package contains easy-to-use tools for backing up your reMarkable tablet and converting notebooks to PDF.
+Welcome! This package contains an easy-to-use tool for backing up your reMarkable tablet and converting notebooks to PDF with template support.
 
 ## What's Included
 
-- **RemarkableBackup** (or RemarkableBackup.exe on Windows) - Backs up your tablet files
-- **RemarkableConverter** (or RemarkableConverter.exe on Windows) - Converts notebooks to PDF
+- **RemarkableSync** (or RemarkableSync.exe on Windows) - Unified tool for backup and conversion
 
 ## Before You Start
 
@@ -14,14 +13,16 @@ Welcome! This package contains easy-to-use tools for backing up your reMarkable 
    - Tap Settings → Help → Copyright and licenses
    - Look for "GPLv3 Compliance" section - your password is shown there
 
-## Step 1: Backup Your Tablet
+## Quick Start: Backup and Convert in One Step
 
-### On macOS:
-1. Open Terminal (Applications → Utilities → Terminal)
+The simplest way to use RemarkableSync is to run it with no arguments - this backs up your tablet and converts only updated notebooks:
+
+### On macOS/Linux:
+1. Open Terminal
 2. Navigate to where you extracted these files
 3. Run:
    ```bash
-   ./RemarkableBackup -d my_backup -v
+   ./RemarkableSync
    ```
 
 ### On Windows:
@@ -29,66 +30,94 @@ Welcome! This package contains easy-to-use tools for backing up your reMarkable 
 2. Navigate to where you extracted these files
 3. Run:
    ```cmd
-   RemarkableBackup.exe -d my_backup -v
+   RemarkableSync.exe
    ```
 
 ### What happens:
-- You'll be asked for your reMarkable SSH password (from step 2 above)
+- You'll be asked for your reMarkable SSH password (from step "Before You Start" above)
 - The tool connects to your tablet at 10.11.99.1
-- All files are backed up to the `my_backup` folder
-- Progress is shown in the terminal
-
-## Step 2: Convert to PDFs
-
-After backing up, convert your notebooks to PDF:
-
-### On macOS:
-```bash
-./RemarkableConverter -d my_backup -o pdfs -v
-```
-
-### On Windows:
-```cmd
-RemarkableConverter.exe -d my_backup -o pdfs -v
-```
-
-### What happens:
-- Reads notebooks from your backup
-- Converts each notebook to a single PDF file
-- PDFs are saved in the `pdfs` folder
+- All changed files are backed up (including templates) to `./remarkable_backup`
+- Only notebooks updated in this backup are converted to PDF
+- PDFs are saved in `./remarkable_backup/pdfs_final`
 - Folder structure from your tablet is preserved
+- Template backgrounds (grids, lines, etc.) are applied to PDFs
+
+## Alternative: Individual Commands
+
+You can also run backup and conversion separately:
+
+### Backup Only:
+```bash
+# macOS/Linux
+./RemarkableSync backup -d my_backup -v
+
+# Windows
+RemarkableSync.exe backup -d my_backup -v
+```
+
+### Convert Only (from existing backup):
+```bash
+# macOS/Linux
+./RemarkableSync convert -d my_backup -v
+
+# Windows
+RemarkableSync.exe convert -d my_backup -v
+```
 
 ## Common Options
 
-### Backup Options
-- `-d` - Where to save backup (default: `./remarkable_backup`)
-- `-v` - Verbose mode (shows detailed progress)
-- `-c` - Auto-convert to PDF after backup
+### All Commands
+- `-d, --backup-dir` - Where to save/read backup (default: `./remarkable_backup`)
+- `-v, --verbose` - Verbose mode (shows detailed progress)
+- `--version` - Show version information
 
-### Converter Options
-- `-d` - Where backup files are located
-- `-o` - Where to save PDF files
-- `-v` - Verbose mode (shows detailed progress)
-- `-s 10` - Convert only first 10 notebooks (for testing)
+### Backup/Sync Specific
+- `-p, --password` - SSH password (will prompt if not provided)
+- `--skip-templates` - Don't backup template files
+- `-f, --force` or `--force-backup` - Backup all files (ignore sync status)
+
+### Convert Specific
+- `-o, --output-dir` - Where to save PDFs (default: `backup_dir/pdfs_final`)
+- `-s, --sample N` - Convert only first N notebooks (for testing)
+- `-n, --notebook NAME` - Convert specific notebook by name or UUID
+- `-f, --force-all` or `--force-convert` - Convert all notebooks (ignore sync status)
 
 ## Examples
 
-### Full backup and auto-convert:
+### Force full backup and conversion (ignore what's changed):
 ```bash
-# macOS
-./RemarkableBackup -d my_backup -c -v
+# macOS/Linux
+./RemarkableSync sync --force-backup --force-convert -v
 
 # Windows
-RemarkableBackup.exe -d my_backup -c -v
+RemarkableSync.exe sync --force-backup --force-convert -v
 ```
 
 ### Convert just a few notebooks for testing:
 ```bash
-# macOS
-./RemarkableConverter -d my_backup -o test_pdfs -s 5 -v
+# macOS/Linux
+./RemarkableSync convert --sample 5 -v
 
 # Windows
-RemarkableConverter.exe -d my_backup -o test_pdfs -s 5 -v
+RemarkableSync.exe convert --sample 5 -v
+```
+
+### Convert a specific notebook:
+```bash
+# macOS/Linux
+./RemarkableSync convert --notebook "My Journal" -v
+
+# Windows
+RemarkableSync.exe convert --notebook "My Journal" -v
+```
+
+### Skip template backup (faster, but no template backgrounds in PDFs):
+```bash
+# macOS/Linux
+./RemarkableSync sync --skip-templates -v
+
+# Windows
+RemarkableSync.exe sync --skip-templates -v
 ```
 
 ## Troubleshooting
@@ -114,15 +143,21 @@ RemarkableConverter.exe -d my_backup -o test_pdfs -s 5 -v
 
 ### "No notebooks found"
 - Make sure you ran the backup first
-- Check that the backup directory contains a `files` folder
+- Check that the backup directory contains UUID folders and .metadata files
 - Verify files were actually backed up
+
+### "Template rendering issues"
+- Templates are automatically backed up by default
+- If PDFs lack backgrounds, run with `--force-backup` to refresh templates
+- Template files are stored in `backup_dir/templates/`
 
 ## Tips
 
-- **Incremental backups**: Run backup again to sync only changed files
-- **Test first**: Use `-s 5` to convert just 5 notebooks as a test
+- **Incremental sync**: Just run `./RemarkableSync` again - it only syncs changed files and converts updated notebooks
+- **Test first**: Use `--sample 5` to convert just 5 notebooks as a test
 - **Large tablets**: First backup may take several minutes
-- **Regular backups**: Run backup regularly to keep your data safe
+- **Regular backups**: Run regularly to keep your data safe
+- **Template backgrounds**: Templates (grids, lines, dots) are automatically applied to PDFs
 
 ## Need More Help?
 

@@ -1,3 +1,5 @@
 """ReMarkable Backup Tool - Main package."""
 
-__version__ = "1.0.0"
+from .__version__ import __version__, __repository__
+
+__all__ = ['__version__', '__repository__']
