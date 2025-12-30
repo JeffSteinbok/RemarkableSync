@@ -13,7 +13,7 @@ import paramiko
 from scp import SCPClient
 
 try:
-    import keyring # type: ignore
+    import keyring  # type: ignore
 
     KEYRING_AVAILABLE = True
 except ImportError:

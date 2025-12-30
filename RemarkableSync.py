@@ -20,9 +20,7 @@ if sys.version_info < (3, 11):
 
 import click
 
-from src.__version__ import __version__, __repository__
-from src.backup import ReMarkableBackup
-from src.converter import run_conversion
+from src.__version__ import __repository__, __version__
 
 
 def print_header():
