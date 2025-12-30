@@ -1,4 +1,5 @@
 # RemarkableSync
+[![PyPI version](https://badge.fury.io/py/remarkablesync.svg)](https://badge.fury.io/py/remarkablesync)
 [![GitHub](https://img.shields.io/badge/GitHub-RemarkableSync-blue?logo=github)](https://github.com/JeffSteinbok/RemarkableSync)
 [![CI](https://github.com/JeffSteinbok/RemarkableSync/actions/workflows/ci.yml/badge.svg)](https://github.com/JeffSteinbok/RemarkableSync/actions/workflows/ci.yml)
 [![Build Executables](https://github.com/JeffSteinbok/RemarkableSync/actions/workflows/build-executables.yml/badge.svg)](https://github.com/JeffSteinbok/RemarkableSync/actions/workflows/build-executables.yml)
@@ -73,21 +74,54 @@ brew uninstall remarkablesync
 brew untap jeffsteinbok/remarkablesync
 ```
 
-### Option 2: Pre-built Executables (Windows)
+### Option 2: pip (All Platforms)
 
-**Windows users** can download ready-to-use executables that don't require Python installation:
+**For users with Python 3.11+** installed:
+
+```bash
+# Install using pip (recommended: use a virtual environment)
+pip install remarkablesync
+
+# Then install rmc separately
+pip install rmc
+```
+
+**Using a virtual environment** (recommended):
+```bash
+# Create virtual environment
+python -m venv venv
+
+# Activate it
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+# Install RemarkableSync
+pip install remarkablesync
+```
+
+**Updating to latest version:**
+```bash
+pip install --upgrade remarkablesync
+```
+
+### Option 3: Pre-built Executables (Windows/macOS)
+
+**For users without Python** or who prefer standalone executables:
 
 1. Download the latest release from the [Releases page](https://github.com/JeffSteinbok/RemarkableSync/releases)
-2. Extract the archive
-3. Run `RemarkableSync.exe`
+2. Extract the archive:
+   - **Windows**: Extract `RemarkableSync-Windows.zip`
+   - **macOS**: Extract `RemarkableSync-macOS.zip`
+3. Run the executable:
+   - **Windows**: `RemarkableSync.exe`
+   - **macOS**: `./RemarkableSync/RemarkableSync`
 
 For detailed instructions on building executables yourself, see [BUILD_EXECUTABLES.md](BUILD_EXECUTABLES.md).
 
-### Option 3: Python Installation (For Developers)
+### Option 4: From Source (For Developers)
 
 1. Clone this repository:
    ```bash
-   git clone https://github.com/yourusername/RemarkableSync.git
+   git clone https://github.com/JeffSteinbok/RemarkableSync.git
    cd RemarkableSync
    ```
 
