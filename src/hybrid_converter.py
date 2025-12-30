@@ -1,25 +1,19 @@
-#!/usr/bin/env python3
 """
-Hybrid ReMarkable PDF Converter
+Hybrid ReMarkable PDF Converter - Internal Module
 
-A comprehensive PDF converter for ReMarkable notebooks that automatically
-detects file versions and uses the appropriate conversion tool for each:
+This is a helper module providing core conversion functionality.
+Do not run directly - use the main RemarkableSync entry point instead.
 
-- rmrl library for v5 format files (older format)
-- rmc library for v6 format files (current format)
-- Detection and reporting for v4/v3 files (limited support)
+Entry Point:
+    RemarkableSync.py convert [OPTIONS]
 
-Features:
+This module provides:
 - Automatic file version detection by reading .rm file headers
 - Batch conversion with progress tracking
 - Folder structure preservation matching ReMarkable organization
 - PDF merging to create single documents from multi-page notebooks
-- Selective conversion based on updated notebook lists
-- Robust error handling and logging
-
-Usage:
-    python hybrid_converter.py -d /path/to/backup
-    python hybrid_converter.py -d /path/to/backup --updated-only updated_list.txt
+- Support for v5 format files (rmrl) and v6 format files (rmc)
+- Detection and reporting for v4/v3 files (limited support)
 """
 
 import json
@@ -96,7 +90,7 @@ def find_notebooks(backup_dir: Path) -> List[Dict]:
         - pdf_files: Any existing PDF files in the notebook directory
     """
     notebooks: List[Dict] = []
-    files_dir = backup_dir / "files"
+    files_dir = backup_dir / "Notebooks"
 
     if not files_dir.exists():
         logging.error(f"Backup files directory not found: {files_dir}")

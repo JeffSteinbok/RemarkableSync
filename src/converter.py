@@ -1,7 +1,16 @@
 """
-Converter module - wrapper around hybrid_converter functionality.
+Converter Module - Internal Helper
 
-Provides a clean API for converting ReMarkable notebooks to PDF.
+This is a helper module providing the conversion API.
+Do not run directly - use RemarkableSync.py as the entry point.
+
+Entry Point:
+    RemarkableSync.py convert [OPTIONS]
+
+This module provides:
+- High-level conversion API with progress tracking
+- Integration with hybrid_converter and template renderer
+- Batch processing with error handling
 """
 
 import logging

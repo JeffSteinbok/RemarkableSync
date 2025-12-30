@@ -1,8 +1,18 @@
 """
-Main backup orchestrator for ReMarkable tablet.
+Backup Manager - Internal Helper Module
 
-Coordinates SSH connection, file synchronization, metadata management,
-and optional PDF conversion to provide a complete backup solution.
+This is a helper module providing backup orchestration functionality.
+Do not run directly - use RemarkableSync.py as the entry point.
+
+Entry Point:
+    RemarkableSync.py backup [OPTIONS]
+    RemarkableSync.py sync [OPTIONS]
+
+This module provides:
+- SSH connection management to ReMarkable tablet
+- File synchronization with incremental updates
+- Metadata management and tracking
+- Optional automatic PDF conversion after backup
 """
 
 import json
@@ -32,7 +42,7 @@ class ReMarkableBackup:  # pylint: disable=too-many-instance-attributes
     - Progress tracking and detailed logging
     """
 
-    def __init__(self, backup_dir: Path, password: str = None):
+    def __init__(self, backup_dir: Path, password: Optional[str] = None):
         """Initialize backup orchestrator.
 
         Args:
@@ -51,7 +61,7 @@ class ReMarkableBackup:  # pylint: disable=too-many-instance-attributes
         self.templates_dir.mkdir(parents=True, exist_ok=True)
 
         # Initialize components
-        self.connection = ReMarkableConnection(password=password)
+        self.connection = ReMarkableConnection(password = password)
         self.metadata = FileMetadata(self.metadata_file)
 
         # ReMarkable paths
@@ -103,6 +113,9 @@ class ReMarkableBackup:  # pylint: disable=too-many-instance-attributes
                         local_path.parent.mkdir(parents=True, exist_ok=True)
 
                         # Download file
+                        if self.connection.scp_client is None:
+                            logging.error("SCP client not initialized")
+                            return False, set()
                         self.connection.scp_client.get(remote_file["path"], str(local_path))
 
                         # Update metadata
@@ -207,6 +220,9 @@ class ReMarkableBackup:  # pylint: disable=too-many-instance-attributes
                         local_path.parent.mkdir(parents=True, exist_ok=True)
 
                         # Download file
+                        if self.connection.scp_client is None:
+                            logging.error("SCP client not initialized")
+                            return False
                         self.connection.scp_client.get(remote_file["path"], str(local_path))
 
                         # Update metadata

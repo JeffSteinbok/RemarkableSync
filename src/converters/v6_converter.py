@@ -1,8 +1,16 @@
 """
-ReMarkable v6 format converter using rmc library.
+V6 Converter - Internal Helper Module
 
-Handles conversion of ReMarkable v6 format .rm files to PDF using the rmc tool.
-This is the current format used by ReMarkable tablets.
+This is a helper module for converting v6 format ReMarkable files.
+Do not run directly - use RemarkableSync.py as the entry point.
+
+Entry Point:
+    RemarkableSync.py convert [OPTIONS]
+
+This module provides:
+- Conversion of v6 format .rm files (current ReMarkable format)
+- Integration with rmc command-line tool
+- SVG intermediate format processing
 """
 
 import subprocess
