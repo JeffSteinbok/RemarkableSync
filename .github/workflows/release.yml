@@ -185,7 +185,7 @@ jobs:
 
       - name: Build Windows executable
         run: |
-          pyinstaller --clean RemarkableSync.spec
+          pyinstaller --clean release/RemarkableSync.spec
 
       - name: Create Windows distribution package
         run: |
@@ -232,7 +232,7 @@ jobs:
 
       - name: Build macOS executable
         run: |
-          pyinstaller --clean RemarkableSync.spec
+          pyinstaller --clean release/RemarkableSync.spec
 
       - name: Create macOS distribution package
         run: |
