@@ -45,7 +45,6 @@ If you prefer to manage versions manually:
 6. Download the artifacts from the release page:
    - `RemarkableSync-Windows.zip`
    - `RemarkableSync-macOS.zip`
-   - `RemarkableSync-Linux.tar.gz`
 
 ### Manual Build Workflow Trigger
 

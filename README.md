@@ -43,7 +43,7 @@ A comprehensive Python toolkit for backing up and converting reMarkable tablet n
 
 ### Option 1: Pre-built Executables (For Non-Technical Users)
 
-**macOS, Windows, and Linux users** can download ready-to-use executables that don't require Python installation:
+**macOS and Windows users** can download ready-to-use executables that don't require Python installation:
 
 1. Download the latest release from the [Releases page](https://github.com/JeffSteinbok/RemarkableSync/releases)
 2. Extract the archive

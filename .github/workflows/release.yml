@@ -14,11 +14,25 @@ on:
         default: 'patch'
 
 jobs:
+  # Run tests before creating release
+  test-macos-311:
+    uses: ./.github/workflows/common-test.yml
+    with:
+      python-version: '3.11'
+      os: macos-latest
+
+  test-windows-311:
+    uses: ./.github/workflows/common-test.yml
+    with:
+      python-version: '3.11'
+      os: windows-latest
+
   bump-version:
     runs-on: ubuntu-latest
+    needs: [test-macos-311, test-windows-311]
     permissions:
       contents: write
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -91,23 +105,23 @@ jobs:
           name: Release v${{ steps.calc_version.outputs.new_version }}
           body: |
             ## Release v${{ steps.calc_version.outputs.new_version }}
-            
+
             ### What's New
             - Automatic release created via GitHub Actions
-            
+
             ### Installation
-            
+
             Download the appropriate package for your platform:
             - **Windows**: `RemarkableSync-Windows.zip`
             - **macOS**: `RemarkableSync-macOS.zip`
-            - **Linux**: `RemarkableSync-Linux.tar.gz`
-            
-            Extract and follow the instructions in `QUICK_START.md`.
-            
+
+            Extract and follow the instructions in `README.md`.
+
             ### Platform Support
             - Windows 10/11 (64-bit)
             - macOS 10.13+ (Intel and Apple Silicon)
-            - Linux (Ubuntu 20.04+)
+
+            > **Note**: This tool has been tested exclusively on reMarkable 2. Compatibility with reMarkable 1 is not guaranteed.
           draft: false
           prerelease: false
         env:
