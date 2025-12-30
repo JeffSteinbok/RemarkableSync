@@ -5,7 +5,7 @@
 [![Release](https://github.com/JeffSteinbok/RemarkableSync/actions/workflows/release.yml/badge.svg)](https://github.com/JeffSteinbok/RemarkableSync/actions/workflows/release.yml)
 
 [![Publish to PyPI](https://github.com/JeffSteinbok/RemarkableSync/actions/workflows/publish-pypi.yml/badge.svg)](https://github.com/JeffSteinbok/RemarkableSync/actions/workflows/publish-pypi.yml)
-[![PyPI version](https://badge.fury.io/py/remarkablesync.svg)](https://badge.fury.io/py/remarkablesync)
+[![PyPI version](https://img.shields.io/pypi/v/remarkablesync.svg)](https://pypi.org/project/remarkablesync/)
 [![Homebrew](https://github.com/JeffSteinbok/RemarkableSync/actions/workflows/update-homebrew.yml/badge.svg)](https://github.com/JeffSteinbok/RemarkableSync/actions/workflows/update-homebrew.yml)
 
 A comprehensive Python toolkit for backing up and converting reMarkable tablet notebooks to PDF with template support and proper folder hierarchy preservation.
