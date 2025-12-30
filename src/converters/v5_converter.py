@@ -1,8 +1,16 @@
 """
-ReMarkable v5 format converter using rmrl library.
+V5 Converter - Internal Helper Module
 
-Handles conversion of ReMarkable v5 format .rm files to PDF using the rmrl library.
-This is the legacy format used by older ReMarkable tablets and software versions.
+This is a helper module for converting v5 format ReMarkable files.
+Do not run directly - use RemarkableSync.py as the entry point.
+
+Entry Point:
+    RemarkableSync.py convert [OPTIONS]
+
+This module provides:
+- Conversion of v5 format .rm files (legacy ReMarkable format)
+- Integration with rmrl Python library
+- SVG intermediate format processing
 """
 
 import tempfile

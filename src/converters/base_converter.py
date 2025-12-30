@@ -1,7 +1,16 @@
 """
-Base converter class for ReMarkable file conversion.
+Base Converter - Internal Helper Module
 
-Provides common functionality and interface for all ReMarkable file converters.
+This is a helper module providing the base converter interface.
+Do not run directly - use RemarkableSync.py as the entry point.
+
+Entry Point:
+    RemarkableSync.py convert [OPTIONS]
+
+This module provides:
+- Abstract base class for all ReMarkable file converters
+- Common functionality for version detection and file operations
+- Shared utilities for SVG/PDF conversion
 """
 
 import logging
@@ -102,12 +111,12 @@ class BaseConverter(ABC):
                     drawing.height = REMARKABLE_HEIGHT
                     drawing.scale(scale, scale)
 
-            # Render drawing to PDF with explicit page size
+            # Render drawing to PDF
+            # autoSize=1 makes the PDF match the drawing dimensions
             renderPDF.drawToFile(
                 drawing,
                 str(pdf_file),
-                fmt="PDF",
-                configPIL={"pagesize": (REMARKABLE_WIDTH, REMARKABLE_HEIGHT)},
+                autoSize=1,
             )
 
             # Verify PDF was created and has reasonable size

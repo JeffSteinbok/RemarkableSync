@@ -1,8 +1,16 @@
 """
-Template rendering for ReMarkable notebooks.
+Template Renderer - Internal Helper Module
 
-Handles loading and rendering ReMarkable template files as PDF backgrounds
-to be composited with notebook content.
+This is a helper module for rendering ReMarkable templates.
+Do not run directly - use RemarkableSync.py as the entry point.
+
+Entry Point:
+    RemarkableSync.py convert [OPTIONS]
+
+This module provides:
+- Loading and parsing ReMarkable template metadata
+- Rendering templates as PDF backgrounds
+- Template compositing with notebook content
 """
 
 import json

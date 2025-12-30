@@ -1,8 +1,16 @@
 """
-ReMarkable v4 format converter using rmrl library.
+V4 Converter - Internal Helper Module
 
-Handles conversion of ReMarkable v4 format .rm files to PDF using the rmrl library.
-This is an older legacy format with limited support.
+This is a helper module for converting v4 format ReMarkable files.
+Do not run directly - use RemarkableSync.py as the entry point.
+
+Entry Point:
+    RemarkableSync.py convert [OPTIONS]
+
+This module provides:
+- Conversion of v4 format .rm files (older legacy ReMarkable format)
+- Integration with rmrl Python library (limited support)
+- SVG intermediate format processing
 """
 
 import tempfile
