@@ -310,7 +310,7 @@ def get_folder_hierarchy(notebook: Dict, backup_dir: Path) -> List[str]:
     """Get the folder hierarchy for a notebook by following parent UUIDs."""
     hierarchy = []
     current_uuid = notebook.get("parent")
-    files_dir = backup_dir / "files"
+    files_dir = backup_dir / "Notebooks"
 
     while current_uuid and current_uuid != "":
         try:
