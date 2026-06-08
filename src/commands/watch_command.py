@@ -6,6 +6,7 @@ exponential back-off on consecutive failures.
 
 import fcntl
 import logging
+import threading
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -56,7 +57,8 @@ class _WatchTray:
             if hasattr(self._icon, "run_detached"):
                 self._icon.run_detached()
             else:
-                self._icon.run()
+                thread = threading.Thread(target=self._icon.run, daemon=True)
+                thread.start()
             self.set_status("Idle")
         except Exception as exc:  # noqa: BLE001
             logging.info("System tray disabled (unable to initialize): %s", exc)
@@ -155,6 +157,7 @@ def run_watch_command(
                   code (0 = success, non-zero = failure).
         verbose: Enable debug logging.
         mode: Human-readable mode label shown in log messages.
+        use_systray: Enable a best-effort system tray status icon.
 
     Returns:
         Exit code; only returns when interrupted with Ctrl-C (returns 0).
