@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Optional
 
 from ..backup import ReMarkableBackup
+from ..backup.connection import USB_HOST
 from ..utils.logging import setup_logging
 
 
@@ -14,7 +15,7 @@ def run_backup_command(
     verbose: bool,
     skip_templates: bool,
     force: bool,
-    host: str = "10.11.99.1",
+    host: str = USB_HOST,
     use_wifi: bool = False,
     wifi_host: str = "",
 ) -> int:

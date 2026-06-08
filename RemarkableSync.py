@@ -21,6 +21,7 @@ if sys.version_info < (3, 11):
 import click
 
 from src.__version__ import __repository__, __version__
+from src.backup.connection import USB_HOST
 
 # ---------------------------------------------------------------------------
 # Shared connection options (reused across commands)
@@ -29,7 +30,7 @@ from src.__version__ import __repository__, __version__
 _connection_options = [
     click.option(
         '--host',
-        default='10.11.99.1',
+        default=USB_HOST,
         show_default=True,
         help='Tablet USB IP address or hostname.',
     ),
@@ -283,7 +284,7 @@ def obsidian_sync(
             ai_api_key=ai_api_key,
             use_ai_ocr=use_ai_ocr,
             tags=tags,
-            embed_images=not embed_images,
+            embed_images=embed_images,
             host=host,
             use_wifi=use_wifi,
             wifi_host=wifi_host,
