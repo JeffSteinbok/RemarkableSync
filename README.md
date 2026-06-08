@@ -262,6 +262,7 @@ RemarkableSync convert --force-all
 **Watch Options**:
 - `-i, --interval N`: Minutes between sync attempts (default: 30)
 - `-V, --vault-dir PATH`: Obsidian vault — enables obsidian-sync mode
+- `--systray/--no-systray`: Show/hide system tray status icon in watch mode (default: enabled)
 
 ## Wi-Fi Connection
 
@@ -385,6 +386,7 @@ RemarkableSync watch --interval 15 \
 
 The watch command uses a file lock (`<backup-dir>/.remarkable_watch.lock`) to prevent
 overlapping runs, and applies exponential back-off (up to 1 hour) after consecutive failures.
+When available, a system tray icon shows watch status (idle/running/success/failure).
 
 ## AI Provider Setup
 

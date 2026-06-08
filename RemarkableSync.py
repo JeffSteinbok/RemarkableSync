@@ -313,6 +313,8 @@ def obsidian_sync(
 @click.option('--ai-model', default='', help='Override AI model')
 @click.option('--ai-api-key', default='', envvar='REMARKABLE_AI_KEY', help='AI API key')
 @click.option('--tags', default='remarkable', help='Comma-separated tags (obsidian mode)')
+@click.option('--systray/--no-systray', default=True, show_default=True,
+              help='Show a system tray icon while watch mode is running')
 @add_connection_options
 def watch(
     interval: int,
@@ -325,6 +327,7 @@ def watch(
     ai_model: str,
     ai_api_key: str,
     tags: str,
+    systray: bool,
     host: str,
     use_wifi: bool,
     wifi_host: str,
@@ -392,6 +395,7 @@ def watch(
             run_once=run_once,
             verbose=verbose,
             mode=mode,
+            use_systray=systray,
         )
     )
 

@@ -9,7 +9,7 @@ import logging
 import time
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Callable, Optional
+from typing import Callable
 
 from ..utils.logging import setup_logging
 
@@ -17,6 +17,78 @@ from ..utils.logging import setup_logging
 _INITIAL_BACKOFF = 60       # seconds
 _MAX_BACKOFF = 3600         # 1 hour
 _BACKOFF_FACTOR = 2
+
+
+class _WatchTray:
+    """Best-effort system tray icon for watch mode."""
+
+    def __init__(self, mode: str, enabled: bool):
+        self._mode = mode
+        self._enabled = enabled
+        self._icon = None
+
+    def _build_icon_image(self, color: str):
+        """Create a small circular tray icon image."""
+        from PIL import Image, ImageDraw
+
+        image = Image.new("RGBA", (64, 64), (0, 0, 0, 0))
+        draw = ImageDraw.Draw(image)
+        draw.ellipse((8, 8, 56, 56), fill=color)
+        draw.ellipse((20, 20, 44, 44), fill=(255, 255, 255, 190))
+        return image
+
+    def start(self) -> None:
+        if not self._enabled:
+            return
+
+        try:
+            import pystray
+        except Exception as exc:  # noqa: BLE001
+            logging.info("System tray disabled (pystray unavailable): %s", exc)
+            return
+
+        try:
+            self._icon = pystray.Icon(
+                "remarkablesync-watch",
+                self._build_icon_image("#4A90E2"),
+                title=f"RemarkableSync ({self._mode})",
+            )
+            if hasattr(self._icon, "run_detached"):
+                self._icon.run_detached()
+            else:
+                self._icon.run()
+            self.set_status("Idle")
+        except Exception as exc:  # noqa: BLE001
+            logging.info("System tray disabled (unable to initialize): %s", exc)
+            self._icon = None
+
+    def set_status(self, status: str) -> None:
+        if not self._icon:
+            return
+
+        colors = {
+            "Idle": "#4A90E2",
+            "Running": "#FFD166",
+            "Success": "#06D6A0",
+            "Failure": "#EF476F",
+            "Backoff": "#F97316",
+            "Stopped": "#9CA3AF",
+        }
+        color = colors.get(status, "#4A90E2")
+
+        try:
+            self._icon.icon = self._build_icon_image(color)
+            self._icon.title = f"RemarkableSync ({self._mode}) - {status}"
+        except Exception as exc:  # noqa: BLE001
+            logging.debug("Unable to update tray icon: %s", exc)
+
+    def stop(self) -> None:
+        if self._icon:
+            try:
+                self._icon.stop()
+            except Exception:  # noqa: BLE001
+                pass
+            self._icon = None
 
 
 class FileLock:
@@ -72,6 +144,7 @@ def run_watch_command(
     run_once: Callable[[], int],
     verbose: bool,
     mode: str = "sync",
+    use_systray: bool = True,
 ) -> int:
     """Run *run_once* repeatedly every *interval* seconds.
 
@@ -87,6 +160,8 @@ def run_watch_command(
         Exit code; only returns when interrupted with Ctrl-C (returns 0).
     """
     setup_logging(verbose)
+    tray = _WatchTray(mode=mode, enabled=use_systray)
+    tray.start()
 
     lock_path = backup_dir / ".remarkable_watch.lock"
     backup_dir.mkdir(parents=True, exist_ok=True)
@@ -104,6 +179,7 @@ def run_watch_command(
         while True:
             # Apply back-off if there were recent failures
             if current_backoff > 0:
+                tray.set_status("Backoff")
                 logging.warning(
                     "Backing off for %s after %d consecutive failure(s).",
                     _format_interval(current_backoff),
@@ -114,6 +190,7 @@ def run_watch_command(
             # Acquire lock
             lock = FileLock(lock_path)
             if not lock.acquire():
+                tray.set_status("Idle")
                 logging.warning(
                     "Another sync is already running (lock file exists). Skipping this cycle."
                 )
@@ -122,15 +199,18 @@ def run_watch_command(
 
             ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
             print(f"[{ts}] Starting {mode}…")
+            tray.set_status("Running")
 
             try:
                 exit_code = run_once()
                 if exit_code == 0:
+                    tray.set_status("Success")
                     consecutive_failures = 0
                     current_backoff = 0
                     ts2 = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
                     print(f"[{ts2}] ✓ {mode} succeeded. Next run in {_format_interval(interval)}.\n")
                 else:
+                    tray.set_status("Failure")
                     consecutive_failures += 1
                     current_backoff = min(
                         _INITIAL_BACKOFF * (_BACKOFF_FACTOR ** (consecutive_failures - 1)),
@@ -143,6 +223,7 @@ def run_watch_command(
                         consecutive_failures,
                     )
             except Exception as exc:  # noqa: BLE001
+                tray.set_status("Failure")
                 consecutive_failures += 1
                 current_backoff = min(
                     _INITIAL_BACKOFF * (_BACKOFF_FACTOR ** (consecutive_failures - 1)),
@@ -151,9 +232,12 @@ def run_watch_command(
                 logging.error("Unexpected error during %s: %s", mode, exc)
             finally:
                 lock.release()
+                tray.set_status("Idle")
 
             time.sleep(interval)
 
     except KeyboardInterrupt:
         print("\n[STOPPED] Watch mode stopped by user.")
+        tray.set_status("Stopped")
+        tray.stop()
         return 0
