@@ -10,4 +10,13 @@ PyPDF2>=3.0.0
 svglib>=1.5.0
 reportlab>=4.0.0
 keyring>=24.0.0
-rmc>=0.3.0 
+rmc>=0.3.0
+
+# OCR and image handling
+pdf2image>=1.16.0
+Pillow>=10.0.0
+
+# AI providers (optional – install the ones you need)
+# pip install anthropic       (Claude)
+# pip install openai          (GitHub Models / OpenAI)
+# pip install pytesseract     (offline OCR fallback; also needs system Tesseract)

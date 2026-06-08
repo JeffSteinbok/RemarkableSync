@@ -42,12 +42,22 @@ class ReMarkableBackup:  # pylint: disable=too-many-instance-attributes
     - Progress tracking and detailed logging
     """
 
-    def __init__(self, backup_dir: Path, password: Optional[str] = None):
+    def __init__(
+        self,
+        backup_dir: Path,
+        password: Optional[str] = None,
+        host: str = "10.11.99.1",
+        use_wifi: bool = False,
+        wifi_host: str = "",
+    ):
         """Initialize backup orchestrator.
 
         Args:
             backup_dir: Local directory to store backup files
             password: SSH password for tablet (prompted if not provided)
+            host: Tablet IP/hostname (USB default: 10.11.99.1)
+            use_wifi: Connect via Wi-Fi instead of USB
+            wifi_host: Wi-Fi IP/hostname (auto-discovered if empty)
         """
         self.backup_dir = backup_dir
         self.files_dir = backup_dir / "Notebooks"  # Clean folder name
@@ -61,7 +71,12 @@ class ReMarkableBackup:  # pylint: disable=too-many-instance-attributes
         self.templates_dir.mkdir(parents=True, exist_ok=True)
 
         # Initialize components
-        self.connection = ReMarkableConnection(password=password)
+        self.connection = ReMarkableConnection(
+            password=password,
+            host=host,
+            use_wifi=use_wifi,
+            wifi_host=wifi_host,
+        )
         self.metadata = FileMetadata(self.metadata_file)
 
         # ReMarkable paths

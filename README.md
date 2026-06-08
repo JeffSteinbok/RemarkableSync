@@ -11,7 +11,7 @@
 [![Homebrew](https://github.com/JeffSteinbok/RemarkableSync/actions/workflows/update-homebrew.yml/badge.svg)](https://github.com/JeffSteinbok/RemarkableSync/actions/workflows/update-homebrew.yml)
 
 
-A comprehensive Python toolkit for backing up and converting reMarkable tablet notebooks to PDF with template support and proper folder hierarchy preservation.
+A comprehensive Python toolkit for backing up and converting reMarkable tablet notebooks to PDF with template support and proper folder hierarchy preservation — now with **Wi-Fi sync**, **AI handwriting recognition**, and direct **Obsidian vault export**.
 
 > [!IMPORTANT]
 > This tool has been tested exclusively on reMarkable 2. Compatibility with reMarkable 1 is not guaranteed.
@@ -21,6 +21,8 @@ A comprehensive Python toolkit for backing up and converting reMarkable tablet n
 
 ### 🔄 Backup & Sync
 - **USB Connection**: Connects to reMarkable tablet over USB (10.11.99.1)
+- **Wi-Fi Connection**: Connect over your local network using an IP address or hostname; optional mDNS auto-discovery (`remarkable.local`)
+- **Periodic Watch Mode**: Run syncs automatically every N minutes with file-locking to prevent overlapping runs and exponential back-off on failures
 - **Incremental Sync**: Only downloads files that have changed since last backup
 - **Complete Backup**: Backs up all notebooks, documents, and metadata
 - **Template Support**: Automatically backs up template files from the device
@@ -34,6 +36,19 @@ A comprehensive Python toolkit for backing up and converting reMarkable tablet n
 - **Single PDF per Notebook**: Merges all pages into one PDF file per notebook
 - **Smart Conversion**: Only converts notebooks updated in the last backup
 - **Progress Tracking**: Visual progress bars and detailed logging
+
+### 🤖 AI Handwriting Recognition
+- **Vision-based OCR**: Send page images directly to Claude or GitHub Models (GPT-4o) for best-in-class handwriting transcription
+- **AI Post-processing**: LLM-powered cleanup structures raw notes into clean Markdown with headings, bullets, and action items
+- **pytesseract Fallback**: Offline OCR via Tesseract when no AI provider is configured
+- **Provider Abstraction**: Pluggable architecture — add your own provider by subclassing `BaseAIProvider`
+
+### 📓 Obsidian Vault Export
+- **Markdown Notes**: Each notebook becomes a `.md` file with YAML frontmatter
+- **Embedded Images**: Page images are copied into the vault and linked with Obsidian `![[file]]` syntax
+- **Folder Hierarchy**: Notes are placed in the same folder structure as on the device
+- **Custom Tags**: Add your own frontmatter tags to every note
+- **Incremental Export**: Only re-exports notebooks whose PDF has changed (tracked via MD5 hash)
 
 ## Prerequisites
 
@@ -218,6 +233,11 @@ RemarkableSync convert --force-all
 - `-v, --verbose`: Enable debug logging
 - `--version`: Show version and repository information
 
+**Connection Options** (backup, sync, obsidian-sync, watch):
+- `--host HOST`: Tablet USB IP address (default: `10.11.99.1`)
+- `--wifi`: Connect over Wi-Fi instead of USB
+- `--wifi-host HOST`: Tablet Wi-Fi IP or hostname (auto-discovered if omitted)
+
 **Backup/Sync Options**:
 - `-p, --password`: ReMarkable SSH password (will prompt if not provided)
 - `--skip-templates`: Don't backup template files
@@ -229,9 +249,192 @@ RemarkableSync convert --force-all
 - `-s, --sample N`: Convert only first N notebooks
 - `-n, --notebook NAME`: Convert only specific notebook (by UUID or name)
 
+**Obsidian-sync Options**:
+- `-V, --vault-dir PATH` (required): Root of your Obsidian vault
+- `--ai-provider`: AI provider — `claude` or `github` (GitHub Models / GPT-4o)
+- `--ai-model`: Override the default model for the chosen provider
+- `--ai-api-key`: API key (or set `ANTHROPIC_API_KEY` / `GITHUB_TOKEN` env-vars)
+- `--tags`: Comma-separated tags added to every note's frontmatter (default: `remarkable`)
+- `--no-images`: Skip embedding page images in notes
+- `--skip-backup`, `--skip-convert`: Skip earlier pipeline stages
+- `--force-export`: Re-export all notes even if unchanged
+
+**Watch Options**:
+- `-i, --interval N`: Minutes between sync attempts (default: 30)
+- `-V, --vault-dir PATH`: Obsidian vault — enables obsidian-sync mode
+
+## Wi-Fi Connection
+
+You can connect to your reMarkable over your local Wi-Fi network instead of USB.
+
+### Prerequisites
+- reMarkable tablet and your computer on the same Wi-Fi network
+- SSH enabled on the tablet (it is on by default)
+
+### Usage
+
+```bash
+# Auto-discover the tablet on the LAN (tries remarkable.local then USB fallback)
+RemarkableSync sync --wifi
+
+# Specify the tablet's IP address directly
+RemarkableSync sync --wifi --wifi-host 192.168.1.42
+
+# Obsidian sync over Wi-Fi
+RemarkableSync obsidian-sync --vault-dir ~/Notes --wifi --wifi-host 192.168.1.42
+
+# Watch mode with Wi-Fi
+RemarkableSync watch --wifi --wifi-host 192.168.1.42 --vault-dir ~/Notes
+```
+
+### Finding your tablet's IP address
+On the tablet: **Settings → Wi-Fi → (tap your network)** — the IP is shown at the bottom.
+
+> [!TIP]
+> Assign a static DHCP lease to your tablet in your router settings so the IP doesn't change.
+
+## Obsidian Export
+
+The `obsidian-sync` command runs the full pipeline in one step:
+
+1. **Backup** changed files from the tablet
+2. **Convert** updated notebooks to PDF
+3. **OCR / AI transcription** of handwriting (optional)
+4. **Export** Markdown notes into your Obsidian vault
+
+### Quick start
+
+```bash
+# Basic export (no AI transcription)
+RemarkableSync obsidian-sync --vault-dir ~/Documents/Obsidian/MyVault
+
+# With Claude AI for handwriting recognition
+export ANTHROPIC_API_KEY="sk-ant-…"
+RemarkableSync obsidian-sync \
+    --vault-dir ~/Documents/Obsidian/MyVault \
+    --ai-provider claude
+
+# With GitHub Models (GPT-4o)
+export GITHUB_TOKEN="ghp_…"
+RemarkableSync obsidian-sync \
+    --vault-dir ~/Documents/Obsidian/MyVault \
+    --ai-provider github
+
+# Wi-Fi + Claude + custom tags
+RemarkableSync obsidian-sync \
+    --vault-dir ~/Documents/Obsidian/MyVault \
+    --wifi --wifi-host 192.168.1.42 \
+    --ai-provider claude \
+    --tags "remarkable,handwriting,notes"
+```
+
+### Generated note format
+
+Each notebook becomes a Markdown file at `vault/<folder-path>/<notebook-name>.md`:
+
+```markdown
+---
+title: My Meeting Notes
+source: reMarkable
+remarkable_id: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+folder: Work/Meetings
+created: 2025-01-15
+tags:
+  - remarkable
+---
+
+# My Meeting Notes
+
+## Action Items
+
+- **Follow up** with Alice on the Q1 plan
+- Schedule review for next Friday
+
+...
+
+---
+
+## Pages
+
+![[My Meeting Notes/page_001.png]]
+
+![[My Meeting Notes/page_002.png]]
+```
+
+Page images are stored in `vault/<folder-path>/<notebook-name>/page_NNN.png`.
+
+### Incremental export
+
+Re-running `obsidian-sync` is fast — only notebooks whose PDF has changed since the last run are re-exported. Force a full re-export with `--force-export`.
+
+## Periodic Watch Mode
+
+Keep your vault automatically up to date in the background:
+
+```bash
+# Sync every 30 minutes (default), plain backup + PDF only
+RemarkableSync watch
+
+# Every 15 minutes with Obsidian export
+RemarkableSync watch --interval 15 \
+    --vault-dir ~/Documents/Obsidian/MyVault \
+    --ai-provider claude
+
+# Run as a macOS launchd service or Linux systemd unit for true background operation
+```
+
+The watch command uses a file lock (`<backup-dir>/.remarkable_watch.lock`) to prevent
+overlapping runs, and applies exponential back-off (up to 1 hour) after consecutive failures.
+
+## AI Provider Setup
+
+### Claude (Anthropic)
+
+1. Create an account at https://console.anthropic.com
+2. Generate an API key
+3. Set the environment variable:
+   ```bash
+   export ANTHROPIC_API_KEY="sk-ant-…"
+   ```
+4. Install the package:
+   ```bash
+   pip install anthropic
+   ```
+5. Use `--ai-provider claude` (default model: `claude-3-5-sonnet-20241022`)
+
+### GitHub Models / Copilot (GPT-4o)
+
+1. Generate a GitHub personal access token (PAT) with `models:read` permission at
+   https://github.com/settings/tokens
+2. Set the environment variable:
+   ```bash
+   export GITHUB_TOKEN="ghp_…"
+   ```
+3. Install the OpenAI package:
+   ```bash
+   pip install openai
+   ```
+4. Use `--ai-provider github` (default model: `gpt-4o`)
+
+### Offline OCR (pytesseract)
+
+When no AI provider is configured the tool falls back to local Tesseract OCR:
+
+```bash
+# macOS
+brew install tesseract
+pip install pytesseract Pillow
+
+# Ubuntu / Debian
+sudo apt install tesseract-ocr
+pip install pytesseract Pillow
+```
+
+Tesseract is less accurate for handwriting but works entirely offline and for free.
+
 ## How It Works
 
-1. **Connection**: Establishes SSH connection to ReMarkable tablet at 10.11.99.1
+1. **Connection**: Establishes SSH connection to ReMarkable tablet (USB or Wi-Fi)
 2. **File Discovery**: Scans `/home/root/.local/share/remarkable/xochitl/` for notebook files
 3. **Template Backup**: Downloads template files from `/usr/share/remarkable/templates/`
 4. **Incremental Sync**: Compares file metadata (size, modification time, hash) to determine what needs updating
@@ -241,11 +444,20 @@ RemarkableSync convert --force-all
    - Renders template backgrounds (grids, lines, dots)
    - Merges templates with notebook content
    - Combines all pages into single PDF per notebook
-7. **Smart Updates**: Tracks which notebooks changed and only converts those
+7. **OCR/AI** (obsidian-sync only):
+   - Rasterises PDF pages to PNG via pdf2image
+   - Sends images to AI provider for handwriting transcription
+   - AI post-processes raw text into clean Markdown
+8. **Obsidian Export** (obsidian-sync only):
+   - Writes YAML frontmatter + transcribed text + embedded images
+   - Preserves folder hierarchy from the device
+   - Tracks exported notebooks by PDF hash for incremental updates
+9. **Smart Updates**: Only notebooks updated in the current backup cycle are processed
+
 
 ## File Structure
 
-After backup, your directory will contain three clean folders:
+After backup, your directory will contain:
 
 ```
 remarkable_backup/
@@ -263,6 +475,7 @@ remarkable_backup/
 │   └── [notebook folders with PDFs preserving hierarchy]
 ├── sync_metadata.json        # Sync state tracking
 ├── updated_notebooks.txt     # List of notebooks updated in last backup
+├── obsidian_export_state.json # Incremental Obsidian export state (MD5 hashes)
 └── .remarkable_backup.log    # Backup operation log
 ```
 
@@ -298,11 +511,24 @@ Files are only downloaded if:
 
 ## Troubleshooting
 
-### Connection Issues
+### Connection Issues (USB)
 - Ensure ReMarkable is connected via USB
 - Verify the tablet shows up as network interface
 - Try pinging `10.11.99.1`
 - Check SSH password from tablet settings
+
+### Connection Issues (Wi-Fi)
+- Ensure tablet and computer are on the same Wi-Fi network
+- Find the tablet's IP: **Settings → Wi-Fi → tap your network**
+- Try `ping remarkable.local` — mDNS must be working on your LAN
+- Use `--wifi-host <ip>` to skip discovery if mDNS is not available
+- Check that nothing (firewall, router AP isolation) is blocking SSH (port 22) between devices
+
+### AI Provider Issues
+- **Claude**: verify `ANTHROPIC_API_KEY` is set; run `pip install anthropic`
+- **GitHub Models**: verify `GITHUB_TOKEN` is set with `models:read` scope; run `pip install openai`
+- **pytesseract**: install Tesseract system package (`brew install tesseract` or `sudo apt install tesseract-ocr`) then `pip install pytesseract Pillow`
+- If AI transcription returns empty results, check API quotas and model availability
 
 ### Permission Errors
 - Run as administrator on Windows if needed
@@ -311,6 +537,10 @@ Files are only downloaded if:
 ### File Access Issues
 - Restart ReMarkable tablet if SSH becomes unresponsive
 - Check available disk space on both devices
+
+### Watch Mode Issues
+- If watch mode says "another sync is already running", delete the stale lock file: `rm <backup-dir>/.remarkable_watch.lock`
+- On Windows, `fcntl` is not available — watch mode requires macOS or Linux
 
 ## Security Notes
 

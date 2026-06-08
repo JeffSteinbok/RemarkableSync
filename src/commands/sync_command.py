@@ -15,6 +15,9 @@ def run_sync_command(
     skip_templates: bool,
     force_backup: bool,
     force_convert: bool,
+    host: str = "10.11.99.1",
+    use_wifi: bool = False,
+    wifi_host: str = "",
 ) -> int:
     """Execute the sync command (backup + convert).
 
@@ -28,6 +31,9 @@ def run_sync_command(
         skip_templates: Skip backing up template files
         force_backup: Force backup all files
         force_convert: Force convert all notebooks
+        host: Tablet IP/hostname for USB connections
+        use_wifi: Use Wi-Fi instead of USB
+        wifi_host: Wi-Fi IP/hostname of the tablet
 
     Returns:
         Exit code (0 for success, 1 for failure)
@@ -38,6 +44,10 @@ def run_sync_command(
     print("=" * 40)
     print(f"Backup directory: {backup_dir.absolute()}")
 
+    if use_wifi:
+        print(f"Connection mode: Wi-Fi ({wifi_host or 'auto-discover'})")
+    else:
+        print(f"Connection mode: USB ({host})")
     if not skip_templates:
         print("Template backup: Enabled")
     if force_backup:
@@ -45,7 +55,13 @@ def run_sync_command(
     if force_convert:
         print("Force convert: All notebooks will be converted")
 
-    backup_tool = ReMarkableBackup(backup_dir, password)
+    backup_tool = ReMarkableBackup(
+        backup_dir,
+        password=password,
+        host=host,
+        use_wifi=use_wifi,
+        wifi_host=wifi_host,
+    )
 
     try:
         # Run backup with PDF conversion enabled

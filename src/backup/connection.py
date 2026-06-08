@@ -3,10 +3,17 @@ ReMarkable tablet SSH connection management.
 
 Handles SSH and SCP connections to ReMarkable tablets for file transfer
 and remote command execution.
+
+Connection modes
+----------------
+- USB (default): connects to 10.11.99.1 via the USB networking interface.
+- Wi-Fi: connects to any user-supplied hostname/IP address.
+- Discovery: optional mDNS/Bonjour discovery to locate the tablet on the LAN.
 """
 
 import logging
-from typing import Dict, List, Tuple
+import socket
+from typing import Dict, List, Optional, Tuple
 
 import click
 import paramiko
@@ -20,12 +27,42 @@ except ImportError:
     KEYRING_AVAILABLE = False
     logging.warning("keyring library not available - password saving disabled")
 
+# Default USB networking address assigned by the reMarkable USB driver
+USB_HOST = "10.11.99.1"
+
+# mDNS/Bonjour hostname that many reMarkable tablets advertise on the LAN
+MDNS_HOSTNAME = "remarkable.local"
+
+
+def discover_tablet_host(timeout: float = 3.0) -> Optional[str]:
+    """Attempt to discover a reMarkable tablet on the local network.
+
+    Tries to resolve the well-known mDNS hostname ``remarkable.local``.
+    If that fails, tries the USB address as a last resort.
+
+    Args:
+        timeout: Seconds to wait for each resolution attempt.
+
+    Returns:
+        IP address string if found, or ``None`` if discovery failed.
+    """
+    candidates = [MDNS_HOSTNAME, USB_HOST]
+    for candidate in candidates:
+        try:
+            socket.setdefaulttimeout(timeout)
+            addr = socket.gethostbyname(candidate)
+            logging.info("Tablet discovered at %s (%s)", addr, candidate)
+            return addr
+        except OSError:
+            logging.debug("Discovery failed for candidate %s", candidate)
+    return None
+
 
 class ReMarkableConnection:
     """Handles SSH connection to ReMarkable tablet.
 
     Provides a robust connection interface with retry logic and error handling
-    for connecting to ReMarkable tablets via USB networking.
+    for connecting to ReMarkable tablets via USB or Wi-Fi networking.
     """
 
     KEYRING_SERVICE = "RemarkableSync"
@@ -33,20 +70,39 @@ class ReMarkableConnection:
 
     def __init__(
         self,
-        host: str = "10.11.99.1",
+        host: str = USB_HOST,
         username: str = "root",
         port: int = 22,
         password: str | None = None,
+        use_wifi: bool = False,
+        wifi_host: str = "",
     ):
         """Initialize connection parameters.
 
         Args:
-            host: ReMarkable tablet IP address (default USB networking address)
+            host: ReMarkable tablet IP address (default USB networking address).
+                  Ignored when *use_wifi* is True and *wifi_host* is provided.
             username: SSH username (always 'root' for ReMarkable)
             port: SSH port (default 22)
             password: SSH password (will prompt if not provided)
+            use_wifi: When True, prefer the Wi-Fi address over the USB address.
+                      Falls back to USB if *wifi_host* is empty.
+            wifi_host: IP address or hostname of the tablet on the local
+                       network.  Ignored when *use_wifi* is False.
         """
-        self.host = host
+        # Resolve effective host
+        if use_wifi:
+            if wifi_host:
+                resolved_host = wifi_host
+            else:
+                logging.info(
+                    "Wi-Fi mode enabled but no host specified - attempting auto-discovery"
+                )
+                resolved_host = discover_tablet_host() or USB_HOST
+        else:
+            resolved_host = host
+
+        self.host = resolved_host
         self.username = username
         self.port = port
         self.ssh_client = None

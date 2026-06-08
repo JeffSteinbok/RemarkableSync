@@ -9,7 +9,14 @@ from ..utils.logging import setup_logging
 
 
 def run_backup_command(
-    backup_dir: Path, password: Optional[str], verbose: bool, skip_templates: bool, force: bool
+    backup_dir: Path,
+    password: Optional[str],
+    verbose: bool,
+    skip_templates: bool,
+    force: bool,
+    host: str = "10.11.99.1",
+    use_wifi: bool = False,
+    wifi_host: str = "",
 ) -> int:
     """Execute the backup command.
 
@@ -19,6 +26,9 @@ def run_backup_command(
         verbose: Enable verbose logging
         skip_templates: Skip backing up template files
         force: Force backup all files (ignore sync status)
+        host: Tablet IP/hostname for USB connections
+        use_wifi: Use Wi-Fi instead of USB
+        wifi_host: Wi-Fi IP/hostname of the tablet
 
     Returns:
         Exit code (0 for success, 1 for failure)
@@ -29,16 +39,24 @@ def run_backup_command(
     print("=" * 40)
     print(f"Backup directory: {backup_dir.absolute()}")
 
+    if use_wifi:
+        print(f"Connection mode: Wi-Fi ({wifi_host or 'auto-discover'})")
+    else:
+        print(f"Connection mode: USB ({host})")
     if not skip_templates:
         print("Template backup: Enabled")
     if force:
         print("Force mode: All files will be backed up")
 
-    backup_tool = ReMarkableBackup(backup_dir, password)
+    backup_tool = ReMarkableBackup(
+        backup_dir,
+        password=password,
+        host=host,
+        use_wifi=use_wifi,
+        wifi_host=wifi_host,
+    )
 
     try:
-        # For now, we'll use the existing run_backup method
-        # In force mode, we don't use incremental sync
         success = backup_tool.run_backup(
             force_convert_all=False, convert_to_pdf=False, backup_templates=not skip_templates
         )
