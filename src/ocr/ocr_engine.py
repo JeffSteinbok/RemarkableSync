@@ -2,14 +2,14 @@
 
 Strategy
 --------
-1. Convert PDF pages to PNG images using ``pdf2image`` / Poppler.
+1. Convert PDF pages to PNG images using PyMuPDF (preferred) or pdf2image/Poppler.
 2. If an AI provider is configured, send the images to the provider for
    vision-based handwriting transcription (much better quality).
 3. Fallback: run ``pytesseract`` locally for offline OCR.
 
 External dependencies (all optional – graceful degradation if missing):
-- ``pdf2image``  + Poppler system package (``brew install poppler`` /
-  ``apt install poppler-utils``)
+- ``PyMuPDF`` (``pip install pymupdf``) – recommended, no system deps
+- ``pdf2image``  + Poppler system package (legacy fallback)
 - ``pytesseract``  + Tesseract system package
 - ``Pillow``
 """
@@ -56,35 +56,76 @@ class OCREngine:
     def pdf_to_images(self, pdf_path: Path, output_dir: Path) -> List[Path]:
         """Rasterise every page of *pdf_path* to a PNG file.
 
+        Tries PyMuPDF first (pure pip, no system deps), then falls back to
+        pdf2image + Poppler.
+
         Args:
             pdf_path: Path to the source PDF.
             output_dir: Directory where page images are written.
 
         Returns:
-            Ordered list of image paths; empty list when pdf2image / Poppler
-            is not available or conversion fails.
+            Ordered list of image paths; empty list when neither renderer
+            is available or conversion fails.
         """
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+        # Try PyMuPDF first (preferred — no system dependencies)
+        images = self._pdf_to_images_pymupdf(pdf_path, output_dir)
+        if images:
+            return images
+
+        # Fallback to pdf2image + Poppler
+        return self._pdf_to_images_pdf2image(pdf_path, output_dir)
+
+    def _pdf_to_images_pymupdf(self, pdf_path: Path, output_dir: Path) -> List[Path]:
+        """Rasterise PDF using PyMuPDF (fitz)."""
+        try:
+            import fitz  # type: ignore  # PyMuPDF
+        except ImportError:
+            logging.debug("PyMuPDF not installed, trying pdf2image fallback.")
+            return []
+
+        try:
+            doc = fitz.open(str(pdf_path))
+            image_paths: List[Path] = []
+            zoom = self.image_dpi / 72.0  # PDF default is 72 DPI
+            matrix = fitz.Matrix(zoom, zoom)
+
+            for idx, page in enumerate(doc, start=1):
+                pix = page.get_pixmap(matrix=matrix)
+                img_path = output_dir / f"page_{idx:03d}.png"
+                pix.save(str(img_path))
+                image_paths.append(img_path)
+
+            doc.close()
+            logging.debug("PyMuPDF rasterised %d pages from %s", len(image_paths), pdf_path.name)
+            return image_paths
+        except Exception as exc:  # noqa: BLE001
+            logging.error("PyMuPDF failed for %s: %s", pdf_path.name, exc)
+            return []
+
+    def _pdf_to_images_pdf2image(self, pdf_path: Path, output_dir: Path) -> List[Path]:
+        """Rasterise PDF using pdf2image + Poppler (legacy fallback)."""
         try:
             from pdf2image import convert_from_path  # type: ignore
         except ImportError:
             logging.warning(
-                "pdf2image not installed – cannot rasterise PDF. "
-                "Run: pip install pdf2image  and install Poppler."
+                "Neither PyMuPDF nor pdf2image is installed – cannot rasterise PDF. "
+                "Run: pip install pymupdf  (recommended)"
             )
             return []
 
         try:
-            output_dir.mkdir(parents=True, exist_ok=True)
             pages = convert_from_path(str(pdf_path), dpi=self.image_dpi)
             image_paths: List[Path] = []
             for idx, page in enumerate(pages, start=1):
                 img_path = output_dir / f"page_{idx:03d}.png"
                 page.save(str(img_path), "PNG")
                 image_paths.append(img_path)
-            logging.debug("Rasterised %d pages from %s", len(image_paths), pdf_path.name)
+            logging.debug("pdf2image rasterised %d pages from %s", len(image_paths), pdf_path.name)
             return image_paths
         except Exception as exc:  # noqa: BLE001
-            logging.error("Failed to convert PDF to images (%s): %s", pdf_path.name, exc)
+            logging.error("pdf2image failed for %s: %s", pdf_path.name, exc)
             return []
 
     # ------------------------------------------------------------------

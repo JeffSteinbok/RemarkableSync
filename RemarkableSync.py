@@ -293,6 +293,21 @@ def obsidian_sync(
 
 
 # ---------------------------------------------------------------------------
+# config  (interactive configuration wizard)
+# ---------------------------------------------------------------------------
+
+@cli.command()
+def config():
+    """Interactive configuration wizard.
+
+    Walks through connection mode, credentials, folder selection, and
+    sync actions using an interactive terminal UI.
+    """
+    from src.commands.config_command import run_config_command
+    sys.exit(run_config_command())
+
+
+# ---------------------------------------------------------------------------
 # watch  (periodic sync)
 # ---------------------------------------------------------------------------
 

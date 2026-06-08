@@ -22,6 +22,7 @@ TRANSCRIPTION_PROMPT = (
     "- If you see diagrams or drawings, briefly describe them in [square brackets].\n"
     "- Maintain paragraph breaks from the original.\n"
     "- Correct obvious spelling errors but preserve the writer's intent.\n"
+    "- Do NOT wrap output in code fences (no ``` blocks).\n"
     "Output ONLY the transcribed text, no explanations or meta-commentary."
 )
 
@@ -33,7 +34,8 @@ CLEANUP_PROMPT = (
     "3. Convert lists to proper Markdown bullets or numbered items.\n"
     "4. Highlight action items with **bold** or a > blockquote.\n"
     "5. Preserve ALL information – do not summarise or omit content.\n\n"
-    "Output ONLY the formatted Markdown, no explanations."
+    "Output ONLY the formatted Markdown, no explanations.\n"
+    "Do NOT wrap the output in code fences (no ``` blocks)."
 )
 
 
