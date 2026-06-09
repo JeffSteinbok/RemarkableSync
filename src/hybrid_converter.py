@@ -446,6 +446,7 @@ def convert_notebook(
     template_renderer: Optional[TemplateRenderer] = None,
     changed_page_ids: Optional[set] = None,
     on_page_done: Optional[callable] = None,
+    on_page_start: Optional[callable] = None,
 ) -> Dict:
     """Convert a notebook using appropriate tools for each file type.
 
@@ -616,6 +617,8 @@ def convert_notebook(
         # Convert all pages in content-file order
         for rm_file in ordered_pages:
             page_id = rm_file.stem
+            if on_page_start:
+                on_page_start()
             if page_id in v6_ids:
                 pdf, cached = _convert_page(rm_file, "v6", convert_v6_file_with_rmc, "v6_converted")
             elif page_id in v4_ids:
@@ -633,6 +636,8 @@ def convert_notebook(
 
         # Copy existing PDFs
         for i, pdf_file in enumerate(notebook["pdf_files"]):
+            if on_page_start:
+                on_page_start()
             cached_pdf = page_cache_dir / f"existing_{i+1:03d}.pdf"
             was_cached = False
             if not cached_pdf.exists() or changed_page_ids is None:
@@ -645,6 +650,9 @@ def convert_notebook(
                 was_cached = True
             if on_page_done:
                 on_page_done(cached=was_cached)
+
+        # Store ordered page PDFs in results for downstream consumers
+        results["page_pdfs"] = list(page_pdfs)
 
         # Create merged PDF if we have any pages
         if page_pdfs:

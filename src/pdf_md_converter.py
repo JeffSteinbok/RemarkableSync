@@ -115,6 +115,26 @@ class MarkdownExporter:
         except OSError as exc:
             logging.error("Failed to save Markdown export state: %s", exc)
 
+    @staticmethod
+    def _get_content_page_order(notebook: Dict) -> Optional[List[str]]:
+        """Return ordered page IDs from the notebook's .content file."""
+        metadata_file = notebook.get("metadata_file")
+        if not metadata_file:
+            return None
+        content_path = metadata_file.with_suffix(".content")
+        if not content_path.exists():
+            return None
+        try:
+            with open(content_path, "r", encoding="utf-8") as fh:
+                data = json.load(fh)
+            page_ids = data.get("pages", [])
+            if not page_ids:
+                cpages = data.get("cPages", {}).get("pages", [])
+                page_ids = [p["id"] for p in cpages if "id" in p]
+            return page_ids if page_ids else None
+        except Exception:
+            return None
+
     def _needs_export(self, notebook_uuid: str, pdf_path: Path) -> bool:
         """Return True if the notebook has changed since the last export."""
         if notebook_uuid not in self._state:
@@ -529,6 +549,8 @@ class MarkdownExporter:
         # Count total pages for progress bar
         total_pages = 0
         nb_page_counts = []
+        # Count total pages that actually need OCR processing
+        total_ocr_pages = 0
         for nb in doc_notebooks:
             count = 0
             if converted_pages and nb["uuid"] in converted_pages:
@@ -537,9 +559,22 @@ class MarkdownExporter:
                 cache = self.backup_dir / "PagePDFs" / nb["uuid"]
                 if cache.exists():
                     count = len([p for p in cache.glob("*.pdf") if not p.stem.endswith("_content")])
-            count = max(count, 1)  # at least 1 so progress always advances
+            count = max(count, 1)
             nb_page_counts.append(count)
             total_pages += count
+
+            # Count only pages that will actually be processed
+            nb_changed = None
+            if updated_pages is not None:
+                nb_changed = updated_pages.get(nb["uuid"], set())
+            if nb_changed is not None and converted_pages and nb["uuid"] in converted_pages:
+                total_ocr_pages += sum(
+                    1 for p in converted_pages[nb["uuid"]] if p.stem in nb_changed
+                )
+            else:
+                total_ocr_pages += count
+
+        ocr_counter = [0]
 
         with create_progress("Exporting") as progress:
             task = progress.add_task("Exporting", total=total_pages)
@@ -569,10 +604,22 @@ class MarkdownExporter:
                 else:
                     page_cache_dir = self.backup_dir / "PagePDFs" / notebook["uuid"]
                     if page_cache_dir.exists():
-                        pdfs = sorted(page_cache_dir.glob("*.pdf"))
-                        pdfs = [p for p in pdfs if not p.stem.endswith("_content")]
-                        if pdfs:
-                            page_pdfs_list = pdfs
+                        pdfs_on_disk = {
+                            p.stem: p
+                            for p in page_cache_dir.glob("*.pdf")
+                            if not p.stem.endswith("_content")
+                        }
+                        if pdfs_on_disk:
+                            # Order by .content file if available
+                            ordered = self._get_content_page_order(notebook)
+                            if ordered:
+                                page_pdfs_list = [
+                                    pdfs_on_disk[pid]
+                                    for pid in ordered
+                                    if pid in pdfs_on_disk
+                                ]
+                            else:
+                                page_pdfs_list = sorted(pdfs_on_disk.values())
 
                 # Filter to specific page if requested
                 if page_filter and page_pdfs_list:
@@ -585,16 +632,27 @@ class MarkdownExporter:
                             len(page_pdfs_list),
                         )
 
-                def _on_page(pg_num, pg_total, _nb_name=nb_name, cached=False):
-                    progress.update(
-                        task,
-                        advance=1,
-                        description=f"{_nb_name} (page {pg_num} of {pg_total})",
-                    )
+                def _on_page(
+                    pg_num,
+                    pg_total,
+                    _nb_name=nb_name,
+                    _oc=ocr_counter,
+                    _total_ocr=total_ocr_pages,
+                    cached=False,
+                ):
                     if cached:
                         logging.info("MD: %s (page %d/%d) [cached]", _nb_name, pg_num, pg_total)
                     else:
-                        logging.info("MD: %s (page %d/%d)", _nb_name, pg_num, pg_total)
+                        _oc[0] += 1
+                        desc = f"OCR page {_oc[0]} of {_total_ocr} ({_nb_name} page {pg_num})"
+                        progress.update(task, advance=1, description=desc)
+                        logging.info(
+                            "MD: OCR page %d of %d (%s page %d)",
+                            _oc[0],
+                            _total_ocr,
+                            _nb_name,
+                            pg_num,
+                        )
 
                 nb_changed_pages = None
                 if updated_pages and notebook["uuid"] in updated_pages:

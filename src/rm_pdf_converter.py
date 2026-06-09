@@ -169,22 +169,22 @@ def run_conversion(
 
             def _on_page_done(_pc=page_counter, _nb=nb_name, _nbt=nb_total, cached=False):
                 _pc[0] += 1
+                progress.update(task, advance=1)
+                suffix = " [cached]" if cached else ""
+                logging.info("PDF: %s (page %d/%d)%s", _nb, _pc[0], _nbt, suffix)
+
+            def _on_page_start(_pc=page_counter, _nb=nb_name, _nbt=nb_total):
                 progress.update(
                     task,
-                    advance=1,
-                    description=f"{_nb} (page {_pc[0]} of {_nbt})",
+                    description=f"{_nb} (page {_pc[0] + 1} of {_nbt})",
                 )
-                if cached:
-                    logging.info("PDF: %s (page %d/%d) [cached]", _nb, _pc[0], _nbt)
-                else:
-                    logging.info("PDF: %s (page %d/%d)", _nb, _pc[0], _nbt)
 
             progress.update(task, description=f"{nb_name} (page 0 of {nb_total})")
 
             try:
                 notebook_changed_pages = None
-                if updated_pages and notebook["uuid"] in updated_pages:
-                    notebook_changed_pages = updated_pages[notebook["uuid"]]
+                if updated_pages is not None:
+                    notebook_changed_pages = updated_pages.get(notebook["uuid"], set())
 
                 results = convert_notebook(
                     notebook,
@@ -193,15 +193,13 @@ def run_conversion(
                     template_renderer,
                     changed_page_ids=notebook_changed_pages,
                     on_page_done=_on_page_done,
+                    on_page_start=_on_page_start,
                 )
                 if results["output_files"]:
                     successful += 1
-                    # Collect per-page PDFs for downstream (MD export)
-                    cache_dir = results.get("page_cache_dir")
-                    if cache_dir and cache_dir.exists():
-                        page_pdfs = sorted(cache_dir.glob("*.pdf"))
-                        # Exclude intermediate *_content.pdf files
-                        page_pdfs = [p for p in page_pdfs if not p.stem.endswith("_content")]
+                    # Use ordered page PDFs from converter (preserves .content order)
+                    page_pdfs = results.get("page_pdfs", [])
+                    if page_pdfs:
                         converted[notebook["uuid"]] = page_pdfs
             except Exception as e:
                 print_error(f"  [ERR] Failed to convert {notebook['name']}: {e}")
