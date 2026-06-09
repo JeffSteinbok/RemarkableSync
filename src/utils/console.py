@@ -1,7 +1,5 @@
 """Colored console output helpers and progress bar utilities using Rich."""
 
-import logging
-from contextlib import contextmanager
 
 from rich.console import Console
 from rich.logging import RichHandler

@@ -1,14 +1,10 @@
 """Tests for the Markdown exporter."""
 
 import json
-import tempfile
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
-import pytest
-
-from src.pdf_md_converter import MarkdownExporter, _safe_name, _file_hash
-
+from src.pdf_md_converter import MarkdownExporter, _file_hash, _safe_name
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -122,7 +118,7 @@ class TestMarkdownExporter:
         output_dir = tmp_path / "output"
         backup = tmp_path / "backup"
         backup.mkdir()
-        exp = self._make_exporter(output_dir, backup)
+        self._make_exporter(output_dir, backup)
         assert output_dir.exists()
 
     def test_state_file_created_after_export(self, tmp_path):

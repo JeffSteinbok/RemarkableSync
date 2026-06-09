@@ -5,8 +5,8 @@ RemarkableSync - Unified command-line interface
 Single entry point for backing up and converting ReMarkable tablet files.
 """
 
-import sys
 import os
+import sys
 from pathlib import Path
 from typing import Optional
 
@@ -303,8 +303,8 @@ def md(
       # Full pipeline: backup + pdf + md
       RemarkableSync md --with-backup --with-pdf
     """
-    from src.config import load_config
     from src.commands.md_sync_command import run_md_sync_command
+    from src.config import load_config
 
     cfg = load_config()
 
@@ -373,56 +373,53 @@ def config():
 # ---------------------------------------------------------------------------
 
 @cli.command()
-@click.option('--interval', '-i', type=int, default=30, show_default=True,
-              help='Minutes between sync attempts')
-@click.option('--backup-dir', '-d', type=click.Path(path_type=Path),
-              default=Path('./remarkable_backup'),
-              help='Directory to store backup files')
-@click.option('--vault-dir', '-V', type=click.Path(path_type=Path), default=None,
-              help='Legacy option name for the Markdown output directory')
-@click.option('--password', '-p', type=str, help='ReMarkable SSH password')
-@add_log_level_option
-@click.option('--skip-templates', is_flag=True, help='Skip template backup')
-@click.option('--ai-provider', default='',
-              type=click.Choice(['', 'claude', 'anthropic', 'github', 'github_models'], case_sensitive=False),
-              help='AI provider (Markdown export mode only)')
-@click.option('--ai-model', default='', help='Override AI model')
-@click.option('--ai-api-key', default='', envvar='REMARKABLE_AI_KEY', help='AI API key')
-@click.option('--tags', default='remarkable', help='Comma-separated tags (Markdown export mode)')
+@click.option('--interval', '-i', type=int, default=None,
+              help='Minutes between sync attempts (overrides config)')
 @click.option('--systray/--no-systray', default=True, show_default=True,
               help='Show a system tray icon while watch mode is running')
+@add_log_level_option
 @add_connection_options
 def watch(
-    interval: int,
-    backup_dir: Path,
-    vault_dir: Optional[Path],
-    password: Optional[str],
-    log_level: str,
-    skip_templates: bool,
-    ai_provider: str,
-    ai_model: str,
-    ai_api_key: str,
-    tags: str,
+    interval: Optional[int],
     systray: bool,
+    log_level: str,
     host: str,
     use_wifi: bool,
     wifi_host: str,
 ):
-    """Periodically sync in the background (every N minutes).
+    """Run periodic sync in the background with a system tray icon.
 
-    When --vault-dir is provided, the full Markdown export pipeline is used;
-    otherwise a plain backup + PDF conversion sync is performed.
-
-    A file lock prevents overlapping runs.  Consecutive failures trigger
-    exponential back-off (up to 1 hour).
+    Reads all settings from the config file (run ``config`` first).
+    The tray menu lets you change the interval, trigger an immediate sync,
+    pause/resume, toggle run-at-startup, and open output folders.
     """
     from src.commands.watch_command import run_watch_command
+    from src.config import load_config
 
-    interval_secs = interval * 60
+    cfg = load_config()
 
-    if vault_dir:
-        output_dir = vault_dir
-        # Markdown export mode
+    backup_dir = Path(cfg.get("backup_dir", "./remarkable_backup"))
+    output_dir_str = cfg.get("output_dir", "")
+    output_dir = Path(output_dir_str) if output_dir_str else None
+    sync_actions = cfg.get("sync_actions", ["backup", "pdf"])
+
+    # Connection defaults from config
+    conn_mode = cfg.get("connection_mode", "usb")
+    if not use_wifi and conn_mode == "wifi":
+        use_wifi = True
+    if not wifi_host:
+        wifi_host = cfg.get("wifi_host", "")
+
+    # AI / OCR settings from config
+    ai_provider = cfg.get("ai_provider", "")
+    ai_api_key = cfg.get("github_token", "")
+    tags = cfg.get("tags", "remarkable")
+
+    # Determine mode from configured sync actions
+    has_md = "ocr" in sync_actions
+    has_pdf = "pdf" in sync_actions
+
+    if has_md and output_dir:
         from src.commands.md_sync_command import run_md_sync_command
 
         def run_once() -> int:
@@ -435,10 +432,10 @@ def watch(
                 force_backup=False,
                 force_convert=False,
                 force_export=False,
-                ai_provider=ai_provider,
-                ai_model=ai_model,
+                ai_provider=ai_provider or "github",
+                ai_model="",
                 ai_api_key=ai_api_key,
-                use_ai_ocr=bool(ai_provider),
+                use_ai_ocr=True,
                 tags=tags,
                 embed_images=True,
                 host=host,
@@ -448,14 +445,13 @@ def watch(
 
         mode = "md"
     else:
-        # Plain sync mode
         from src.commands.sync_command import run_sync_command
 
         def run_once() -> int:
             return run_sync_command(
                 backup_dir=backup_dir,
                 log_level=log_level,
-                skip_templates=skip_templates,
+                skip_templates=False,
                 force_backup=False,
                 force_convert=False,
                 host=host,
@@ -465,6 +461,9 @@ def watch(
 
         mode = "sync"
 
+    # Default interval: CLI flag > 30 minutes
+    interval_secs = (interval if interval is not None else 30) * 60
+
     sys.exit(
         run_watch_command(
             interval=interval_secs,
@@ -473,6 +472,7 @@ def watch(
             log_level=log_level,
             mode=mode,
             use_systray=systray,
+            output_dir=output_dir,
         )
     )
 

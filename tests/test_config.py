@@ -6,13 +6,11 @@ correctly serves fixture data.
 """
 
 import json
-import tempfile
-from pathlib import Path
 from unittest.mock import patch
 
 import pytest
 
-from tests.mock_connection import MockConnection, FIXTURES_DIR
+from tests.mock_connection import MockConnection
 
 
 class TestMockConnection:
@@ -42,7 +40,7 @@ class TestMockConnection:
         )
         assert exit_code == 0
         assert stderr == ""
-        lines = [l for l in stdout.strip().split("\n") if l]
+        lines = [line for line in stdout.strip().split("\n") if line]
         assert len(lines) > 0
         # Each line should be: mtime size path
         for line in lines:
@@ -117,6 +115,7 @@ class TestConfigModule:
             "ocr_enabled": True,
             "ocr_output_dir": "",
             "output_dir": "~/Documents/Markdown/Notes",
+            "ai_provider": "github",
         }
 
         with patch("src.config.get_config_path", return_value=fake_path):

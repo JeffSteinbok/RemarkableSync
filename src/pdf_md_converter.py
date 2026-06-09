@@ -18,14 +18,12 @@ Output structure (inside the output directory)::
 import hashlib
 import json
 import logging
-import shutil
 import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 from .ocr.ocr_engine import OCREngine
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -398,9 +396,7 @@ class MarkdownExporter:
             return None
 
         total_pages = len(pages_to_process)
-        use_per_page = len(pages_to_process) > 1 or bool(page_pdfs)
 
-        import tempfile
 
         with tempfile.TemporaryDirectory(prefix="rs_md_") as tmp_str:
             tmp_dir = Path(tmp_str)
@@ -408,7 +404,7 @@ class MarkdownExporter:
             for pg_idx, pg_pdf in enumerate(pages_to_process, start=1):
                 # Rasterise page to image
                 page_image: Optional[Path] = None
-                page_images: List[Path] = []
+                page_images: List[Path] = []  # noqa: F841
 
                 if self.embed_images:
                     try:
@@ -514,7 +510,6 @@ class MarkdownExporter:
 
         with create_progress("Exporting") as progress:
             task = progress.add_task("Exporting", total=total_pages)
-            page_idx = 0
 
             for i, notebook in enumerate(doc_notebooks):
                 nb_name = notebook["name"][:30]
@@ -554,10 +549,10 @@ class MarkdownExporter:
                         logging.warning("Page %d not found (notebook has %d pages)",
                                         page_filter, len(page_pdfs_list))
 
-                def _on_page(pg_num, pg_total):
+                def _on_page(pg_num, pg_total, _nb_name=nb_name):
                     progress.update(
                         task, advance=1,
-                        description=f"{nb_name} (page {pg_num} of {pg_total})",
+                        description=f"{_nb_name} (page {pg_num} of {pg_total})",
                     )
 
                 result = self.export_notebook(

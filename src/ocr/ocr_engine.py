@@ -158,7 +158,7 @@ class OCREngine:
                 data = pytesseract.image_to_data(img, output_type=pytesseract.Output.DICT)
                 words = [
                     word
-                    for word, conf in zip(data["text"], data["conf"])
+                    for word, conf in zip(data["text"], data["conf"], strict=False)
                     if word.strip() and int(conf) / 100.0 >= self.min_confidence
                 ]
                 confs = [

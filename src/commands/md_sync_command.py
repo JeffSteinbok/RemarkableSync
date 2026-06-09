@@ -166,9 +166,9 @@ def run_md_sync_command(
 
     # Build OCR engine
     from ..ai import get_provider as get_ai_provider
+    from ..hybrid_converter import find_notebooks, organize_notebooks_by_structure
     from ..ocr import OCREngine
     from ..pdf_md_converter import MarkdownExporter
-    from ..hybrid_converter import find_notebooks, organize_notebooks_by_structure
 
     ocr_engine: Optional[OCREngine] = None
     if use_ai_ocr and ai_provider:

@@ -9,7 +9,7 @@ or %APPDATA%/remarkablesync/config.json (Windows).
 import json
 import platform
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict
 
 
 def get_config_dir() -> Path:
@@ -38,6 +38,7 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "ocr_enabled": False,
     "ocr_output_dir": "",
     "output_dir": "",
+    "ai_provider": "github",
 }
 
 # All available sync actions

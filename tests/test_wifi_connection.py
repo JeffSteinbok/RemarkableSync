@@ -1,10 +1,9 @@
 """Tests for Wi-Fi / configurable connection support."""
 
-import pytest
-from unittest.mock import MagicMock, patch
 from pathlib import Path
+from unittest.mock import MagicMock, patch
 
-from src.backup.connection import ReMarkableConnection, USB_HOST, discover_tablet_host
+from src.backup.connection import USB_HOST, ReMarkableConnection, discover_tablet_host
 
 
 class TestConnectionInit:
@@ -53,7 +52,6 @@ class TestDiscoverTabletHost:
         assert result == "192.168.1.10"
 
     def test_returns_none_when_all_fail(self):
-        import socket
         with patch("socket.gethostbyname", side_effect=OSError):
             result = discover_tablet_host(timeout=0.1)
         assert result is None

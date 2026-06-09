@@ -14,7 +14,6 @@ This module provides:
 """
 
 import logging
-import sys
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
@@ -165,11 +164,11 @@ def run_conversion(
                         + len(notebook.get("pdf_files", [])))
             page_counter = [0]  # mutable so the lambda can update it
 
-            def _on_page_done():
-                page_counter[0] += 1
+            def _on_page_done(_pc=page_counter, _nb=nb_name, _nbt=nb_total):
+                _pc[0] += 1
                 progress.update(
                     task, advance=1,
-                    description=f"{nb_name} (page {page_counter[0]} of {nb_total})",
+                    description=f"{_nb} (page {_pc[0]} of {_nbt})",
                 )
 
             progress.update(task, description=f"{nb_name} (page 0 of {nb_total})")

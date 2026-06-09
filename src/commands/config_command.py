@@ -5,20 +5,18 @@ Uses InquirerPy to present an interactive TUI that walks the user through
 setting up connection mode, credentials, folder selection, and sync actions.
 """
 
-import sys
 from typing import Any, Dict, List
 
 import click
 
 from src.config import SYNC_ACTIONS, load_config, save_config
-from src.utils.console import print_error, print_success, print_warn
 
 
 def run_config_command() -> int:
     """Run the interactive configuration wizard."""
     try:
         from InquirerPy import inquirer
-        from InquirerPy.separator import Separator
+        from InquirerPy.separator import Separator  # noqa: F401
     except ImportError:
         click.echo("Error: InquirerPy is required for the config wizard.")
         click.echo("Install it with:  pip install InquirerPy")
@@ -48,9 +46,49 @@ def run_config_command() -> int:
     # 2. WiFi Host (only if WiFi mode selected)
     wifi_host = current.get("wifi_host", "")
     if connection_mode == "wifi":
+        # Offer to enable WiFi SSH via USB if not already enabled
+        wifi_ready = inquirer.confirm(
+            message="Is WiFi SSH already enabled on your tablet?",
+            default=False,
+        ).execute()
+
+        if not wifi_ready:
+            click.echo()
+            click.echo("  We can enable it for you! Make sure the tablet is")
+            click.echo("  connected via USB cable and on the same WiFi network.")
+            click.echo()
+
+            enable_now = inquirer.confirm(
+                message="Enable WiFi SSH via USB now?",
+                default=True,
+            ).execute()
+
+            if enable_now:
+                # Need password first to connect via USB
+                tmp_password = current.get("password", "")
+                if not tmp_password:
+                    click.echo()
+                    click.echo("  SSH password: Settings > Help > Copyright and licenses")
+                    tmp_password = inquirer.secret(
+                        message="SSH password:",
+                        transformer=lambda _: "********" if _ else "(empty)",
+                    ).execute()
+                    if not tmp_password:
+                        click.echo("  Skipped — no password provided.")
+                    else:
+                        # Save so we don't ask again below
+                        password = tmp_password
+
+                if tmp_password:
+                    wifi_host = _enable_wifi_ssh(tmp_password)
+                    if not wifi_host:
+                        click.echo("  You can enter the WiFi IP manually instead.")
+
+        # Always let user confirm/change the IP (pre-filled from device or config)
+        default_ip = wifi_host or current.get("wifi_host", "") or "192.168.1."
         wifi_host = inquirer.text(
             message="Tablet WiFi IP address:",
-            default=wifi_host or "192.168.1.",
+            default=default_ip,
             validate=lambda x: len(x.strip()) > 0,
             invalid_message="IP address cannot be empty.",
         ).execute()
@@ -139,9 +177,25 @@ def run_config_command() -> int:
             click.echo("Configuration cancelled.")
             return 0
 
-    # 7. GitHub authentication (only if needed and not already authenticated)
+    # 7. AI provider selection (only if OCR is enabled)
+    ai_provider = current.get("ai_provider", "github")
+    if ocr_enabled:
+        ai_provider = inquirer.select(
+            message="AI provider for handwriting recognition:",
+            choices=[
+                {"name": "GitHub Models  (free with GitHub account)", "value": "github"},
+                {"name": "Claude / Anthropic  (requires API key)", "value": "claude"},
+            ],
+            default=ai_provider,
+        ).execute()
+
+        if ai_provider is None:
+            click.echo("Configuration cancelled.")
+            return 0
+
+    # 8. GitHub authentication (only if needed and not already authenticated)
     github_token = current.get("github_token", "")
-    if ocr_enabled and not github_token:
+    if ocr_enabled and ai_provider == "github" and not github_token:
         click.echo()
         click.echo("  GitHub authentication required for AI OCR.")
         github_token = _run_device_flow()
@@ -157,10 +211,15 @@ def run_config_command() -> int:
     folders: List[str] = []
 
     if folder_choices:
+        saved_folders = current.get("folders", [])
+        # Pre-check previously selected folders
+        for choice in folder_choices:
+            if isinstance(choice, dict) and choice.get("value") in saved_folders:
+                choice["enabled"] = True
+
         folders = inquirer.checkbox(
             message="Folders to sync (empty = sync all):",
             choices=folder_choices,
-            default=current.get("folders", []),
         ).execute()
 
         if folders is None:
@@ -180,6 +239,7 @@ def run_config_command() -> int:
         "sync_actions": sync_actions,
         "ocr_enabled": ocr_enabled,
         "output_dir": output_dir,
+        "ai_provider": ai_provider,
         "github_token": github_token,
     }
 
@@ -199,13 +259,92 @@ def run_config_command() -> int:
     click.echo(f"  Actions: {', '.join(sync_actions)}")
     if ocr_enabled:
         click.echo(f"  OCR:     enabled -> {output_dir}")
+        click.echo(f"  AI:      {ai_provider}")
     else:
-        click.echo(f"  OCR:     disabled")
+        click.echo("  OCR:     disabled")
     if github_token:
-        click.echo(f"  GitHub:  [OK] authenticated")
+        click.echo("  GitHub:  [OK] authenticated")
     click.echo()
 
     return 0
+
+
+def _offer_keyring_save(password: str) -> None:
+    """Offer to save the SSH password to the system keyring."""
+    try:
+        from src.backup.connection import KEYRING_AVAILABLE, ReMarkableConnection
+    except ImportError:
+        return
+
+    if not KEYRING_AVAILABLE:
+        return
+
+    try:
+        from InquirerPy import inquirer
+        save = inquirer.confirm(
+            message="Save password to system keyring?",
+            default=True,
+        ).execute()
+        if save:
+            conn = ReMarkableConnection.__new__(ReMarkableConnection)
+            conn.save_password(password)
+            click.echo("  Password saved to keyring.")
+    except Exception:
+        pass
+
+
+def _enable_wifi_ssh(password: str) -> str:
+    """Connect via USB and enable WiFi SSH on the tablet.
+
+    Runs ``rm-ssh-over-wlan on`` on the device, then reads the WiFi IP.
+
+    Returns:
+        The tablet's WiFi IP address, or empty string on failure.
+    """
+    import re
+
+    try:
+        from src.backup.connection import USB_HOST, ReMarkableConnection
+    except ImportError:
+        click.echo("  [WARN] Could not import connection module.")
+        return ""
+
+    conn = ReMarkableConnection(password=password, host=USB_HOST)
+    click.echo("  Connecting via USB...")
+
+    if not conn.connect():
+        click.echo("  [WARN] Could not connect via USB. Is the tablet plugged in?")
+        return ""
+
+    try:
+        # Enable WiFi SSH
+        click.echo("  Enabling WiFi SSH...")
+        stdout, stderr, exit_code = conn.execute_command("rm-ssh-over-wlan on")
+        if exit_code != 0:
+            click.echo(f"  [WARN] Command failed: {stderr.strip() or stdout.strip()}")
+            return ""
+
+        click.echo("  WiFi SSH enabled!")
+
+        # Get the WiFi IP address
+        stdout, stderr, exit_code = conn.execute_command(
+            "ip -4 addr show wlan0 | awk '/inet / {split($2, a, \"/\"); print a[1]}'"
+        )
+        if exit_code == 0 and stdout.strip():
+            ip = stdout.strip().split("\n")[0]
+            # Validate it looks like an IP
+            if re.match(r'^\d+\.\d+\.\d+\.\d+$', ip):
+                click.echo(f"  Tablet WiFi IP: {ip}")
+                return ip
+
+        click.echo("  [WARN] Could not determine WiFi IP. Is the tablet on WiFi?")
+        return ""
+
+    except Exception as exc:
+        click.echo(f"  [WARN] Error enabling WiFi SSH: {exc}")
+        return ""
+    finally:
+        conn.disconnect()
 
 
 def _get_folder_choices_live(
@@ -215,11 +354,10 @@ def _get_folder_choices_live(
 
     Returns a list of choices for InquirerPy, or an empty list on failure.
     """
-    import json
     import logging
 
     try:
-        from src.backup.connection import ReMarkableConnection, USB_HOST
+        from src.backup.connection import USB_HOST, ReMarkableConnection
     except ImportError:
         return []
 
@@ -248,7 +386,7 @@ def _get_folder_choices_live(
             f"done"
         )
         if exit_code != 0:
-            click.echo(f"  [WARN] Failed to read metadata from tablet.")
+            click.echo("  [WARN] Failed to read metadata from tablet.")
             return []
 
         # Parse the output — each metadata block starts with FILE: line
@@ -326,10 +464,10 @@ def _run_device_flow() -> str:
         except Exception:
             copied = ""
 
-        click.echo(f"  +-------------------------------------------+")
+        click.echo("  +-------------------------------------------+")
         click.echo(f"  |  Visit: {uri:<30}  |")
         click.echo(f"  |  Enter code: {code:<26}  |")
-        click.echo(f"  +-------------------------------------------+")
+        click.echo("  +-------------------------------------------+")
         click.echo(f"  Code{copied}")
         click.echo()
         click.echo("  Waiting for authorization...", nl=False)

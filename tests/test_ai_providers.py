@@ -1,11 +1,11 @@
 """Tests for the AI provider abstraction."""
 
-import pytest
-from unittest.mock import MagicMock, patch
 from pathlib import Path
+from unittest.mock import MagicMock, patch
 
-from src.ai import get_provider, BaseAIProvider, ClaudeProvider, GitHubModelsProvider
+import pytest
 
+from src.ai import ClaudeProvider, GitHubModelsProvider, get_provider
 
 # ---------------------------------------------------------------------------
 # get_provider factory
