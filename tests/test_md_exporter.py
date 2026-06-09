@@ -1,10 +1,10 @@
 """Tests for the Markdown exporter."""
 
-import json
 from pathlib import Path
 from unittest.mock import MagicMock
 
-from src.pdf_md_converter import MarkdownExporter, _file_hash, _safe_name
+from src.pdf_md_converter import MarkdownExporter, _file_hash
+from src.utils import sanitize_name
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -31,17 +31,23 @@ def _write_dummy_pdf(path: Path) -> None:
 
 
 class TestSafeName:
-    def test_removes_special_chars(self):
-        assert _safe_name("Hello/World!") == "HelloWorld"
+    def test_replaces_illegal_fs_chars_with_hyphen(self):
+        assert sanitize_name("Hello/World!") == "Hello-World!"
 
     def test_preserves_spaces_hyphens_underscores(self):
-        assert _safe_name("Hello World - Test_1") == "Hello World - Test_1"
+        assert sanitize_name("Hello World - Test_1") == "Hello World - Test_1"
+
+    def test_preserves_parens_ampersand_dot(self):
+        assert sanitize_name("Q&A (2024).notes") == "Q&A (2024).notes"
+
+    def test_replaces_colon(self):
+        assert sanitize_name("1:1") == "1-1"
 
     def test_empty_string(self):
-        assert _safe_name("") == ""
+        assert sanitize_name("") == ""
 
     def test_strips_whitespace(self):
-        assert _safe_name("  hello  ") == "hello"
+        assert sanitize_name("  hello  ") == "hello"
 
 
 class TestExtractTitle:
@@ -139,11 +145,7 @@ class TestMarkdownExporter:
         result = exp.export_notebook(notebook, pdf)
 
         assert result is not None
-        state_file = backup / MarkdownExporter.STATE_FILE_NAME
-        assert state_file.exists()
-
-        state = json.loads(state_file.read_text())
-        assert "uuid-1234" in state
+        assert Path(result).exists()
 
     def test_markdown_file_created(self, tmp_path):
         output_dir = tmp_path / "output"
@@ -289,7 +291,7 @@ class TestMarkdownExporter:
             _write_dummy_pdf(pdf)
 
         exp = self._make_exporter(output_dir, backup)
-        exported, skipped = exp.export_all(notebooks, pdf_dir)
+        exported, skipped, _dirs = exp.export_all(notebooks, pdf_dir)
         assert exported == 2
         assert skipped == 0
 
@@ -308,5 +310,5 @@ class TestMarkdownExporter:
         _write_dummy_pdf(pdf)
 
         exp = self._make_exporter(output_dir, backup)
-        exported, skipped = exp.export_all(notebooks, pdf_dir)
+        exported, skipped, _dirs = exp.export_all(notebooks, pdf_dir)
         assert exported == 1  # only the document, not the folder

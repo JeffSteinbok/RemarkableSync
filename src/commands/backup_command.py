@@ -34,7 +34,8 @@ def run_backup_command(
     Returns:
         Exit code (0 for success, 1 for failure)
     """
-    setup_logging(log_level, log_dir=backup_dir)
+    log_dir = backup_dir.parent
+    setup_logging(log_level, log_dir=log_dir)
 
     print("ReMarkable Tablet Backup")
     print("=" * 70)

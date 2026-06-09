@@ -122,7 +122,7 @@ class TestGetFolderHierarchy:
     def test_single_level_parent(self, backup_dir):
         notebook = {"parent": "folder-1"}
         hierarchy = get_folder_hierarchy(notebook, backup_dir)
-        assert hierarchy == ["Work"]
+        assert hierarchy == [("Work", "folder-1")]
 
     def test_no_parent(self, backup_dir):
         notebook = {"parent": ""}
@@ -145,7 +145,7 @@ class TestGetFolderHierarchy:
 
         notebook = {"parent": "sub-folder"}
         hierarchy = get_folder_hierarchy(notebook, bd)
-        assert hierarchy == ["Projects", "2024"]
+        assert hierarchy == [("Projects", "root-folder"), ("2024", "sub-folder")]
 
 
 class TestOrganizeNotebooksByStructure:

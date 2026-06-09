@@ -102,13 +102,11 @@ def run_config_command() -> int:
                 click.echo("    5. Re-run this wizard with the IP ready")
                 return 1
 
-        # Let user confirm/change the IP (pre-filled from device or config)
-        default_ip = wifi_host or current.get("wifi_host", "") or "192.168.1."
+        # Let user confirm/change the IP (pre-filled from device or config; blank if unknown)
+        default_ip = wifi_host or current.get("wifi_host", "") or ""
         wifi_host = inquirer.text(
             message="Tablet WiFi IP address:",
             default=default_ip,
-            validate=lambda x: len(x.strip()) > 0,
-            invalid_message="IP address cannot be empty.",
         ).execute()
 
         if wifi_host is None:
@@ -163,23 +161,35 @@ def run_config_command() -> int:
         backup_dir = _default_backup_dir()
         click.echo(f"  Using default: {backup_dir}")
 
-    # 5. Sync actions
-    current_actions = current.get("sync_actions", ["backup", "pdf"])
-    action_choices = [
-        {"name": display, "value": value, "enabled": value in current_actions}
-        for value, display in SYNC_ACTIONS
-    ]
+    # 5. Sync actions — later steps imply earlier ones (backup → pdf → ocr)
+    action_order = [value for value, _ in SYNC_ACTIONS]
+    current_actions = current.get("sync_actions", ["backup", "pdf", "ocr"])
+    if not current_actions:
+        current_actions = action_order
 
-    sync_actions = inquirer.checkbox(
+    # Build cascade choices: each option enables all steps up to and including it
+    cascade_labels = {
+        "backup": "Backup only",
+        "pdf": "Backup + PDF Conversion",
+        "ocr": "Backup + PDF Conversion + AI OCR & Markdown Export",
+    }
+    highest_current = max(
+        (action_order.index(a) for a in current_actions if a in action_order), default=0
+    )
+    default_action = action_order[highest_current]
+
+    chosen = inquirer.select(
         message="What to do on sync:",
-        choices=action_choices,
-        validate=lambda result: len(result) >= 1,
-        invalid_message="Select at least one sync action.",
+        choices=[{"name": cascade_labels[value], "value": value} for value, _ in SYNC_ACTIONS],
+        default=default_action,
     ).execute()
 
-    if sync_actions is None:
+    if chosen is None:
         click.echo("Configuration cancelled.")
         return 0
+
+    # Cascade: all steps up to and including the chosen step
+    sync_actions = action_order[: action_order.index(chosen) + 1]
 
     # 6. PDF output directory (if PDF or OCR selected)
     from src.config import _default_documents_dir
@@ -412,7 +422,7 @@ def run_config_command() -> int:
         click.echo(f"  Images:  {'yes (_images/ folder)' if embed_images else 'no'}")
         click.echo(f"  AI:      {ai_provider} ({ai_model})")
         has_token = bool(github_token or claude_api_key)
-        click.echo(f"  Token:   {'[OK] saved in keyring' if has_token else '(not set)'}")
+        click.echo(f"  Token:   {'OK - saved in keyring' if has_token else '(not set)'}")
     click.echo()
 
     return 0
@@ -456,14 +466,14 @@ def _enable_wifi_ssh(password: str) -> str:
     try:
         from src.backup.connection import USB_HOST, ReMarkableConnection
     except ImportError:
-        click.echo("  [WARN] Could not import connection module.")
+        click.echo("  WRN - Could not import connection module.")
         return ""
 
     conn = ReMarkableConnection(password=password, host=USB_HOST)
     click.echo("  Connecting via USB...")
 
     if not conn.connect():
-        click.echo("  [WARN] Could not connect via USB. Is the tablet plugged in?")
+        click.echo("  WRN - Could not connect via USB. Is the tablet plugged in?")
         return ""
 
     try:
@@ -471,7 +481,7 @@ def _enable_wifi_ssh(password: str) -> str:
         click.echo("  Enabling WiFi SSH...")
         stdout, stderr, exit_code = conn.execute_command("rm-ssh-over-wlan on")
         if exit_code != 0:
-            click.echo(f"  [WARN] Command failed: {stderr.strip() or stdout.strip()}")
+            click.echo(f"  WRN - Command failed: {stderr.strip() or stdout.strip()}")
             return ""
 
         click.echo("  WiFi SSH enabled!")
@@ -487,11 +497,11 @@ def _enable_wifi_ssh(password: str) -> str:
                 click.echo(f"  Tablet WiFi IP: {ip}")
                 return ip
 
-        click.echo("  [WARN] Could not determine WiFi IP. Is the tablet on WiFi?")
+        click.echo("  WRN - Could not determine WiFi IP. Is the tablet on WiFi?")
         return ""
 
     except Exception as exc:
-        click.echo(f"  [WARN] Error enabling WiFi SSH: {exc}")
+        click.echo(f"  WRN - Error enabling WiFi SSH: {exc}")
         return ""
     finally:
         conn.disconnect()
@@ -522,7 +532,7 @@ def _get_folder_choices_live(
     )
 
     if not conn.connect():
-        click.echo("  [WARN] Could not connect to tablet.")
+        click.echo("  WRN - Could not connect to tablet.")
         return []
 
     try:
@@ -536,7 +546,7 @@ def _get_folder_choices_live(
             f"done"
         )
         if exit_code != 0:
-            click.echo("  [WARN] Failed to read metadata from tablet.")
+            click.echo("  WRN - Failed to read metadata from tablet.")
             return []
 
         # Parse the output — each metadata block starts with FILE: line
@@ -566,7 +576,7 @@ def _get_folder_choices_live(
 
     except Exception as exc:
         logging.debug("Failed to list folders from tablet: %s", exc)
-        click.echo(f"  [WARN] Error reading folders: {exc}")
+        click.echo(f"  WRN - Error reading folders: {exc}")
         return []
     finally:
         conn.disconnect()
