@@ -11,7 +11,7 @@
 [![Homebrew](https://github.com/JeffSteinbok/RemarkableSync/actions/workflows/update-homebrew.yml/badge.svg)](https://github.com/JeffSteinbok/RemarkableSync/actions/workflows/update-homebrew.yml)
 
 
-A comprehensive Python toolkit for backing up and converting reMarkable tablet notebooks to PDF with template support and proper folder hierarchy preservation — now with **Wi-Fi sync**, **AI handwriting recognition**, and direct **Obsidian vault export**.
+A comprehensive Python toolkit for backing up and converting reMarkable tablet notebooks to PDF with template support and proper folder hierarchy preservation — now with **Wi-Fi sync**, **AI handwriting recognition**, and direct **Markdown output export**.
 
 > [!IMPORTANT]
 > This tool has been tested exclusively on reMarkable 2. Compatibility with reMarkable 1 is not guaranteed.
@@ -43,9 +43,9 @@ A comprehensive Python toolkit for backing up and converting reMarkable tablet n
 - **pytesseract Fallback**: Offline OCR via Tesseract when no AI provider is configured
 - **Provider Abstraction**: Pluggable architecture — add your own provider by subclassing `BaseAIProvider`
 
-### 📓 Obsidian Vault Export
+### 📓 Markdown Output Export
 - **Markdown Notes**: Each notebook becomes a `.md` file with YAML frontmatter
-- **Embedded Images**: Page images are copied into the vault and linked with Obsidian `![[file]]` syntax
+- **Embedded Images**: Page images are copied into the output directory and linked with wiki-style `![[file]]` syntax
 - **Folder Hierarchy**: Notes are placed in the same folder structure as on the device
 - **Custom Tags**: Add your own frontmatter tags to every note
 - **Incremental Export**: Only re-exports notebooks whose PDF has changed (tracked via MD5 hash)
@@ -249,8 +249,8 @@ RemarkableSync convert --force-all
 - `-s, --sample N`: Convert only first N notebooks
 - `-n, --notebook NAME`: Convert only specific notebook (by UUID or name)
 
-**Obsidian-sync Options**:
-- `-V, --vault-dir PATH` (required): Root of your Obsidian vault
+**obsidian-sync Options**:
+- `-V, --vault-dir PATH` (required): Root of your Markdown output directory
 - `--ai-provider`: AI provider — `claude` or `github` (GitHub Models / GPT-4o)
 - `--ai-model`: Override the default model for the chosen provider
 - `--ai-api-key`: API key (or set `ANTHROPIC_API_KEY` / `GITHUB_TOKEN` env-vars)
@@ -261,7 +261,7 @@ RemarkableSync convert --force-all
 
 **Watch Options**:
 - `-i, --interval N`: Minutes between sync attempts (default: 30)
-- `-V, --vault-dir PATH`: Obsidian vault — enables obsidian-sync mode
+- `-V, --vault-dir PATH`: Markdown output directory — enables obsidian-sync mode
 - `--systray/--no-systray`: Show/hide system tray status icon in watch mode (default: enabled)
 
 ## Wi-Fi Connection
@@ -281,7 +281,7 @@ RemarkableSync sync --wifi
 # Specify the tablet's IP address directly
 RemarkableSync sync --wifi --wifi-host 192.168.1.42
 
-# Obsidian sync over Wi-Fi
+# Markdown export over Wi-Fi
 RemarkableSync obsidian-sync --vault-dir ~/Notes --wifi --wifi-host 192.168.1.42
 
 # Watch mode with Wi-Fi
@@ -294,36 +294,36 @@ On the tablet: **Settings → Wi-Fi → (tap your network)** — the IP is shown
 > [!TIP]
 > Assign a static DHCP lease to your tablet in your router settings so the IP doesn't change.
 
-## Obsidian Export
+## Markdown Export
 
 The `obsidian-sync` command runs the full pipeline in one step:
 
 1. **Backup** changed files from the tablet
 2. **Convert** updated notebooks to PDF
 3. **OCR / AI transcription** of handwriting (optional)
-4. **Export** Markdown notes into your Obsidian vault
+4. **Export** Markdown notes into your output directory
 
 ### Quick start
 
 ```bash
 # Basic export (no AI transcription)
-RemarkableSync obsidian-sync --vault-dir ~/Documents/Obsidian/MyVault
+RemarkableSync obsidian-sync --vault-dir ~/Documents/Markdown/MyNotes
 
 # With Claude AI for handwriting recognition
 export ANTHROPIC_API_KEY="sk-ant-…"
 RemarkableSync obsidian-sync \
-    --vault-dir ~/Documents/Obsidian/MyVault \
+    --vault-dir ~/Documents/Markdown/MyNotes \
     --ai-provider claude
 
 # With GitHub Models (GPT-4o)
 export GITHUB_TOKEN="ghp_…"
 RemarkableSync obsidian-sync \
-    --vault-dir ~/Documents/Obsidian/MyVault \
+    --vault-dir ~/Documents/Markdown/MyNotes \
     --ai-provider github
 
 # Wi-Fi + Claude + custom tags
 RemarkableSync obsidian-sync \
-    --vault-dir ~/Documents/Obsidian/MyVault \
+    --vault-dir ~/Documents/Markdown/MyNotes \
     --wifi --wifi-host 192.168.1.42 \
     --ai-provider claude \
     --tags "remarkable,handwriting,notes"
@@ -331,7 +331,7 @@ RemarkableSync obsidian-sync \
 
 ### Generated note format
 
-Each notebook becomes a Markdown file at `vault/<folder-path>/<notebook-name>.md`:
+Each notebook becomes a Markdown file at `output/<folder-path>/<notebook-name>.md`:
 
 ```markdown
 ---
@@ -362,7 +362,7 @@ tags:
 ![[My Meeting Notes/page_002.png]]
 ```
 
-Page images are stored in `vault/<folder-path>/<notebook-name>/page_NNN.png`.
+Page images are stored in `output/<folder-path>/<notebook-name>/page_NNN.png`.
 
 ### Incremental export
 
@@ -370,15 +370,15 @@ Re-running `obsidian-sync` is fast — only notebooks whose PDF has changed sinc
 
 ## Periodic Watch Mode
 
-Keep your vault automatically up to date in the background:
+Keep your output directory automatically up to date in the background:
 
 ```bash
 # Sync every 30 minutes (default), plain backup + PDF only
 RemarkableSync watch
 
-# Every 15 minutes with Obsidian export
+# Every 15 minutes with Markdown export
 RemarkableSync watch --interval 15 \
-    --vault-dir ~/Documents/Obsidian/MyVault \
+    --vault-dir ~/Documents/Markdown/MyNotes \
     --ai-provider claude
 
 # Run as a macOS launchd service or Linux systemd unit for true background operation
@@ -450,7 +450,7 @@ Tesseract is less accurate for handwriting but works entirely offline and for fr
    - Rasterises PDF pages to PNG via pdf2image
    - Sends images to AI provider for handwriting transcription
    - AI post-processes raw text into clean Markdown
-8. **Obsidian Export** (obsidian-sync only):
+8. **Markdown Export** (obsidian-sync only):
    - Writes YAML frontmatter + transcribed text + embedded images
    - Preserves folder hierarchy from the device
    - Tracks exported notebooks by PDF hash for incremental updates
@@ -477,7 +477,7 @@ remarkable_backup/
 │   └── [notebook folders with PDFs preserving hierarchy]
 ├── sync_metadata.json        # Sync state tracking
 ├── updated_notebooks.txt     # List of notebooks updated in last backup
-├── obsidian_export_state.json # Incremental Obsidian export state (MD5 hashes)
+├── obsidian_export_state.json # Incremental Markdown export state (MD5 hashes)
 └── .remarkable_backup.log    # Backup operation log
 ```
 

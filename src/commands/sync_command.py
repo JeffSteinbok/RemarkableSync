@@ -11,11 +11,11 @@ from ..utils.logging import setup_logging
 
 def run_sync_command(
     backup_dir: Path,
-    password: Optional[str],
-    verbose: bool,
-    skip_templates: bool,
-    force_backup: bool,
-    force_convert: bool,
+    password: Optional[str] = None,
+    log_level: str = "WRN",
+    skip_templates: bool = False,
+    force_backup: bool = False,
+    force_convert: bool = False,
     host: str = USB_HOST,
     use_wifi: bool = False,
     wifi_host: str = "",
@@ -28,7 +28,7 @@ def run_sync_command(
     Args:
         backup_dir: Directory to store backup files
         password: SSH password for tablet
-        verbose: Enable verbose logging
+        log_level: Log verbosity (DBG/INF/WRN/ERR)
         skip_templates: Skip backing up template files
         force_backup: Force backup all files
         force_convert: Force convert all notebooks
@@ -39,7 +39,10 @@ def run_sync_command(
     Returns:
         Exit code (0 for success, 1 for failure)
     """
-    setup_logging(verbose)
+    import time as _time
+
+    setup_logging(log_level, log_dir=backup_dir)
+    _start_time = _time.monotonic()
 
     print("ReMarkable Sync (Backup + Convert)")
     print("=" * 40)
@@ -72,15 +75,22 @@ def run_sync_command(
             backup_templates=not skip_templates,
         )
 
-        if success:
-            print("\n[SUCCESS] Sync completed successfully!")
-            print(f"Files backed up to: {backup_tool.files_dir}")
-            if not skip_templates:
-                print(f"Templates backed up to: {backup_tool.templates_dir}")
+        elapsed = _time.monotonic() - _start_time
+        mins, secs = divmod(int(elapsed), 60)
 
+        if success:
+            print()
+            print("=" * 40)
+            print("  Sync Summary")
+            print("=" * 40)
+            print(f"  Backup     : {backup_tool.files_dir}")
+            if not skip_templates:
+                print(f"  Templates  : {backup_tool.templates_dir}")
             pdfs_dir = backup_dir / "PDF"
             if pdfs_dir.exists():
-                print(f"PDFs generated in: {pdfs_dir}")
+                print(f"  PDFs       : {pdfs_dir}")
+            print(f"  Duration   : {mins}m {secs}s")
+            print("=" * 40)
             return 0
         else:
             print("\n[ERROR] Sync failed. Check logs for details.")

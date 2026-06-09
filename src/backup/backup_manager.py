@@ -23,7 +23,6 @@ from typing import Dict, List, Optional, Set, Tuple
 
 import paramiko
 from scp import SCPException
-from tqdm import tqdm
 
 from .connection import ReMarkableConnection
 from .metadata import FileMetadata
@@ -83,24 +82,143 @@ class ReMarkableBackup:  # pylint: disable=too-many-instance-attributes
         self.remote_xochitl_dir = "/home/root/.local/share/remarkable/xochitl"
         self.remote_templates_dir = "/usr/share/remarkable/templates"
 
-    def backup_files(self) -> Tuple[bool, Set[str]]:  # pylint: disable=too-many-branches
+    def _resolve_allowed_uuids(self) -> Optional[Set[str]]:
+        """Resolve which notebook UUIDs belong to the configured folder filter.
+
+        Reads .metadata files from the tablet over SSH (already connected)
+        to determine folder hierarchy, then returns UUIDs that belong to
+        selected folders. Returns None if no filter is configured.
+        """
+        import json
+
+        from ..config import load_config
+
+        config = load_config()
+        folder_names = config.get("folders", [])
+        if not folder_names:
+            print("  Syncing: all folders")
+            return None
+
+        print(f"  Syncing folders: {', '.join(folder_names)}")
+
+        # Read all metadata files from the tablet in one command
+        stdout, stderr, exit_code = self.connection.execute_command(
+            f"for f in {self.remote_xochitl_dir}/*.metadata; do "
+            f'[ -f "$f" ] && echo "FILE:$(basename $f .metadata)" && cat "$f"; '
+            f"done"
+        )
+        if exit_code != 0:
+            logging.warning("Could not read metadata for folder filtering")
+            return None
+
+        # Parse all metadata
+        metadata_cache: Dict[str, dict] = {}
+        current_uuid = None
+        current_lines = []
+        for line in stdout.split("\n"):
+            if line.startswith("FILE:"):
+                if current_uuid and current_lines:
+                    try:
+                        metadata_cache[current_uuid] = json.loads("\n".join(current_lines))
+                    except (json.JSONDecodeError, ValueError):
+                        pass
+                current_uuid = line[5:].strip()
+                current_lines = []
+            else:
+                current_lines.append(line)
+        if current_uuid and current_lines:
+            try:
+                metadata_cache[current_uuid] = json.loads("\n".join(current_lines))
+            except (json.JSONDecodeError, ValueError):
+                pass
+
+        # Walk parent chain to find top-level folder for each UUID
+        include_root = "(Root)" in folder_names
+        real_folder_names = [f for f in folder_names if f != "(Root)"]
+
+        def _get_top_folder(uuid: str) -> str:
+            visited = set()
+            current = uuid
+            while current and current not in visited:
+                visited.add(current)
+                meta = metadata_cache.get(current)
+                if not meta:
+                    return ""
+                parent = meta.get("parent", "")
+                if not parent:
+                    if meta.get("type") == "CollectionType":
+                        return meta.get("visibleName", "")
+                    return ""
+                parent_meta = metadata_cache.get(parent)
+                if parent_meta and not parent_meta.get("parent", ""):
+                    return parent_meta.get("visibleName", "")
+                current = parent
+            return ""
+
+        allowed = set()
+        for uuid, meta in metadata_cache.items():
+            parent = meta.get("parent", "")
+            # Root-level items (no parent)
+            if include_root and not parent:
+                allowed.add(uuid)
+                continue
+            # Items inside selected folders
+            top = _get_top_folder(uuid)
+            if top and top in real_folder_names:
+                allowed.add(uuid)
+
+        logging.info(
+            "Folder filter: %d/%d items in selected folders",
+            len(allowed), len(metadata_cache),
+        )
+        print(f"  Found {len(allowed)} notebooks in selected folders")
+        return allowed
+
+    def backup_files(self) -> Tuple[bool, Set[str], Dict[str, Set[str]]]:  # pylint: disable=too-many-branches
         """Backup files from ReMarkable tablet.
 
         Returns:
-            Tuple of (success, set of notebook UUIDs that were updated)
+            Tuple of (success, set of notebook UUIDs that were updated,
+            dict mapping notebook UUID to set of changed page IDs)
         """
         logging.info("Starting file backup...")
+        print("  Connecting to tablet...")
 
         if not self.connection.connect():
-            return False, set()
+            return False, set(), {}
 
         try:
+            # Resolve folder filter before listing files
+            allowed_uuids = self._resolve_allowed_uuids()
+
             # Get list of remote files
-            remote_files = self.connection.list_files(self.remote_xochitl_dir)
+            from src.utils.console import console
+            with console.status("[bold blue]Scanning tablet files..."):
+                remote_files = self.connection.list_files(self.remote_xochitl_dir)
+            print(f"  Scanned {len(remote_files)} files on tablet")
 
             if not remote_files:
                 logging.warning("No files found on ReMarkable tablet")
-                return True, set()
+                return True, set(), {}
+
+            # Apply folder filter — only sync files belonging to allowed UUIDs
+            if allowed_uuids is not None:
+                def _file_in_allowed(rf):
+                    rel = os.path.relpath(rf["path"], self.remote_xochitl_dir)
+                    parts = rel.split(os.sep)
+                    # Extract UUID from path (e.g. "uuid.metadata" or "uuid/page.rm")
+                    first = parts[0].split(".")[0]
+                    if len(first) == 36:
+                        return first in allowed_uuids
+                    return True  # Non-UUID files (e.g. version) always synced
+
+                before = len(remote_files)
+                remote_files = [rf for rf in remote_files if _file_in_allowed(rf)]
+                print(f"  Filtered to {len(remote_files)} files (from {before} total)")
+
+            if not remote_files:
+                logging.warning("No files found on ReMarkable tablet")
+                return True, set(), {}
 
             # Filter files that need syncing
             files_to_sync = []
@@ -112,16 +230,23 @@ class ReMarkableBackup:  # pylint: disable=too-many-instance-attributes
                     files_to_sync.append((remote_file, local_path))
 
             if not files_to_sync:
+                print("  All files are up to date")
                 logging.info("All files are up to date")
-                return True, set()
+                return True, set(), {}
 
-            logging.info("Syncing %d files...", len(files_to_sync))
+            print(f"  Downloading {len(files_to_sync)} changed files...")
 
             # Track which notebooks have been updated
             updated_notebooks = set()
+            # Track which specific pages changed per notebook
+            updated_pages: Dict[str, Set[str]] = {}
 
-            # Download files with progress bar
-            with tqdm(total=len(files_to_sync), desc="Downloading") as pbar:
+            # Download files with Rich progress bar (pinned to bottom)
+            from src.utils.console import create_progress, print_error
+
+            with create_progress("Downloading") as progress:
+                task = progress.add_task("Downloading", total=len(files_to_sync))
+
                 for remote_file, local_path in files_to_sync:
                     try:
                         # Create local directory if needed
@@ -130,47 +255,46 @@ class ReMarkableBackup:  # pylint: disable=too-many-instance-attributes
                         # Download file
                         if self.connection.scp_client is None:
                             logging.error("SCP client not initialized")
-                            return False, set()
+                            return False, set(), {}
                         self.connection.scp_client.get(remote_file["path"], str(local_path))
 
                         # Update metadata
                         self.metadata.update_file_metadata(remote_file, local_path)
 
                         # Track notebook UUID if this file belongs to a notebook
-                        # Handle both top-level files and files in subdirectories
                         relative_path = os.path.relpath(
                             remote_file["path"], self.remote_xochitl_dir
                         )
                         path_parts = relative_path.split(os.sep)
 
-                        # Check if this is a notebook-related file
                         notebook_uuid = None
                         if len(path_parts) >= 1:
-                            # Top-level files like uuid.metadata, uuid.content
                             first_part = path_parts[0].split(".")[0]
-                            if len(first_part) == 36 and first_part not in [  # UUID length
-                                "templates",
-                                "version",
+                            if len(first_part) == 36 and first_part not in [
+                                "templates", "version",
                             ]:
                                 notebook_uuid = first_part
 
                         if len(path_parts) >= 2:
-                            # Files in subdirectories like uuid/page.rm
                             if len(path_parts[0]) == 36 and path_parts[0] not in [
-                                "templates",
-                                "version",
+                                "templates", "version",
                             ]:
                                 notebook_uuid = path_parts[0]
 
                         if notebook_uuid:
                             updated_notebooks.add(notebook_uuid)
 
-                        pbar.set_postfix_str(f"Downloaded {local_path.name}")
+                            if len(path_parts) >= 2 and path_parts[-1].endswith(".rm"):
+                                page_id = path_parts[-1].rsplit(".", 1)[0]
+                                if notebook_uuid not in updated_pages:
+                                    updated_pages[notebook_uuid] = set()
+                                updated_pages[notebook_uuid].add(page_id)
+
+                        progress.update(task, advance=1, description=local_path.name[:40])
 
                     except (OSError, SCPException) as e:
-                        logging.error("Failed to download %s: %s", remote_file["path"], e)
-
-                    pbar.update(1)
+                        print_error(f"  [ERR] Failed to download {remote_file['path']}: {e}")
+                        progress.update(task, advance=1)
 
             # Save metadata
             self.metadata.save()
@@ -181,11 +305,11 @@ class ReMarkableBackup:  # pylint: disable=too-many-instance-attributes
             logging.info(
                 "File backup completed successfully. Updated %d notebooks.", len(updated_notebooks)
             )
-            return True, updated_notebooks
+            return True, updated_notebooks, updated_pages
 
         except (paramiko.SSHException, OSError) as e:
             logging.error("Backup failed: %s", e)
-            return False, set()
+            return False, set(), {}
 
         finally:
             self.connection.disconnect()
@@ -228,27 +352,25 @@ class ReMarkableBackup:  # pylint: disable=too-many-instance-attributes
             logging.info("Syncing %d template files...", len(files_to_sync))
 
             # Download template files with progress bar
-            with tqdm(total=len(files_to_sync), desc="Downloading templates") as pbar:
+            from src.utils.console import create_progress, print_error
+
+            with create_progress("Templates") as progress:
+                task = progress.add_task("Templates", total=len(files_to_sync))
                 for remote_file, local_path in files_to_sync:
                     try:
-                        # Create local directory if needed
                         local_path.parent.mkdir(parents=True, exist_ok=True)
 
-                        # Download file
                         if self.connection.scp_client is None:
                             logging.error("SCP client not initialized")
                             return False
                         self.connection.scp_client.get(remote_file["path"], str(local_path))
 
-                        # Update metadata
                         self.metadata.update_file_metadata(remote_file, local_path)
 
-                        pbar.set_postfix_str(f"Downloaded {local_path.name}")
-
                     except (OSError, SCPException) as e:
-                        logging.error("Failed to download %s: %s", remote_file["path"], e)
+                        print_error(f"  [ERR] Failed to download {remote_file['path']}: {e}")
 
-                    pbar.update(1)
+                    progress.update(task, advance=1, description=local_path.name[:40])
 
             # Save metadata
             self.metadata.save()
@@ -352,7 +474,7 @@ class ReMarkableBackup:  # pylint: disable=too-many-instance-attributes
         logging.info("Starting ReMarkable backup process")
 
         # Backup files and get list of updated notebooks
-        success, updated_notebook_uuids = self.backup_files()
+        success, updated_notebook_uuids, updated_pages = self.backup_files()
         if not success:
             return False
 
@@ -364,24 +486,28 @@ class ReMarkableBackup:  # pylint: disable=too-many-instance-attributes
 
         # Automatic PDF conversion using hybrid converter
         if convert_to_pdf:
-            return self.run_pdf_conversion(updated_notebook_uuids, force_convert_all)
+            return self.run_pdf_conversion(updated_notebook_uuids, force_convert_all, updated_pages)
 
         logging.info("Backup process completed successfully")
         return True
 
     def run_pdf_conversion(
-        self, updated_notebook_uuids: Set[str], force_convert_all: bool = False
+        self,
+        updated_notebook_uuids: Set[str],
+        force_convert_all: bool = False,
+        updated_pages: Optional[Dict[str, Set[str]]] = None,
     ) -> bool:
         """Run PDF conversion using the converter module.
 
         Args:
             updated_notebook_uuids: Set of notebook UUIDs that were updated during sync
             force_convert_all: If True, convert all notebooks regardless of sync status
+            updated_pages: Dict mapping notebook UUID to set of changed page IDs
 
         Returns:
             bool: True if conversion successful, False otherwise
         """
-        from ..converter import run_conversion
+        from ..rm_pdf_converter import run_conversion
 
         logging.info("Starting PDF conversion...")
 
@@ -409,15 +535,22 @@ class ReMarkableBackup:  # pylint: disable=too-many-instance-attributes
             logging.info("No notebooks were updated - skipping PDF conversion")
             return True
 
+        # Load folder filter from config
+        from ..config import load_config
+        config = load_config()
+        folder_filter = config.get("folders", []) or None
+
         # Run conversion
         try:
-            success = run_conversion(
+            success, _converted = run_conversion(
                 backup_dir=self.backup_dir,
                 output_dir=output_dir,
-                verbose=True,
+                verbose="INF",
                 sample=None,
                 notebook_filter=None,
                 updated_only=updated_only_file,
+                updated_pages=updated_pages,
+                folder_filter=folder_filter,
             )
 
             # Clean up temporary file if created

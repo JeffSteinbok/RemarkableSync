@@ -242,21 +242,6 @@ class ReMarkableConnection:
                         self.scp_client = SCPClient(transport)
                         logging.info("Connected to ReMarkable tablet at %s", self.host)
 
-                        # Connection successful! Ask if user wants to save password
-                        if (
-                            not used_saved_password
-                            and KEYRING_AVAILABLE
-                            and not self.password_saved
-                        ):
-                            if click.confirm(
-                                "\nWould you like to save this password securely for future use?",
-                                default=False,
-                            ):
-                                if self.save_password(password):
-                                    print("Password saved successfully!")
-                                else:
-                                    print("Failed to save password.")
-
                         return True
 
                     except paramiko.AuthenticationException as e:

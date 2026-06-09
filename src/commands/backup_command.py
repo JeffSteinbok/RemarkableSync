@@ -12,7 +12,7 @@ from ..utils.logging import setup_logging
 def run_backup_command(
     backup_dir: Path,
     password: Optional[str],
-    verbose: bool,
+    log_level: str,
     skip_templates: bool,
     force: bool,
     host: str = USB_HOST,
@@ -24,7 +24,7 @@ def run_backup_command(
     Args:
         backup_dir: Directory to store backup files
         password: SSH password for tablet
-        verbose: Enable verbose logging
+        log_level: Log verbosity (DBG/INF/WRN/ERR)
         skip_templates: Skip backing up template files
         force: Force backup all files (ignore sync status)
         host: Tablet IP/hostname for USB connections
@@ -34,7 +34,7 @@ def run_backup_command(
     Returns:
         Exit code (0 for success, 1 for failure)
     """
-    setup_logging(verbose)
+    setup_logging(log_level, log_dir=backup_dir)
 
     print("ReMarkable Tablet Backup")
     print("=" * 40)

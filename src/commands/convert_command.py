@@ -4,14 +4,14 @@ import logging
 from pathlib import Path
 from typing import Optional
 
-from ..converter import run_conversion
+from ..rm_pdf_converter import run_conversion
 from ..utils.logging import setup_logging
 
 
 def run_convert_command(
     backup_dir: Path,
     output_dir: Optional[Path],
-    verbose: bool,
+    log_level: str,
     force_all: bool,
     sample: Optional[int],
     notebook: Optional[str],
@@ -21,7 +21,7 @@ def run_convert_command(
     Args:
         backup_dir: Directory containing ReMarkable backup files
         output_dir: Directory to save PDF files
-        verbose: Enable verbose logging
+        log_level: Log verbosity (DBG/INF/WRN/ERR)
         force_all: Convert all notebooks (ignore sync status)
         sample: Convert only first N notebooks
         notebook: Convert only this notebook (by UUID or name)
@@ -29,7 +29,7 @@ def run_convert_command(
     Returns:
         Exit code (0 for success, 1 for failure)
     """
-    setup_logging(verbose)
+    setup_logging(log_level)
 
     if not backup_dir.exists():
         print(f"[ERROR] Backup directory not found: {backup_dir}")
@@ -61,10 +61,10 @@ def run_convert_command(
                 updated_only_file = updated_list
                 print("Converting recently updated notebooks only")
 
-        success = run_conversion(
+        success, _converted = run_conversion(
             backup_dir=backup_dir,
             output_dir=output_dir,
-            verbose=verbose,
+            verbose=log_level,
             sample=sample,
             notebook_filter=notebook,
             updated_only=updated_only_file,

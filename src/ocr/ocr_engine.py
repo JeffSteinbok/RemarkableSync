@@ -183,50 +183,95 @@ class OCREngine:
         self,
         pdf_path: Path,
         notebook_name: str = "",
+        page_pdfs: Optional[List[Path]] = None,
+        on_page_done: Optional[callable] = None,
     ) -> Tuple[str, str]:
         """Extract text from a notebook PDF.
-
-        Tries AI-based handwriting recognition first (if configured), then
-        falls back to pytesseract.
 
         Args:
             pdf_path: Path to the converted notebook PDF.
             notebook_name: Human-readable name used as context for the AI.
+            page_pdfs: Optional list of individual per-page PDF paths.
+            on_page_done: Callback ``(page_num, total_pages)`` called after
+                each page is rasterised.
 
         Returns:
-            ``(raw_text, processed_text)`` tuple.  *processed_text* has been
-            cleaned and formatted by the AI when AI is available; otherwise it
-            equals *raw_text*.  Both strings are empty on complete failure.
+            ``(raw_text, processed_text)`` tuple.
         """
-        if not pdf_path.exists():
+        if not page_pdfs and not pdf_path.exists():
             logging.warning("PDF not found for OCR: %s", pdf_path)
             return "", ""
 
         with tempfile.TemporaryDirectory(prefix="rs_ocr_") as tmp_str:
             tmp_dir = Path(tmp_str)
-            image_paths = self.pdf_to_images(pdf_path, tmp_dir)
 
-            if not image_paths:
-                return "", ""
+            if page_pdfs:
+                total = len(page_pdfs)
+            else:
+                # Rasterise the merged PDF once to find page count
+                page_pdfs = None  # will use merged path below
+                total = 1
 
-            # --- AI path -------------------------------------------------
+            # --- AI path (per-page) --------------------------------------
             if self.use_ai and self.ai_provider:
                 logging.info(
                     "Running AI handwriting recognition for '%s'", notebook_name
                 )
-                raw = self.ai_provider.transcribe_handwriting(
-                    image_paths, context=notebook_name
-                )
-                if raw:
+                all_raw_parts: List[str] = []
+
+                if page_pdfs:
+                    for idx, pp in enumerate(page_pdfs, start=1):
+                        if not pp.exists():
+                            continue
+                        page_images = self.pdf_to_images(pp, tmp_dir / f"page_{idx:03d}")
+                        if page_images:
+                            raw_part = self.ai_provider.transcribe_handwriting(
+                                page_images, context=f"{notebook_name} (page {idx})"
+                            )
+                            if raw_part:
+                                all_raw_parts.append(raw_part)
+                        if on_page_done:
+                            on_page_done(idx, total)
+                else:
+                    all_images = self.pdf_to_images(pdf_path, tmp_dir)
+                    if all_images:
+                        raw_part = self.ai_provider.transcribe_handwriting(
+                            all_images, context=notebook_name
+                        )
+                        if raw_part:
+                            all_raw_parts.append(raw_part)
+                    if on_page_done:
+                        on_page_done(1, 1)
+
+                if all_raw_parts:
+                    raw = "\n\n".join(all_raw_parts)
                     processed = self.ai_provider.cleanup_text(raw, context=notebook_name)
                     return raw, processed
+
                 logging.warning(
-                    "AI transcription returned empty result for '%s', "
-                    "falling back to pytesseract",
+                    "AI transcription returned empty result for '%s'",
                     notebook_name,
                 )
+                return "", ""
 
-            # --- pytesseract fallback ------------------------------------
+            # --- Non-AI path: rasterise all then pytesseract -------------
+            image_paths: List[Path] = []
+            if page_pdfs:
+                for idx, pp in enumerate(page_pdfs, start=1):
+                    if not pp.exists():
+                        continue
+                    page_images = self.pdf_to_images(pp, tmp_dir / f"page_{idx:03d}")
+                    image_paths.extend(page_images)
+                    if on_page_done:
+                        on_page_done(idx, total)
+            else:
+                image_paths = self.pdf_to_images(pdf_path, tmp_dir)
+                if on_page_done:
+                    on_page_done(1, 1)
+
+            if not image_paths:
+                return "", ""
+
             logging.info(
                 "Running pytesseract OCR for '%s'", notebook_name
             )

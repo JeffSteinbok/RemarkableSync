@@ -6,8 +6,17 @@ Single entry point for backing up and converting ReMarkable tablet files.
 """
 
 import sys
+import os
 from pathlib import Path
 from typing import Optional
+
+# Force UTF-8 output on Windows to avoid cp1252 encoding errors
+if sys.platform == "win32":
+    os.environ.setdefault("PYTHONIOENCODING", "utf-8")
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    if hasattr(sys.stderr, "reconfigure"):
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 # Check Python version before importing anything else
 if sys.version_info < (3, 11):
@@ -22,10 +31,13 @@ import click
 
 from src.__version__ import __repository__, __version__
 from src.backup.connection import USB_HOST
+from src.utils.logging import LogLevel
 
 # ---------------------------------------------------------------------------
 # Shared connection options (reused across commands)
 # ---------------------------------------------------------------------------
+
+_LOG_LEVELS = [e.value for e in LogLevel]
 
 _connection_options = [
     click.option(
@@ -55,6 +67,17 @@ def add_connection_options(func):
     return func
 
 
+def add_log_level_option(func):
+    """Decorator that adds --log-level option to a command."""
+    func = click.option(
+        '--log-level', '-l',
+        type=click.Choice(_LOG_LEVELS, case_sensitive=False),
+        default='NONE', show_default=True,
+        help='Console log verbosity.',
+    )(func)
+    return func
+
+
 def print_header():
     """Print the application header."""
     click.echo(f"RemarkableSync v{__version__} by Jeff Steinbok")
@@ -74,14 +97,21 @@ def version_callback(ctx, param, value):
 @click.option('--version', is_flag=True, callback=version_callback,
               expose_value=False, is_eager=True,
               help='Show version and repository information')
+@click.option('--log-level', '-l',
+              type=click.Choice(_LOG_LEVELS, case_sensitive=False),
+              default='NONE', show_default=True,
+              help='Log verbosity: DBG, INF, WRN, ERR.')
 @click.pass_context
-def cli(ctx):
+def cli(ctx, log_level):
     """RemarkableSync - Backup and convert ReMarkable tablet files.
 
     A unified tool to backup your ReMarkable tablet via USB or Wi-Fi and
-    convert notebooks to PDF format with template support.  Notebooks can
-    also be exported directly to an Obsidian vault with AI-transcribed text.
+    convert notebooks to PDF format with template support. Notebooks can
+    also be exported directly to a Markdown output directory with
+    AI-transcribed text.
     """
+    ctx.ensure_object(dict)
+    ctx.obj["log_level"] = log_level
     # Print header for all commands (unless it's --version which handles it itself)
     if ctx.invoked_subcommand and not ctx.resilient_parsing:
         print_header()
@@ -96,14 +126,14 @@ def cli(ctx):
               default=Path('./remarkable_backup'),
               help='Directory to store backup files')
 @click.option('--password', '-p', type=str, help='ReMarkable SSH password')
-@click.option('--verbose', '-v', is_flag=True, help='Enable verbose logging')
+@add_log_level_option
 @click.option('--skip-templates', is_flag=True, help='Skip backing up template files')
 @click.option('--force', '-f', is_flag=True, help='Force backup all files (ignore sync status)')
 @add_connection_options
 def backup(
     backup_dir: Path,
     password: Optional[str],
-    verbose: bool,
+    log_level: str,
     skip_templates: bool,
     force: bool,
     host: str,
@@ -121,7 +151,7 @@ def backup(
         run_backup_command(
             backup_dir,
             password,
-            verbose,
+            log_level,
             skip_templates,
             force,
             host=host,
@@ -135,25 +165,25 @@ def backup(
 # convert
 # ---------------------------------------------------------------------------
 
-@cli.command()
+@cli.command(name='pdf')
 @click.option('--backup-dir', '-d', type=click.Path(path_type=Path),
               default=Path('./remarkable_backup'),
               help='Directory containing ReMarkable backup files')
 @click.option('--output-dir', '-o', type=click.Path(path_type=Path),
               help='Directory to save PDF files (default: backup_dir/pdfs_final)')
-@click.option('--verbose', '-v', is_flag=True, help='Enable verbose logging')
+@add_log_level_option
 @click.option('--force-all', '-f', is_flag=True, help='Convert all notebooks (ignore sync status)')
 @click.option('--sample', '-s', type=int, help='Convert only first N notebooks (for testing)')
 @click.option('--notebook', '-n', type=str, help='Convert only this notebook (by UUID or name)')
-def convert(backup_dir: Path, output_dir: Optional[Path], verbose: bool, force_all: bool,
-           sample: Optional[int], notebook: Optional[str]):
+def pdf(backup_dir: Path, output_dir: Optional[Path], log_level: str, force_all: bool,
+        sample: Optional[int], notebook: Optional[str]):
     """Convert backed up notebooks to PDF format.
 
     Converts ReMarkable notebooks to PDF with template backgrounds.
     By default, only converts notebooks that were updated in the last backup.
     """
     from src.commands.convert_command import run_convert_command
-    sys.exit(run_convert_command(backup_dir, output_dir, verbose, force_all, sample, notebook))
+    sys.exit(run_convert_command(backup_dir, output_dir, log_level, force_all, sample, notebook))
 
 
 # ---------------------------------------------------------------------------
@@ -165,7 +195,7 @@ def convert(backup_dir: Path, output_dir: Optional[Path], verbose: bool, force_a
               default=Path('./remarkable_backup'),
               help='Directory to store backup files')
 @click.option('--password', '-p', type=str, help='ReMarkable SSH password')
-@click.option('--verbose', '-v', is_flag=True, help='Enable verbose logging')
+@add_log_level_option
 @click.option('--skip-templates', is_flag=True, help='Skip backing up template files')
 @click.option('--force-backup', is_flag=True, help='Force backup all files')
 @click.option('--force-convert', is_flag=True, help='Force convert all notebooks')
@@ -173,7 +203,7 @@ def convert(backup_dir: Path, output_dir: Optional[Path], verbose: bool, force_a
 def sync(
     backup_dir: Path,
     password: Optional[str],
-    verbose: bool,
+    log_level: str,
     skip_templates: bool,
     force_backup: bool,
     force_convert: bool,
@@ -191,7 +221,7 @@ def sync(
         run_sync_command(
             backup_dir,
             password,
-            verbose,
+            log_level,
             skip_templates,
             force_backup,
             force_convert,
@@ -203,86 +233,117 @@ def sync(
 
 
 # ---------------------------------------------------------------------------
-# obsidian-sync  (backup + convert + OCR/AI + Obsidian export)
+# md  (backup + convert + OCR/AI + Markdown export)
 # ---------------------------------------------------------------------------
 
-@cli.command(name='obsidian-sync')
+@cli.command(name='md')
 @click.option('--backup-dir', '-d', type=click.Path(path_type=Path),
-              default=Path('./remarkable_backup'),
-              help='Directory to store backup files')
-@click.option('--vault-dir', '-V', required=True, type=click.Path(path_type=Path),
-              help='Root directory of the Obsidian vault to write notes into')
+              default=None,
+              help='Directory to store backup files (default: from config)')
+@click.option('--vault-dir', '-V', type=click.Path(path_type=Path),
+              default=None,
+              help='Markdown output directory (default: from config)')
 @click.option('--password', '-p', type=str, help='ReMarkable SSH password')
-@click.option('--verbose', '-v', is_flag=True, help='Enable verbose logging')
-@click.option('--skip-backup', is_flag=True, help='Skip tablet backup stage')
-@click.option('--skip-convert', is_flag=True, help='Skip PDF conversion stage')
+@add_log_level_option
+@click.option('--with-backup', is_flag=True, help='Also run tablet backup before export')
+@click.option('--with-pdf', is_flag=True, help='Also run PDF conversion before export')
 @click.option('--force-backup', is_flag=True, help='Force full backup')
 @click.option('--force-convert', is_flag=True, help='Force convert all notebooks')
 @click.option('--force-export', is_flag=True, help='Re-export all notes even if unchanged')
-@click.option('--ai-provider', default='',
+@click.option('--ai-provider', default=None,
               type=click.Choice(['', 'claude', 'anthropic', 'github', 'github_models'], case_sensitive=False),
               help='AI provider for handwriting recognition')
 @click.option('--ai-model', default='', help='Override AI model (provider-specific)')
 @click.option('--ai-api-key', default='', envvar='REMARKABLE_AI_KEY',
-              help='AI API key (falls back to ANTHROPIC_API_KEY / GITHUB_TOKEN env-vars)')
+              help='AI API key (falls back to config / env-vars)')
 @click.option('--use-ai-ocr', is_flag=True, default=True, show_default=True,
               help='Use AI vision for handwriting recognition (requires --ai-provider)')
+@click.option('--notebook', '-n', type=str, help='Export only this notebook (by name or UUID)')
+@click.option('--page', type=int, help='Export only this page number (requires --notebook)')
 @click.option('--tags', default='remarkable',
               help='Comma-separated tags to add to note frontmatter')
 @click.option('--no-images', 'embed_images', is_flag=True, default=False,
               help='Do not embed page images in notes')
 @add_connection_options
-def obsidian_sync(
-    backup_dir: Path,
-    vault_dir: Path,
+def md(
+    backup_dir: Optional[Path],
+    vault_dir: Optional[Path],
     password: Optional[str],
-    verbose: bool,
-    skip_backup: bool,
-    skip_convert: bool,
+    log_level: str,
+    with_backup: bool,
+    with_pdf: bool,
     force_backup: bool,
     force_convert: bool,
     force_export: bool,
-    ai_provider: str,
+    ai_provider: Optional[str],
     ai_model: str,
     ai_api_key: str,
     use_ai_ocr: bool,
+    notebook: Optional[str],
+    page: Optional[int],
     tags: str,
     embed_images: bool,
     host: str,
     use_wifi: bool,
     wifi_host: str,
 ):
-    """Full pipeline: backup → PDF → OCR/AI → Obsidian Markdown.
+    """Export existing PDFs to Markdown with optional AI OCR.
 
-    Backs up your tablet, converts notebooks to PDF, runs AI handwriting
-    recognition, and writes the results as Markdown notes in your Obsidian
-    vault – preserving the original folder hierarchy.
+    By default only runs the Markdown export step.  Use --with-backup
+    and/or --with-pdf to include earlier pipeline stages.
+
+    Reads saved config for defaults (backup dir, output dir, AI provider,
+    connection mode).  CLI flags override config values.
 
     \b
     Examples:
-      # Sync via USB using Claude for OCR
-      RemarkableSync obsidian-sync --vault-dir ~/Documents/Obsidian/Brain \\
-          --ai-provider claude
+      # Export from existing PDFs (using saved config)
+      RemarkableSync md
 
-      # Sync via Wi-Fi using GitHub Models, force re-export all
-      RemarkableSync obsidian-sync --vault-dir ~/Notes --wifi \\
-          --ai-provider github --force-export
+      # Full pipeline: backup + pdf + md
+      RemarkableSync md --with-backup --with-pdf
     """
-    from src.commands.obsidian_sync_command import run_obsidian_sync_command
+    from src.config import load_config
+    from src.commands.md_sync_command import run_md_sync_command
+
+    cfg = load_config()
+
+    # Apply config defaults where CLI didn't provide a value
+    if backup_dir is None:
+        backup_dir = Path(cfg.get("backup_dir", "./remarkable_backup"))
+    output_dir = vault_dir or Path(cfg.get("output_dir", ""))
+    if not str(output_dir):
+        click.echo("[ERROR] No output directory specified. Use -V or run: python RemarkableSync.py config")
+        sys.exit(1)
+
+    if ai_provider is None:
+        ai_provider = cfg.get("ai_provider", "github")
+    if not ai_api_key:
+        ai_api_key = cfg.get("github_token", "")
+
+    # Connection defaults from config
+    cfg_conn = cfg.get("connection_mode", "usb")
+    if not use_wifi and cfg_conn == "wifi":
+        use_wifi = True
+    if not wifi_host:
+        wifi_host = cfg.get("wifi_host", "")
     sys.exit(
-        run_obsidian_sync_command(
+        run_md_sync_command(
             backup_dir=backup_dir,
-            vault_dir=vault_dir,
-            verbose=verbose,
-            skip_backup=skip_backup,
-            skip_convert=skip_convert,
+            output_dir=output_dir,
+            password=password,
+            log_level=log_level,
+            skip_backup=not with_backup,
+            skip_convert=not with_pdf,
             force_backup=force_backup,
             force_convert=force_convert,
-            force_export=force_export,
+            force_export=force_export or (not with_backup and not with_pdf),
             ai_provider=ai_provider,
             ai_model=ai_model,
             ai_api_key=ai_api_key,
             use_ai_ocr=use_ai_ocr,
+            notebook_filter=notebook,
+            page_filter=page,
             tags=tags,
             embed_images=embed_images,
             host=host,
@@ -318,16 +379,16 @@ def config():
               default=Path('./remarkable_backup'),
               help='Directory to store backup files')
 @click.option('--vault-dir', '-V', type=click.Path(path_type=Path), default=None,
-              help='Obsidian vault directory (enables obsidian-sync mode)')
+              help='Legacy option name for the Markdown output directory')
 @click.option('--password', '-p', type=str, help='ReMarkable SSH password')
-@click.option('--verbose', '-v', is_flag=True, help='Enable verbose logging')
+@add_log_level_option
 @click.option('--skip-templates', is_flag=True, help='Skip template backup')
 @click.option('--ai-provider', default='',
               type=click.Choice(['', 'claude', 'anthropic', 'github', 'github_models'], case_sensitive=False),
-              help='AI provider (obsidian mode only)')
+              help='AI provider (Markdown export mode only)')
 @click.option('--ai-model', default='', help='Override AI model')
 @click.option('--ai-api-key', default='', envvar='REMARKABLE_AI_KEY', help='AI API key')
-@click.option('--tags', default='remarkable', help='Comma-separated tags (obsidian mode)')
+@click.option('--tags', default='remarkable', help='Comma-separated tags (Markdown export mode)')
 @click.option('--systray/--no-systray', default=True, show_default=True,
               help='Show a system tray icon while watch mode is running')
 @add_connection_options
@@ -336,7 +397,7 @@ def watch(
     backup_dir: Path,
     vault_dir: Optional[Path],
     password: Optional[str],
-    verbose: bool,
+    log_level: str,
     skip_templates: bool,
     ai_provider: str,
     ai_model: str,
@@ -349,7 +410,7 @@ def watch(
 ):
     """Periodically sync in the background (every N minutes).
 
-    When --vault-dir is provided the full obsidian-sync pipeline is used;
+    When --vault-dir is provided, the full Markdown export pipeline is used;
     otherwise a plain backup + PDF conversion sync is performed.
 
     A file lock prevents overlapping runs.  Consecutive failures trigger
@@ -360,14 +421,15 @@ def watch(
     interval_secs = interval * 60
 
     if vault_dir:
-        # Obsidian-sync mode
-        from src.commands.obsidian_sync_command import run_obsidian_sync_command
+        output_dir = vault_dir
+        # Markdown export mode
+        from src.commands.md_sync_command import run_md_sync_command
 
         def run_once() -> int:
-            return run_obsidian_sync_command(
+            return run_md_sync_command(
                 backup_dir=backup_dir,
-                vault_dir=vault_dir,
-                verbose=verbose,
+                output_dir=output_dir,
+                log_level=log_level,
                 skip_backup=False,
                 skip_convert=False,
                 force_backup=False,
@@ -384,7 +446,7 @@ def watch(
                 wifi_host=wifi_host,
             )
 
-        mode = "obsidian-sync"
+        mode = "md"
     else:
         # Plain sync mode
         from src.commands.sync_command import run_sync_command
@@ -392,7 +454,7 @@ def watch(
         def run_once() -> int:
             return run_sync_command(
                 backup_dir=backup_dir,
-                verbose=verbose,
+                log_level=log_level,
                 skip_templates=skip_templates,
                 force_backup=False,
                 force_convert=False,
@@ -408,7 +470,7 @@ def watch(
             interval=interval_secs,
             backup_dir=backup_dir,
             run_once=run_once,
-            verbose=verbose,
+            log_level=log_level,
             mode=mode,
             use_systray=systray,
         )
@@ -420,12 +482,62 @@ def watch(
 # ---------------------------------------------------------------------------
 
 def main():
-    """Entry point for the application."""
-    # If no command specified, default to 'sync'
-    if len(sys.argv) == 1:
-        sys.argv.append('sync')
+    """Entry point for the application.
+
+    When no subcommand is given, reads saved config to determine what to run:
+    - If 'ocr' is in sync_actions -> obsidian-sync
+    - Otherwise -> sync (backup + convert)
+
+    Config-based defaults (backup_dir, output_dir, connection, etc.) are
+    injected as CLI args so the subcommand sees them.
+    """
+    known_commands = {'backup', 'pdf', 'sync', 'md', 'config', 'watch'}
+    has_command = any(arg in known_commands for arg in sys.argv[1:])
+
+    if not has_command and '--version' not in sys.argv and '--help' not in sys.argv:
+        # Load config to decide which pipeline to run
+        from src.config import load_config
+
+        cfg = load_config()
+        actions = cfg.get("sync_actions", [])
+        extra_args: list[str] = []
+
+        # Connection settings
+        conn = cfg.get("connection_mode", "usb")
+        if conn == "wifi":
+            extra_args.append("--wifi")
+            wifi_host = cfg.get("wifi_host", "")
+            if wifi_host:
+                extra_args.extend(["--wifi-host", wifi_host])
+
+        # Backup directory
+        backup_dir = cfg.get("backup_dir", "")
+        if backup_dir:
+            extra_args.extend(["-d", backup_dir])
+
+        if "ocr" in actions:
+            # Full pipeline: backup -> convert -> OCR -> Markdown export
+            output_dir = cfg.get("output_dir", "")
+            if not output_dir:
+                print("[ERROR] Markdown export is enabled but no output directory is configured.")
+                print("Run: python RemarkableSync.py config")
+                sys.exit(1)
+            extra_args.extend(["-V", output_dir])
+
+            ai_provider = cfg.get("ai_provider", "github")
+            if ai_provider:
+                extra_args.extend(["--ai-provider", ai_provider])
+            github_token = cfg.get("github_token", "")
+            if github_token:
+                extra_args.extend(["--ai-api-key", github_token])
+
+            sys.argv[1:1] = ["md", "--with-backup", "--with-pdf"] + extra_args
+        else:
+            sys.argv[1:1] = ["sync"] + extra_args
+
     cli()
 
 
 if __name__ == "__main__":
     main()
+

@@ -37,14 +37,14 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "sync_actions": ["pdf"],
     "ocr_enabled": False,
     "ocr_output_dir": "",
-    "vault_dir": "",
+    "output_dir": "",
 }
 
 # All available sync actions
 SYNC_ACTIONS = [
+    ("backup", "Backup tablet files"),
     ("pdf", "PDF Conversion"),
-    ("handwriting", "Handwriting OCR (AI)"),
-    ("obsidian", "Obsidian Export"),
+    ("ocr", "AI Handwriting OCR & MD Export"),
 ]
 
 
@@ -56,6 +56,11 @@ def load_config() -> Dict[str, Any]:
     try:
         with open(path, "r", encoding="utf-8") as f:
             data = json.load(f)
+
+        if "output_dir" not in data and "vault_dir" in data:
+            data["output_dir"] = data["vault_dir"]
+        data.pop("vault_dir", None)
+
         # Merge with defaults so new keys are always present
         merged = dict(DEFAULT_CONFIG)
         merged.update(data)

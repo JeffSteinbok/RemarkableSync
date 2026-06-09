@@ -60,6 +60,9 @@ output/
 ehthumbs.db
 Thumbs.db
 
+# Local run scripts
+run_sync.bat
+
 # PyInstaller distribution packages
 *.app
 *.dmg

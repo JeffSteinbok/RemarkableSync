@@ -11,6 +11,7 @@ from typing import Any, Dict, List
 import click
 
 from src.config import SYNC_ACTIONS, load_config, save_config
+from src.utils.console import print_error, print_success, print_warn
 
 
 def run_config_command() -> int:
@@ -60,52 +61,58 @@ def run_config_command() -> int:
 
     # 3. Password
     current_password = current.get("password", "")
-    password_hint = " (leave blank to keep current)" if current_password else ""
-    password = inquirer.secret(
-        message=f"SSH password{password_hint}:",
-        default="",
-        transformer=lambda _: "••••••••" if _ else "(unchanged)" if current_password else "(empty)",
+    if current_password:
+        click.echo("  SSH password: (saved)")
+        change_pw = inquirer.confirm(
+            message="Do you want to change the SSH password?",
+            default=False,
+        ).execute()
+        if change_pw:
+            password = inquirer.secret(
+                message="New SSH password:",
+                transformer=lambda _: "********" if _ else "(empty)",
+            ).execute()
+            if password is None:
+                click.echo("Configuration cancelled.")
+                return 0
+            _offer_keyring_save(password)
+        else:
+            password = current_password
+    else:
+        click.echo("  SSH password: (not set)")
+        password = inquirer.secret(
+            message="SSH password (Settings > Help > Copyright and licenses):",
+            transformer=lambda _: "********" if _ else "(empty)",
+        ).execute()
+        if password is None:
+            click.echo("Configuration cancelled.")
+            return 0
+        if password:
+            _offer_keyring_save(password)
+
+    # 4. Backup directory
+    current_backup_dir = current.get("backup_dir", "")
+    backup_dir = inquirer.text(
+        message="Backup directory (where tablet files are stored):",
+        default=current_backup_dir or "",
+        validate=lambda x: len(x.strip()) > 0,
+        invalid_message="Backup directory cannot be empty.",
     ).execute()
 
-    if password is None:
+    if backup_dir is None:
         click.echo("Configuration cancelled.")
         return 0
 
-    # Keep current password if user left it blank
-    if not password and current_password:
-        password = current_password
-
-    # 4. Folders to sync
-    click.echo()
-    click.echo("  Select top-level folders to sync (empty = sync all):")
-    folder_choices = _get_folder_choices(current)
-    folders: List[str] = []
-
-    if folder_choices:
-        folders = inquirer.checkbox(
-            message="Folders to sync:",
-            choices=folder_choices,
-            default=current.get("folders", []),
-        ).execute()
-
-        if folders is None:
-            click.echo("Configuration cancelled.")
-            return 0
-    else:
-        click.echo("  (Connect to tablet to select folders, or configure manually later)")
-        folders = current.get("folders", [])
-
     # 5. Sync actions
+    current_actions = current.get("sync_actions", ["backup", "pdf"])
     action_choices = [
-        {"name": display, "value": value}
+        {"name": display, "value": value, "enabled": value in current_actions}
         for value, display in SYNC_ACTIONS
     ]
-    current_actions = current.get("sync_actions", ["pdf"])
 
     sync_actions = inquirer.checkbox(
         message="What to do on sync:",
         choices=action_choices,
-        default=current_actions,
         validate=lambda result: len(result) >= 1,
         invalid_message="Select at least one sync action.",
     ).execute()
@@ -114,58 +121,65 @@ def run_config_command() -> int:
         click.echo("Configuration cancelled.")
         return 0
 
-    # 6. OCR settings (if handwriting or obsidian selected)
+    # 6. Markdown export settings — OCR is implied when export is selected
     ocr_enabled = current.get("ocr_enabled", False)
-    vault_dir = current.get("vault_dir", "")
+    output_dir = current.get("output_dir", "")
 
-    if "handwriting" in sync_actions or "obsidian" in sync_actions:
-        ocr_enabled = inquirer.confirm(
-            message="Enable AI handwriting OCR?",
-            default=ocr_enabled or True,
+    if "ocr" in sync_actions:
+        ocr_enabled = True
+        default_output_dir = output_dir or ""
+        output_dir = inquirer.text(
+            message="Markdown output directory:",
+            default=default_output_dir,
+            validate=lambda x: len(x.strip()) > 0,
+            invalid_message="Output directory cannot be empty.",
         ).execute()
 
-        if ocr_enabled is None:
+        if output_dir is None:
             click.echo("Configuration cancelled.")
             return 0
 
-        if ocr_enabled:
-            default_vault = vault_dir or ""
-            vault_dir = inquirer.text(
-                message="Vault directory (where to save Markdown files):",
-                default=default_vault,
-                validate=lambda x: len(x.strip()) > 0,
-                invalid_message="Vault directory cannot be empty.",
-            ).execute()
-
-            if vault_dir is None:
-                click.echo("Configuration cancelled.")
-                return 0
-
-    # 7. GitHub authentication (for AI OCR)
+    # 7. GitHub authentication (only if needed and not already authenticated)
     github_token = current.get("github_token", "")
-    if ocr_enabled:
-        has_token = bool(github_token)
-        token_status = " (currently authenticated)" if has_token else ""
-        do_auth = inquirer.confirm(
-            message=f"Authenticate with GitHub for AI OCR?{token_status}",
-            default=not has_token,
+    if ocr_enabled and not github_token:
+        click.echo()
+        click.echo("  GitHub authentication required for AI OCR.")
+        github_token = _run_device_flow()
+        if not github_token:
+            click.echo("  Authentication skipped. You can set GITHUB_TOKEN env var instead.")
+
+    # 8. Connect to tablet and select folders
+    click.echo()
+    click.echo("  Connecting to tablet to discover folders...")
+    folder_choices = _get_folder_choices_live(
+        connection_mode, password, wifi_host,
+    )
+    folders: List[str] = []
+
+    if folder_choices:
+        folders = inquirer.checkbox(
+            message="Folders to sync (empty = sync all):",
+            choices=folder_choices,
+            default=current.get("folders", []),
         ).execute()
 
-        if do_auth:
-            github_token = _run_device_flow()
-            if not github_token:
-                click.echo("  Authentication skipped. You can set GITHUB_TOKEN env var instead.")
-                github_token = current.get("github_token", "")
+        if folders is None:
+            click.echo("Configuration cancelled.")
+            return 0
+    else:
+        click.echo("  Could not connect to tablet. Folder selection skipped.")
+        folders = current.get("folders", [])
 
     # Save configuration
     config = {
         "connection_mode": connection_mode,
         "wifi_host": wifi_host,
         "password": password,
+        "backup_dir": backup_dir,
         "folders": folders,
         "sync_actions": sync_actions,
         "ocr_enabled": ocr_enabled,
-        "vault_dir": vault_dir,
+        "output_dir": output_dir,
         "github_token": github_token,
     }
 
@@ -184,7 +198,7 @@ def run_config_command() -> int:
     click.echo(f"  Folders: {', '.join(folders) if folders else '(all)'}")
     click.echo(f"  Actions: {', '.join(sync_actions)}")
     if ocr_enabled:
-        click.echo(f"  OCR:     enabled → {vault_dir}")
+        click.echo(f"  OCR:     enabled -> {output_dir}")
     else:
         click.echo(f"  OCR:     disabled")
     if github_token:
@@ -194,53 +208,100 @@ def run_config_command() -> int:
     return 0
 
 
-def _get_folder_choices(current_config: Dict[str, Any]) -> List[Dict[str, Any]]:
-    """Try to get top-level folder list from the tablet or a previous backup.
+def _get_folder_choices_live(
+    connection_mode: str, password: str, wifi_host: str
+) -> List[Dict[str, Any]]:
+    """Connect to the tablet and discover top-level folders.
 
-    Returns a list of choices for InquirerPy, or an empty list if unavailable.
+    Returns a list of choices for InquirerPy, or an empty list on failure.
     """
-    # Try to read folder names from a local backup metadata cache
-    from pathlib import Path
+    import json
+    import logging
 
-    # Check common backup directory locations for cached metadata
-    backup_dirs = [
-        Path("./remarkable_backup"),
-        Path.home() / "remarkable_backup",
-    ]
-
-    folders: List[str] = []
-    for backup_dir in backup_dirs:
-        metadata_dir = backup_dir / "metadata"
-        if not metadata_dir.exists():
-            continue
-        # Parse .metadata files to find top-level collection names
-        try:
-            for meta_file in metadata_dir.glob("*.metadata"):
-                import json
-
-                with open(meta_file, "r", encoding="utf-8") as f:
-                    meta = json.load(f)
-                # Top-level folders are CollectionType with parent=""
-                if (
-                    meta.get("type") == "CollectionType"
-                    and meta.get("parent", "") == ""
-                ):
-                    name = meta.get("visibleName", "")
-                    if name:
-                        folders.append(name)
-            break  # Found a valid backup dir
-        except (OSError, json.JSONDecodeError):
-            continue
-
-    if not folders:
+    try:
+        from src.backup.connection import ReMarkableConnection, USB_HOST
+    except ImportError:
         return []
 
-    folders.sort()
-    previously_selected = current_config.get("folders", [])
-    return [
-        {"name": f, "value": f, "enabled": f in previously_selected}
-        for f in folders
-    ]
+    use_wifi = connection_mode == "wifi"
+    host = wifi_host if use_wifi else USB_HOST
+
+    conn = ReMarkableConnection(
+        password=password,
+        host=host,
+        use_wifi=use_wifi,
+        wifi_host=wifi_host,
+    )
+
+    if not conn.connect():
+        click.echo("  [WARN] Could not connect to tablet.")
+        return []
+
+    try:
+        xochitl = "/home/root/.local/share/remarkable/xochitl"
+
+        # Use a single command to dump all metadata files efficiently
+        # Output format: one JSON object per line, prefixed with filename
+        stdout, stderr, exit_code = conn.execute_command(
+            f"for f in {xochitl}/*.metadata; do "
+            f"[ -f \"$f\" ] && echo \"FILE:$f\" && cat \"$f\"; "
+            f"done"
+        )
+        if exit_code != 0:
+            click.echo(f"  [WARN] Failed to read metadata from tablet.")
+            return []
+
+        # Parse the output — each metadata block starts with FILE: line
+        folders: List[str] = []
+        current_json = []
+        for line in stdout.split("\n"):
+            if line.startswith("FILE:"):
+                # Process previous block
+                if current_json:
+                    _parse_folder_metadata("\n".join(current_json), folders)
+                current_json = []
+            else:
+                current_json.append(line)
+        # Process last block
+        if current_json:
+            _parse_folder_metadata("\n".join(current_json), folders)
+
+        if not folders:
+            click.echo("  No top-level folders found on tablet.")
+            return []
+
+        click.echo(f"  Found {len(folders)} folders on tablet.")
+        folders.sort()
+        choices = [{"name": "(Root) - notebooks not in any folder", "value": "(Root)"}]
+        choices += [{"name": f, "value": f} for f in folders]
+        return choices
+
+    except Exception as exc:
+        logging.debug("Failed to list folders from tablet: %s", exc)
+        click.echo(f"  [WARN] Error reading folders: {exc}")
+        return []
+    finally:
+        conn.disconnect()
+
+
+def _parse_folder_metadata(json_text: str, folders: List[str]) -> None:
+    """Parse a metadata JSON block and append folder name if it's a top-level collection."""
+    import json
+
+    json_text = json_text.strip()
+    if not json_text:
+        return
+    try:
+        meta = json.loads(json_text)
+        if (
+            meta.get("type") == "CollectionType"
+            and meta.get("parent", "") == ""
+        ):
+            name = meta.get("visibleName", "")
+            if name:
+                folders.append(name)
+    except (json.JSONDecodeError, ValueError):
+        pass
 
 
 def _run_device_flow() -> str:
@@ -254,10 +315,22 @@ def _run_device_flow() -> str:
     click.echo()
 
     def on_code(uri, code):
+        # Copy code to clipboard for easy pasting
+        try:
+            import subprocess
+            subprocess.run(
+                ["clip"], input=code.encode(), check=True,
+                creationflags=subprocess.CREATE_NO_WINDOW,
+            )
+            copied = " (copied to clipboard)"
+        except Exception:
+            copied = ""
+
         click.echo(f"  +-------------------------------------------+")
         click.echo(f"  |  Visit: {uri:<30}  |")
         click.echo(f"  |  Enter code: {code:<26}  |")
         click.echo(f"  +-------------------------------------------+")
+        click.echo(f"  Code{copied}")
         click.echo()
         click.echo("  Waiting for authorization...", nl=False)
 

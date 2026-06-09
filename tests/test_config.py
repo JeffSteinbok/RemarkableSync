@@ -113,10 +113,10 @@ class TestConfigModule:
             "wifi_host": "192.168.1.50",
             "password": "secret",
             "folders": ["Work", "Personal"],
-            "sync_actions": ["pdf", "handwriting"],
+            "sync_actions": ["pdf", "ocr"],
             "ocr_enabled": True,
             "ocr_output_dir": "",
-            "vault_dir": "~/Documents/Obsidian/Brain",
+            "output_dir": "~/Documents/Markdown/Notes",
         }
 
         with patch("src.config.get_config_path", return_value=fake_path):

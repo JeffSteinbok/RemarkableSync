@@ -1,4 +1,4 @@
-"""watch command – run sync (or obsidian-sync) on a periodic schedule.
+"""watch command – run sync or Markdown export on a periodic schedule.
 
 Uses a file-based lock to prevent overlapping runs and implements
 exponential back-off on consecutive failures.
@@ -144,7 +144,7 @@ def run_watch_command(
     interval: int,
     backup_dir: Path,
     run_once: Callable[[], int],
-    verbose: bool,
+    log_level: str = "WRN",
     mode: str = "sync",
     use_systray: bool = True,
 ) -> int:
@@ -162,7 +162,7 @@ def run_watch_command(
     Returns:
         Exit code; only returns when interrupted with Ctrl-C (returns 0).
     """
-    setup_logging(verbose)
+    setup_logging(log_level)
     tray = _WatchTray(mode=mode, enabled=use_systray)
     tray.start()
 
@@ -201,7 +201,7 @@ def run_watch_command(
                 continue
 
             ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
-            print(f"[{ts}] Starting {mode}…")
+            print(f"[{ts}] Starting {mode}...")
             tray.set_status("Running")
 
             try:
@@ -211,7 +211,7 @@ def run_watch_command(
                     consecutive_failures = 0
                     current_backoff = 0
                     ts2 = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
-                    print(f"[{ts2}] ✓ {mode} succeeded. Next run in {_format_interval(interval)}.\n")
+                    print(f"[{ts2}] [OK] {mode} succeeded. Next run in {_format_interval(interval)}.\n")
                 else:
                     tray.set_status("Failure")
                     consecutive_failures += 1
