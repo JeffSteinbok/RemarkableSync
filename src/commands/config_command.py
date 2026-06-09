@@ -152,15 +152,16 @@ def run_config_command() -> int:
     current_backup_dir = current.get("backup_dir", "")
     default_backup = current_backup_dir or _default_backup_dir()
     backup_dir = inquirer.text(
-        message="Backup directory (internal sync data):",
+        message="Backup directory (internal sync data, blank=default):",
         default=default_backup,
-        validate=lambda x: len(x.strip()) > 0,
-        invalid_message="Backup directory cannot be empty.",
     ).execute()
 
     if backup_dir is None:
         click.echo("Configuration cancelled.")
         return 0
+    if not backup_dir.strip():
+        backup_dir = _default_backup_dir()
+        click.echo(f"  Using default: {backup_dir}")
 
     # 5. Sync actions
     current_actions = current.get("sync_actions", ["backup", "pdf"])
@@ -189,15 +190,16 @@ def run_config_command() -> int:
     if "pdf" in sync_actions or "ocr" in sync_actions:
         default_pdf_dir = pdf_dir or str(docs / "RemarkableSync" / "PDF")
         pdf_dir = inquirer.text(
-            message="PDF output directory:",
+            message="PDF output directory (blank=default):",
             default=default_pdf_dir,
-            validate=lambda x: len(x.strip()) > 0,
-            invalid_message="PDF directory cannot be empty.",
         ).execute()
 
         if pdf_dir is None:
             click.echo("Configuration cancelled.")
             return 0
+        if not pdf_dir.strip():
+            pdf_dir = str(docs / "RemarkableSync" / "PDF")
+            click.echo(f"  Using default: {pdf_dir}")
 
     # 7. Markdown export settings — OCR is implied when export is selected
     ocr_enabled = current.get("ocr_enabled", False)
@@ -207,15 +209,16 @@ def run_config_command() -> int:
         ocr_enabled = True
         default_output_dir = output_dir or str(docs / "RemarkableSync" / "Markdown")
         output_dir = inquirer.text(
-            message="Markdown output directory:",
+            message="Markdown output directory (blank=default):",
             default=default_output_dir,
-            validate=lambda x: len(x.strip()) > 0,
-            invalid_message="Output directory cannot be empty.",
         ).execute()
 
         if output_dir is None:
             click.echo("Configuration cancelled.")
             return 0
+        if not output_dir.strip():
+            output_dir = str(docs / "RemarkableSync" / "Markdown")
+            click.echo(f"  Using default: {output_dir}")
 
     # 7. AI provider selection (only if OCR is enabled)
     ai_provider = current.get("ai_provider", "github")

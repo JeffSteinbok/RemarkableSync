@@ -223,6 +223,10 @@ class _WatchTray:
         self._log_lock = threading.Lock()
         self._MAX_LOG_LINES = 50
         self._status_window: Optional["_StatusWindow"] = None
+        # Progress tracking
+        self._progress_current = 0
+        self._progress_total = 0
+        self._progress_label = ""
 
     @property
     def interval(self) -> int:
@@ -252,6 +256,40 @@ class _WatchTray:
             except Exception:
                 pass
             self._rebuild_icon_menu()
+
+        # Store for status window
+        with self._log_lock:
+            self._log_lines.append(text)
+            if len(self._log_lines) > self._MAX_LOG_LINES:
+                self._log_lines = self._log_lines[-self._MAX_LOG_LINES:]
+
+    def get_log_lines(self) -> list:
+        with self._log_lock:
+            return list(self._log_lines)
+
+    def set_progress(self, current: int, total: int, label: str = "") -> None:
+        """Update progress bar state."""
+        self._progress_current = current
+        self._progress_total = total
+        self._progress_label = label
+
+    def clear_progress(self) -> None:
+        self._progress_current = 0
+        self._progress_total = 0
+        self._progress_label = ""
+
+    def show_status_window(self) -> None:
+        """Show the status window (creates it on first call, shows it after)."""
+        if self._status_window is None:
+            win = _StatusWindow(self)
+            self._status_window = win
+            win.start()
+        else:
+            self._status_window.show()
+
+    def _on_show_status(self, icon, item):
+        # Must not block pystray's message handler thread
+        threading.Thread(target=self.show_status_window, daemon=True).start()
 
     # -- Menu callbacks --
 
@@ -330,7 +368,18 @@ class _WatchTray:
         import pystray
 
         # Status line
-        parts = [self._status]
+        # Status indicators
+        status_icons = {
+            "Idle": "🔵",
+            "Running": "🟡",
+            "Success": "🟢",
+            "Failure": "🔴",
+            "Backoff": "🟠",
+            "Paused": "⏸️",
+            "Stopped": "⏹️",
+        }
+        icon = status_icons.get(self._status, "🔵")
+        parts = [f"{icon} {self._status}"]
         if self._last_sync:
             result = "✓" if self._last_sync_ok else "✗"
             parts.append(f"Last: {self._last_sync} {result}")
@@ -339,9 +388,6 @@ class _WatchTray:
         status_text = "  |  ".join(parts)
 
         pause_label = "Resume" if self._paused else "Pause"
-
-        # Activity detail line
-        detail_text = self._detail or ""
 
         # Interval submenu
         interval_items = []
@@ -360,14 +406,9 @@ class _WatchTray:
         _is_startup_enabled()  # refresh state
 
         items = [
-            pystray.MenuItem(status_text, None, enabled=False),
-        ]
-        if detail_text:
-            items.append(
-                pystray.MenuItem(f"  {detail_text}", None, enabled=False),
-            )
-        items += [
+            pystray.MenuItem(status_text, self._on_show_status),
             pystray.Menu.SEPARATOR,
+            pystray.MenuItem("Show Status", self._on_show_status, default=True),
             pystray.MenuItem(
                 "Sync Now", self._on_sync_now,
                 enabled=self._status in ("Idle", "Success", "Failure"),
@@ -476,12 +517,174 @@ class _WatchTray:
         self._rebuild_icon_menu()
 
     def stop(self) -> None:
+        if self._status_window and self._status_window.is_alive():
+            self._status_window.close()
         if self._icon:
             try:
                 self._icon.stop()
             except Exception:
                 pass
             self._icon = None
+
+
+# ---------------------------------------------------------------------------
+# Status window (tkinter)
+# ---------------------------------------------------------------------------
+
+class _StatusWindow(threading.Thread):
+    """Small tkinter window showing progress bar and recent log lines."""
+
+    def __init__(self, tray: _WatchTray):
+        super().__init__(daemon=True)
+        self._tray = tray
+        self._root = None
+
+    def run(self) -> None:
+        import tkinter as tk
+        from tkinter import ttk
+
+        root = tk.Tk()
+        self._root = root
+        root.title("RemarkableSync")
+        root.geometry("480x320")
+        root.resizable(True, True)
+        root.configure(bg="#1e1e1e")
+
+        # Position near bottom-right of screen
+        sw, sh = root.winfo_screenwidth(), root.winfo_screenheight()
+        x = sw - 500
+        y = sh - 400
+        root.geometry(f"+{x}+{y}")
+
+        # Set window icon to match tray icon
+        try:
+            icon_img = self._tray._build_icon_image("#4A90E2")
+            from PIL import ImageTk
+            self._icon_photo = ImageTk.PhotoImage(icon_img)
+            root.iconphoto(True, self._icon_photo)
+        except Exception:
+            pass
+
+        # Dark theme style
+        style = ttk.Style(root)
+        style.theme_use("clam")
+        style.configure("dark.Horizontal.TProgressbar",
+                        troughcolor="#333", background="#4A90E2",
+                        thickness=20)
+        style.configure("TLabel", background="#1e1e1e", foreground="#ccc",
+                        font=("Segoe UI", 10))
+
+        # Status label (blue text)
+        self._status_label = ttk.Label(root, text="Idle", style="TLabel",
+                                       foreground="#4A90E2",
+                                       font=("Segoe UI", 11, "bold"))
+        self._status_label.pack(fill=tk.X, padx=10, pady=(10, 2))
+
+        # Progress bar
+        self._progress_var = tk.DoubleVar(value=0)
+        self._progress_bar = ttk.Progressbar(
+            root, variable=self._progress_var, maximum=100,
+            style="dark.Horizontal.TProgressbar",
+        )
+        self._progress_bar.pack(fill=tk.X, padx=10, pady=4)
+
+        # Progress label (e.g. "Page 3 of 21")
+        self._progress_label = ttk.Label(root, text="", style="TLabel")
+        self._progress_label.pack(fill=tk.X, padx=10, pady=(0, 4))
+
+        # Log text area
+        self._log_text = tk.Text(
+            root, bg="#252525", fg="#ddd", font=("Consolas", 9),
+            wrap=tk.WORD, state=tk.DISABLED, relief=tk.FLAT,
+            highlightthickness=0, padx=6, pady=4,
+        )
+        self._log_text.pack(fill=tk.BOTH, expand=True, padx=10, pady=(0, 10))
+
+        # Scrollbar
+        scrollbar = ttk.Scrollbar(self._log_text, command=self._log_text.yview)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        self._log_text.configure(yscrollcommand=scrollbar.set)
+
+        # Hide on close instead of destroying
+        root.protocol("WM_DELETE_WINDOW", self._hide)
+        root.bind("<Escape>", lambda e: self._hide())
+
+        # Start polling (runs forever)
+        self._poll()
+
+        root.mainloop()
+
+    def show(self) -> None:
+        """Show the window (called from any thread)."""
+        if self._root:
+            try:
+                self._root.after(0, self._do_show)
+            except Exception:
+                pass
+
+    def _do_show(self) -> None:
+        """Show the window (must run on tkinter thread)."""
+        if self._root:
+            self._root.deiconify()
+            self._root.lift()
+            self._root.focus_force()
+
+    def _hide(self) -> None:
+        """Hide the window without destroying it."""
+        if self._root:
+            self._root.withdraw()
+
+    def _poll(self) -> None:
+        """Poll tray state and update the window every 500ms."""
+        if not self._root:
+            return
+
+        try:
+            import tkinter as tk
+
+            # Update status
+            tray = self._tray
+            status = tray._status
+            parts = [status]
+            if tray._last_sync:
+                result = "✓" if tray._last_sync_ok else "✗"
+                parts.append(f"Last sync: {tray._last_sync} {result}")
+            if tray._next_sync and tray._interval > 0:
+                parts.append(f"Next: {tray._next_sync}")
+            self._status_label.configure(text="  |  ".join(parts))
+
+            # Update progress bar
+            if tray._progress_total > 0:
+                pct = (tray._progress_current / tray._progress_total) * 100
+                self._progress_var.set(pct)
+                self._progress_label.configure(
+                    text=f"{tray._progress_label}  ({tray._progress_current}/{tray._progress_total})"
+                )
+            else:
+                self._progress_var.set(0)
+                self._progress_label.configure(text="")
+
+            # Update log lines
+            lines = tray.get_log_lines()
+            self._log_text.configure(state=tk.NORMAL)
+            self._log_text.delete("1.0", tk.END)
+            self._log_text.insert(tk.END, "\n".join(lines))
+            self._log_text.see(tk.END)
+            self._log_text.configure(state=tk.DISABLED)
+
+        except Exception:
+            pass
+
+        if self._root:
+            self._root.after(500, self._poll)
+
+    def close(self) -> None:
+        """Destroy the window permanently (called on app quit)."""
+        try:
+            if self._root:
+                self._root.after(0, self._root.destroy)
+        except Exception:
+            pass
 
 
 # ---------------------------------------------------------------------------
@@ -505,6 +708,13 @@ class _TrayLogHandler(logging.Handler):
             if record.name in ("openai", "httpcore", "httpx", "urllib3"):
                 return
             self._tray.set_detail(msg)
+
+            # Parse progress from page callbacks: "PDF: Work (page 3/21)"
+            import re
+            m = re.search(r'(PDF|MD): (.+?) \(page (\d+)/(\d+)\)', msg)
+            if m:
+                label = f"{m.group(1)}: {m.group(2)}"
+                self._tray.set_progress(int(m.group(3)), int(m.group(4)), label)
         except Exception:
             pass
 
@@ -661,6 +871,7 @@ def run_watch_command(
 
             try:
                 exit_code = run_once()
+                tray.clear_progress()
                 if exit_code == 0:
                     consecutive_failures = 0
                     current_backoff = 0
