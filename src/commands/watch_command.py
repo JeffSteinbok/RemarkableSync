@@ -223,6 +223,7 @@ class _WatchTray:
         self._log_lock = threading.Lock()
         self._MAX_LOG_LINES = 50
         self._status_window: Optional["_StatusWindow"] = None
+        self._show_lock = threading.Lock()
         # Progress tracking
         self._progress_current = 0
         self._progress_total = 0
@@ -284,12 +285,17 @@ class _WatchTray:
             win = _StatusWindow(self)
             self._status_window = win
             win.start()
-        else:
+        elif self._status_window.is_alive():
             self._status_window.show()
 
     def _on_show_status(self, icon, item):
         # Must not block pystray's message handler thread
-        threading.Thread(target=self.show_status_window, daemon=True).start()
+        if not self._show_lock.acquire(blocking=False):
+            return
+        try:
+            self.show_status_window()
+        finally:
+            self._show_lock.release()
 
     # -- Menu callbacks --
 
@@ -550,6 +556,9 @@ class _StatusWindow(threading.Thread):
         root.resizable(True, True)
         root.configure(bg="#1e1e1e")
 
+        # Hide from taskbar — make it a tool window
+        root.attributes("-toolwindow", True)
+
         # Position near bottom-right of screen
         sw, sh = root.winfo_screenwidth(), root.winfo_screenheight()
         x = sw - 500
@@ -806,7 +815,7 @@ def run_watch_command(
     backup_dir.mkdir(parents=True, exist_ok=True)
 
     print(f"RemarkableSync Watch ({mode})")
-    print("=" * 70)
+    print("=" * 50)
     label = _format_interval(interval) if interval else "manual (Sync Now only)"
     print(f"  Interval   : {label}")
     print(f"  Backup dir : {backup_dir.absolute()}")

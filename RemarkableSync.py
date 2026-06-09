@@ -303,7 +303,7 @@ def md(
       # Full pipeline: backup + pdf + md
       RemarkableSync md --with-backup --with-pdf
     """
-    from src.commands.md_sync_command import run_md_sync_command
+    from src.commands.pipeline import run_pipeline
     from src.config import load_config
 
     cfg = load_config()
@@ -332,7 +332,7 @@ def md(
     if not wifi_host:
         wifi_host = cfg.get("wifi_host", "")
     sys.exit(
-        run_md_sync_command(
+        run_pipeline(
             backup_dir=backup_dir,
             output_dir=output_dir,
             password=password,
@@ -475,10 +475,10 @@ def watch(
     has_md = "ocr" in sync_actions
 
     if has_md and output_dir:
-        from src.commands.md_sync_command import run_md_sync_command
+        from src.commands.pipeline import run_pipeline
 
         def run_once() -> int:
-            return run_md_sync_command(
+            return run_pipeline(
                 backup_dir=backup_dir,
                 output_dir=output_dir,
                 log_level=log_level,

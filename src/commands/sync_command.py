@@ -45,7 +45,7 @@ def run_sync_command(
     _start_time = _time.monotonic()
 
     print("ReMarkable Sync (Backup + Convert)")
-    print("=" * 40)
+    print("=" * 50)
     print(f"Backup directory: {backup_dir.absolute()}")
 
     if use_wifi:
@@ -80,17 +80,19 @@ def run_sync_command(
 
         if success:
             print()
-            print("=" * 40)
+            print("=" * 50)
             print("  Sync Summary")
-            print("=" * 40)
+            print("=" * 50)
             print(f"  Backup     : {backup_tool.files_dir}")
             if not skip_templates:
                 print(f"  Templates  : {backup_tool.templates_dir}")
-            pdfs_dir = backup_dir / "PDF"
-            if pdfs_dir.exists():
-                print(f"  PDFs       : {pdfs_dir}")
+            from ..config import load_config
+            _cfg = load_config()
+            _pdf_dir = _cfg.get("pdf_dir", "")
+            if _pdf_dir and Path(_pdf_dir).exists():
+                print(f"  PDFs       : {_pdf_dir}")
             print(f"  Duration   : {mins}m {secs}s")
-            print("=" * 40)
+            print("=" * 50)
             return 0
         else:
             print("\n[ERROR] Sync failed. Check logs for details.")

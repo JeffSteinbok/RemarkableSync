@@ -331,8 +331,9 @@ def run_config_command() -> int:
         click.echo("  Could not connect to tablet. Folder selection skipped.")
         folders = current.get("folders", [])
 
-    # Save configuration
-    config = {
+    # Save configuration — preserve keys not managed by this wizard
+    config = dict(current)
+    config.update({
         "connection_mode": connection_mode,
         "wifi_host": wifi_host,
         "password": password,
@@ -343,7 +344,7 @@ def run_config_command() -> int:
         "ocr_enabled": ocr_enabled,
         "output_dir": output_dir,
         "ai_provider": ai_provider,
-    }
+    })
 
     path = save_config(config)
 

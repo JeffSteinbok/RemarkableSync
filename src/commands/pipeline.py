@@ -18,7 +18,7 @@ from ..utils.console import print_error, print_success, print_warn
 from ..utils.logging import setup_logging
 
 
-def run_md_sync_command(
+def run_pipeline(
     backup_dir: Path,
     output_dir: Path,
     password: Optional[str] = None,
@@ -70,21 +70,30 @@ def run_md_sync_command(
     setup_logging(log_level, log_dir=backup_dir)
     _start_time = _time.monotonic()
 
+    from ..config import load_config
+    config = load_config()
+
+    pdf_output_dir = Path(config.get("pdf_dir", "")) if config.get("pdf_dir") else None
+    if not pdf_output_dir:
+        print("[ERROR] No PDF directory configured. Run 'remarkablesync config' first.")
+        return 1
+    folder_filter = config.get("folders", []) or None
+
     conn_label = f"Wi-Fi ({wifi_host or 'auto-discover'})" if use_wifi else f"USB ({host})"
 
     print()
-    print("=" * 70)
+    print("=" * 50)
     print("  ReMarkable -> Markdown Export")
-    print("=" * 70)
+    print("=" * 50)
     if not skip_backup:
         print(f"  * Backup via {conn_label} to {backup_dir.absolute()}")
     if not skip_convert:
-        print(f"  * Export PDFs to {backup_dir.absolute() / 'PDF'}")
+        print(f"  * Export PDFs to {pdf_output_dir.absolute()}")
     if use_ai_ocr and ai_provider:
         print(f"  * Export Markdown using {ai_provider} to {output_dir.absolute()}")
     else:
         print(f"  * Export Markdown to {output_dir.absolute()}")
-    print("=" * 70)
+    print("=" * 50)
 
     # ------------------------------------------------------------------
     # Stage 1: Backup
@@ -119,12 +128,6 @@ def run_md_sync_command(
     # ------------------------------------------------------------------
     # Stage 2: PDF conversion
     # ------------------------------------------------------------------
-    from ..config import load_config
-
-    config = load_config()
-    pdf_output_dir = Path(config.get("pdf_dir", "")) if config.get("pdf_dir") else backup_dir / "PDF"
-    folder_filter = config.get("folders", []) or None
-
     converted_pages: Optional[Dict[str, List[Path]]] = None  # None = run on all
 
     if not skip_convert:
@@ -256,9 +259,9 @@ def run_md_sync_command(
     mins, secs = divmod(int(elapsed), 60)
 
     print()
-    print("=" * 70)
+    print("=" * 50)
     print("  Sync Summary")
-    print("=" * 70)
+    print("=" * 50)
     if not skip_backup:
         print(f"  Backup     : {len(updated_uuids)} notebooks updated -> {backup_dir.absolute()}")
     else:
@@ -269,5 +272,5 @@ def run_md_sync_command(
         print("  PDF        : skipped")
     print(f"  Markdown   : {exported} exported, {skipped} unchanged -> {output_dir.absolute()}")
     print(f"  Duration   : {mins}m {secs}s")
-    print("=" * 70)
+    print("=" * 50)
     return 0

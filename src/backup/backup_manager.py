@@ -60,13 +60,11 @@ class ReMarkableBackup:  # pylint: disable=too-many-instance-attributes
         """
         self.backup_dir = backup_dir
         self.files_dir = backup_dir / "Notebooks"  # Clean folder name
-        self.pdfs_dir = backup_dir / "PDF"  # Clean folder name
         self.templates_dir = backup_dir / "Templates"  # Clean folder name
         self.metadata_file = backup_dir / "sync_metadata.json"
 
         # Create directories
         self.files_dir.mkdir(parents=True, exist_ok=True)
-        self.pdfs_dir.mkdir(parents=True, exist_ok=True)
         self.templates_dir.mkdir(parents=True, exist_ok=True)
 
         # Initialize components
@@ -434,7 +432,7 @@ class ReMarkableBackup:  # pylint: disable=too-many-instance-attributes
         Returns:
             Optional[Path]: Path to created file, None on error
         """
-        output_path = self.pdfs_dir / f"{notebook['name']}.pdf"
+        output_path = self.backup_dir / "PDF" / f"{notebook['name']}.pdf"
 
         # For now, create a placeholder PDF indicating conversion is needed
         # In a real implementation, you would integrate with rm2pdf or rmc
@@ -511,8 +509,15 @@ class ReMarkableBackup:  # pylint: disable=too-many-instance-attributes
 
         logging.info("Starting PDF conversion...")
 
-        # Set output directory
-        output_dir = self.backup_dir / "PDF"
+        # Set output directory from config
+        from ..config import load_config
+        config = load_config()
+        pdf_dir = config.get("pdf_dir", "")
+        if pdf_dir:
+            output_dir = Path(pdf_dir)
+        else:
+            output_dir = self.backup_dir / "PDF"
+            logging.warning("No pdf_dir configured, falling back to %s", output_dir)
 
         # Determine conversion strategy
         updated_only_file = None

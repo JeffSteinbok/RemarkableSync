@@ -35,12 +35,19 @@ def run_convert_command(
         print(f"[ERROR] Backup directory not found: {backup_dir}")
         return 1
 
-    # Set default output directory
+    # Set default output directory from config
     if not output_dir:
-        output_dir = backup_dir / "PDF"
+        from ..config import load_config
+        config = load_config()
+        pdf_dir = config.get("pdf_dir", "")
+        if pdf_dir:
+            output_dir = Path(pdf_dir)
+        else:
+            print("[ERROR] No PDF directory configured. Run 'remarkablesync config' first.")
+            return 1
 
     print("ReMarkable PDF Converter")
-    print("=" * 40)
+    print("=" * 50)
     print(f"Backup directory: {backup_dir}")
     print(f"Output directory: {output_dir}")
 
