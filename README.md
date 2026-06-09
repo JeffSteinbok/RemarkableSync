@@ -77,6 +77,8 @@ Once you're happy with the output, enable run-at-startup from the system tray ic
 
 ## AI Provider Setup
 
+The AI handwriting-to-text features require either a **GitHub Copilot** account (for GitHub Models) or a **Claude** (Anthropic) API key. Support for additional providers can be added as needed.
+
 Both AI provider SDKs are installed with `pip install -r requirements.txt`. The config wizard handles authentication interactively.
 
 ### GitHub Models
@@ -92,8 +94,6 @@ Alternatively, set a `GITHUB_TOKEN` environment variable with a PAT that has `mo
 3. Paste it into the config wizard — it's saved in your system keyring
 
 Default model: `claude-sonnet-4-6`.
-
-Less accurate for handwriting but works entirely offline and for free.
 
 ## Usage
 
