@@ -529,6 +529,11 @@ def run_watch_command(
     consecutive_failures = 0
     current_backoff = 0
 
+    # Short startup delay so the tray icon is visible before first sync
+    _STARTUP_DELAY = 5
+    print(f"  Starting first sync in {_STARTUP_DELAY}s...")
+    _interruptible_sleep(_STARTUP_DELAY, tray)
+
     try:
         while True:
             if tray.quit_event.is_set():

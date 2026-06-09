@@ -49,7 +49,7 @@ def run_config_command() -> int:
         # Offer to enable WiFi SSH via USB if not already enabled
         wifi_ready = inquirer.confirm(
             message="Is WiFi SSH already enabled on your tablet?",
-            default=False,
+            default=bool(wifi_host),
         ).execute()
 
         if not wifi_ready:
@@ -82,9 +82,27 @@ def run_config_command() -> int:
                 if tmp_password:
                     wifi_host = _enable_wifi_ssh(tmp_password)
                     if not wifi_host:
-                        click.echo("  You can enter the WiFi IP manually instead.")
+                        click.echo()
+                        click.echo("  Could not enable WiFi SSH automatically.")
+                        click.echo("  To enable it manually:")
+                        click.echo("    1. Connect tablet via USB")
+                        click.echo("    2. SSH into 10.11.99.1")
+                        click.echo("    3. Run: rm-ssh-over-wlan on")
+                        click.echo("    4. Find IP: ip addr show wlan0")
+                        click.echo("    5. Re-run this wizard")
+                        return 1
+            else:
+                click.echo()
+                click.echo("  To enable WiFi SSH on your reMarkable:")
+                click.echo("    1. Connect tablet to your computer via USB")
+                click.echo("    2. SSH into 10.11.99.1 (password on tablet:")
+                click.echo("       Settings > Help > Copyright and licenses)")
+                click.echo("    3. Run: rm-ssh-over-wlan on")
+                click.echo("    4. Note the WiFi IP: ip addr show wlan0")
+                click.echo("    5. Re-run this wizard with the IP ready")
+                return 1
 
-        # Always let user confirm/change the IP (pre-filled from device or config)
+        # Let user confirm/change the IP (pre-filled from device or config)
         default_ip = wifi_host or current.get("wifi_host", "") or "192.168.1."
         wifi_host = inquirer.text(
             message="Tablet WiFi IP address:",
@@ -193,14 +211,73 @@ def run_config_command() -> int:
             click.echo("Configuration cancelled.")
             return 0
 
-    # 8. GitHub authentication (only if needed and not already authenticated)
-    github_token = current.get("github_token", "")
-    if ocr_enabled and ai_provider == "github" and not github_token:
-        click.echo()
-        click.echo("  GitHub authentication required for AI OCR.")
-        github_token = _run_device_flow()
-        if not github_token:
-            click.echo("  Authentication skipped. You can set GITHUB_TOKEN env var instead.")
+    # 8. AI token (only if OCR enabled)
+    github_token = ""
+    claude_api_key = ""
+
+    if ocr_enabled and ai_provider == "github":
+        from src.keyring_store import KEY_GITHUB_TOKEN, get_secret, set_secret
+
+        existing = get_secret(KEY_GITHUB_TOKEN)
+        if existing:
+            click.echo("  GitHub token: (saved in keyring)")
+            change = inquirer.confirm(
+                message="Re-authenticate with GitHub?",
+                default=False,
+            ).execute()
+            if change:
+                github_token = _run_device_flow()
+                if github_token:
+                    set_secret(KEY_GITHUB_TOKEN, github_token)
+            else:
+                github_token = existing
+        else:
+            click.echo()
+            click.echo("  GitHub authentication required for AI OCR.")
+            github_token = _run_device_flow()
+            if github_token:
+                set_secret(KEY_GITHUB_TOKEN, github_token)
+            else:
+                click.echo("  Authentication skipped. You can set GITHUB_TOKEN env var instead.")
+
+    elif ocr_enabled and ai_provider == "claude":
+        from src.keyring_store import KEY_CLAUDE_API_KEY, get_secret, set_secret
+
+        existing = get_secret(KEY_CLAUDE_API_KEY)
+        if existing:
+            click.echo("  Claude API key: (saved in keyring)")
+            change = inquirer.confirm(
+                message="Change Claude API key?",
+                default=False,
+            ).execute()
+            if change:
+                claude_api_key = inquirer.secret(
+                    message="Anthropic API key:",
+                    transformer=lambda _: "••••••••" if _ else "(empty)",
+                ).execute() or ""
+                if claude_api_key:
+                    set_secret(KEY_CLAUDE_API_KEY, claude_api_key)
+            else:
+                claude_api_key = existing
+        else:
+            click.echo()
+            click.echo("  To use Claude for handwriting recognition you need an")
+            click.echo("  Anthropic API key:")
+            click.echo()
+            click.echo("  1. Go to  https://console.anthropic.com/settings/keys")
+            click.echo("  2. Click 'Create Key' and give it a name")
+            click.echo("  3. Copy the key (starts with sk-ant-...)")
+            click.echo("  4. Paste it below — it will be stored securely in")
+            click.echo("     your system keyring (never written to config files)")
+            click.echo()
+            claude_api_key = inquirer.secret(
+                message="Anthropic API key:",
+                transformer=lambda _: "••••••••" if _ else "(empty)",
+            ).execute() or ""
+            if claude_api_key:
+                set_secret(KEY_CLAUDE_API_KEY, claude_api_key)
+            else:
+                click.echo("  Skipped. You can set ANTHROPIC_API_KEY env var instead.")
 
     # 8. Connect to tablet and select folders
     click.echo()
@@ -240,7 +317,6 @@ def run_config_command() -> int:
         "ocr_enabled": ocr_enabled,
         "output_dir": output_dir,
         "ai_provider": ai_provider,
-        "github_token": github_token,
     }
 
     path = save_config(config)
@@ -260,10 +336,10 @@ def run_config_command() -> int:
     if ocr_enabled:
         click.echo(f"  OCR:     enabled -> {output_dir}")
         click.echo(f"  AI:      {ai_provider}")
+        has_token = bool(github_token or claude_api_key)
+        click.echo(f"  Token:   {'[OK] saved in keyring' if has_token else '(not set)'}")
     else:
         click.echo("  OCR:     disabled")
-    if github_token:
-        click.echo("  GitHub:  [OK] authenticated")
     click.echo()
 
     return 0

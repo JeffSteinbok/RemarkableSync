@@ -319,7 +319,11 @@ def md(
     if ai_provider is None:
         ai_provider = cfg.get("ai_provider", "github")
     if not ai_api_key:
-        ai_api_key = cfg.get("github_token", "")
+        from src.keyring_store import KEY_CLAUDE_API_KEY, KEY_GITHUB_TOKEN, get_secret
+        if ai_provider == "claude":
+            ai_api_key = get_secret(KEY_CLAUDE_API_KEY)
+        else:
+            ai_api_key = get_secret(KEY_GITHUB_TOKEN)
 
     # Connection defaults from config
     cfg_conn = cfg.get("connection_mode", "usb")
@@ -377,11 +381,14 @@ def config():
               help='Minutes between sync attempts (overrides config)')
 @click.option('--systray/--no-systray', default=True, show_default=True,
               help='Show a system tray icon while watch mode is running')
+@click.option('--foreground', is_flag=True, default=False,
+              help='Run in the foreground instead of detaching')
 @add_log_level_option
 @add_connection_options
 def watch(
     interval: Optional[int],
     systray: bool,
+    foreground: bool,
     log_level: str,
     host: str,
     use_wifi: bool,
@@ -392,32 +399,80 @@ def watch(
     Reads all settings from the config file (run ``config`` first).
     The tray menu lets you change the interval, trigger an immediate sync,
     pause/resume, toggle run-at-startup, and open output folders.
+
+    By default, detaches from the terminal and runs in the background.
+    Use --foreground to keep it attached.
     """
-    from src.commands.watch_command import run_watch_command
-    from src.config import load_config
+    from src.commands.watch_command import INTERVAL_CHOICES, run_watch_command
+    from src.config import load_config, save_config
 
     cfg = load_config()
+
+    # Determine interval: CLI flag > config > prompt on first run
+    saved_interval = cfg.get("watch_interval")  # minutes, or None
+    if interval is not None:
+        interval_secs = interval * 60
+    elif saved_interval is not None:
+        interval_secs = saved_interval * 60
+    else:
+        # First time — ask with InquirerPy like the config wizard
+        try:
+            from InquirerPy import inquirer
+
+            choices = [
+                {"name": label, "value": secs}
+                for label, secs in INTERVAL_CHOICES
+            ]
+            interval_secs = inquirer.select(
+                message="Sync interval:",
+                choices=choices,
+                default=30 * 60,
+            ).execute()
+
+            if interval_secs is None:
+                click.echo("Cancelled.")
+                sys.exit(0)
+        except ImportError:
+            click.echo("Pick a sync interval:\n")
+            for i, (label, _secs) in enumerate(INTERVAL_CHOICES, 1):
+                click.echo(f"  {i}. {label}")
+            click.echo()
+            choice = click.prompt(
+                "Choice", type=click.IntRange(1, len(INTERVAL_CHOICES)), default=2,
+            )
+            _, interval_secs = INTERVAL_CHOICES[choice - 1]
+
+        cfg["watch_interval"] = interval_secs // 60 if interval_secs else 0
+        save_config(cfg)
+        click.echo()
+
+    # Detach to background unless --foreground
+    if not foreground:
+        _detach_watch()
+        return
+
+    # --- foreground mode (child process lands here) ---
 
     backup_dir = Path(cfg.get("backup_dir", "./remarkable_backup"))
     output_dir_str = cfg.get("output_dir", "")
     output_dir = Path(output_dir_str) if output_dir_str else None
     sync_actions = cfg.get("sync_actions", ["backup", "pdf"])
 
-    # Connection defaults from config
     conn_mode = cfg.get("connection_mode", "usb")
     if not use_wifi and conn_mode == "wifi":
         use_wifi = True
     if not wifi_host:
         wifi_host = cfg.get("wifi_host", "")
 
-    # AI / OCR settings from config
     ai_provider = cfg.get("ai_provider", "")
-    ai_api_key = cfg.get("github_token", "")
+    from src.keyring_store import KEY_CLAUDE_API_KEY, KEY_GITHUB_TOKEN, get_secret
+    if ai_provider == "claude":
+        ai_api_key = get_secret(KEY_CLAUDE_API_KEY)
+    else:
+        ai_api_key = get_secret(KEY_GITHUB_TOKEN)
     tags = cfg.get("tags", "remarkable")
 
-    # Determine mode from configured sync actions
     has_md = "ocr" in sync_actions
-    has_pdf = "pdf" in sync_actions
 
     if has_md and output_dir:
         from src.commands.md_sync_command import run_md_sync_command
@@ -461,8 +516,8 @@ def watch(
 
         mode = "sync"
 
-    # Default interval: CLI flag > 30 minutes
-    interval_secs = (interval if interval is not None else 30) * 60
+    # Build display mode: "watch(md)" or "watch(sync)"
+    display_mode = f"watch({mode})"
 
     sys.exit(
         run_watch_command(
@@ -470,11 +525,40 @@ def watch(
             backup_dir=backup_dir,
             run_once=run_once,
             log_level=log_level,
-            mode=mode,
+            mode=display_mode,
             use_systray=systray,
             output_dir=output_dir,
         )
     )
+
+
+def _detach_watch():
+    """Re-launch this script as a detached background process."""
+    import subprocess as sp
+
+    script = Path(sys.argv[0]).resolve()
+    args = [sys.executable, str(script), "watch", "--foreground"]
+
+    if sys.platform == "win32":
+        DETACHED_PROCESS = 0x00000008
+        CREATE_NO_WINDOW = 0x08000000
+        sp.Popen(
+            args,
+            creationflags=DETACHED_PROCESS | CREATE_NO_WINDOW,
+            close_fds=True,
+            stdout=sp.DEVNULL,
+            stderr=sp.DEVNULL,
+        )
+    else:
+        sp.Popen(
+            args,
+            start_new_session=True,
+            stdout=sp.DEVNULL,
+            stderr=sp.DEVNULL,
+        )
+
+    click.echo("  RemarkableSync watch started in the background.")
+    click.echo("  Use the system tray icon to control it.")
 
 
 # ---------------------------------------------------------------------------
@@ -527,9 +611,13 @@ def main():
             ai_provider = cfg.get("ai_provider", "github")
             if ai_provider:
                 extra_args.extend(["--ai-provider", ai_provider])
-            github_token = cfg.get("github_token", "")
-            if github_token:
-                extra_args.extend(["--ai-api-key", github_token])
+            from src.keyring_store import KEY_CLAUDE_API_KEY, KEY_GITHUB_TOKEN, get_secret
+            if ai_provider == "claude":
+                ai_token = get_secret(KEY_CLAUDE_API_KEY)
+            else:
+                ai_token = get_secret(KEY_GITHUB_TOKEN)
+            if ai_token:
+                extra_args.extend(["--ai-api-key", ai_token])
 
             sys.argv[1:1] = ["md", "--with-backup", "--with-pdf"] + extra_args
         else:
