@@ -42,8 +42,13 @@ def run_shell_command(cmd: str) -> int:
     via the system shell (``shell=True``) so shell features like ``&&``,
     environment variable expansion, and quoting are supported.
 
+    .. warning::
+        Only pass commands sourced from the user's own configuration file.
+        Never pass untrusted external input — shell=True means arbitrary
+        commands will be executed with the user's privileges.
+
     Args:
-        cmd: Shell command string to execute.
+        cmd: Shell command string to execute (user-supplied from config).
 
     Returns:
         Exit code of the command (0 = success).

@@ -224,7 +224,7 @@ def run_pipeline(
     # Discover notebooks and their folder paths
     all_items = find_notebooks(backup_dir)
     if not all_items:
-        print("      No notebooks found in backup directory.")
+        print("      No notebooks found in backup directory. Continuing to post-sync step.")
 
     org = organize_notebooks_by_structure(all_items, backup_dir)
     notebooks = org["documents_to_convert"]
