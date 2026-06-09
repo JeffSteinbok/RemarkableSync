@@ -426,6 +426,7 @@ class MarkdownExporter:
                 ocr_failed = False
                 if self.ocr_engine:
                     from src.ai.base_provider import AIProviderError
+                    from src.utils.console import print_error
 
                     raster_images = self.ocr_engine.pdf_to_images(
                         pg_pdf, tmp_dir / f"ocr_page_{pg_idx:03d}"
@@ -441,7 +442,7 @@ class MarkdownExporter:
                                 )
                         except AIProviderError as exc:
                             logging.error("OCR failed for '%s' page %d: %s", name, pg_idx, exc)
-                            print(f"  [ERR] OCR failed for '{name}' page {pg_idx}: {exc}")
+                            print_error(f"  [ERR] OCR failed for '{name}' page {pg_idx}: {exc}")
                             ocr_failed = True
 
                 if ocr_failed:
