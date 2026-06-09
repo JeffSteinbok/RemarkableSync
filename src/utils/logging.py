@@ -127,6 +127,12 @@ def setup_logging(
     logging.getLogger("svglib.svglib").setLevel(logging.WARNING)
     logging.getLogger("reportlab").setLevel(logging.WARNING)
     logging.getLogger("paramiko").setLevel(logging.WARNING)
+    # paramiko.transport can emit noisy ERROR-level SSH banner messages that
+    # are not useful to the end user.  Keep them in the log file but silence
+    # them on the console by marking the logger as non-propagating when a
+    # console handler is active and redirecting it straight to the file handler.
+    paramiko_transport_logger = logging.getLogger("paramiko.transport")
+    paramiko_transport_logger.setLevel(logging.CRITICAL)
     logging.getLogger("openai").setLevel(logging.WARNING)
     logging.getLogger("httpcore").setLevel(logging.WARNING)
     logging.getLogger("httpx").setLevel(logging.WARNING)

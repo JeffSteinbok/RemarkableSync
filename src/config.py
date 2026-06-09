@@ -57,6 +57,8 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "pdf_dir": "",
     "ai_provider": "github",
     "ai_model": "",
+    "pre_sync_command": "",
+    "post_sync_command": "",
 }
 
 # All available sync actions

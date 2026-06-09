@@ -513,7 +513,7 @@ class MarkdownExporter:
                 nb_pages = nb_page_counts[i]
                 progress.update(
                     task,
-                    description=f"{nb_name} (page 0 of {nb_pages})",
+                    description=f"{nb_name} (page 1 of {nb_pages})",
                 )
 
                 safe = sanitize_name(notebook["name"]) or f"notebook_{notebook['uuid'][:8]}"

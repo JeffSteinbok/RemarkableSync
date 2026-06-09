@@ -73,6 +73,7 @@ def run_pipeline(
     _start_time = _time.monotonic()
 
     from ..config import load_config
+    from ..utils import run_shell_command
 
     config = load_config()
 
@@ -97,6 +98,18 @@ def run_pipeline(
     else:
         print(f"  * Export Markdown to {output_dir.absolute()}")
     print("=" * 70)
+
+    # ------------------------------------------------------------------
+    # Pre-sync command
+    # ------------------------------------------------------------------
+    pre_sync_cmd = config.get("pre_sync_command", "").strip()
+    if pre_sync_cmd:
+        print(f"\n[0/3] Running pre-sync command: {pre_sync_cmd}")
+        rc = run_shell_command(pre_sync_cmd)
+        if rc != 0:
+            print_error(f"  ERR - Pre-sync command failed (exit {rc}): {pre_sync_cmd}")
+            return 1
+        print_success("  OK - Pre-sync command completed")
 
     # ------------------------------------------------------------------
     # Stage 1: Backup
@@ -212,7 +225,6 @@ def run_pipeline(
     all_items = find_notebooks(backup_dir)
     if not all_items:
         print("      No notebooks found in backup directory.")
-        return 0
 
     org = organize_notebooks_by_structure(all_items, backup_dir)
     notebooks = org["documents_to_convert"]
@@ -281,4 +293,17 @@ def run_pipeline(
     print(f"  Markdown   : {exported} exported, {skipped} unchanged -> {output_dir.absolute()}")
     print(f"  Duration   : {mins}m {secs}s")
     print("=" * 70)
+
+    # ------------------------------------------------------------------
+    # Post-sync command
+    # ------------------------------------------------------------------
+    post_sync_cmd = config.get("post_sync_command", "").strip()
+    if post_sync_cmd:
+        print(f"\nRunning post-sync command: {post_sync_cmd}")
+        rc = run_shell_command(post_sync_cmd)
+        if rc != 0:
+            print_error(f"  WRN - Post-sync command failed (exit {rc}): {post_sync_cmd}")
+        else:
+            print_success("  OK - Post-sync command completed")
+
     return 0

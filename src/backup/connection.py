@@ -19,6 +19,8 @@ import click
 import paramiko
 from scp import SCPClient
 
+from ..utils.console import print_error
+
 try:
     import keyring  # type: ignore
 
@@ -269,7 +271,7 @@ class ReMarkableConnection:
                             password_attempt += 1
                             break
                     except (paramiko.SSHException, OSError) as e:
-                        logging.warning("Connection attempt %d failed: %s", i + 1, e)
+                        logging.debug("Connection attempt %d failed: %s", i + 1, e)
                         if self.ssh_client:
                             try:
                                 self.ssh_client.close()
@@ -278,11 +280,22 @@ class ReMarkableConnection:
                             self.ssh_client = paramiko.SSHClient()
                             self.ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
-                logging.error("All connection attempts failed")
+                logging.debug("All connection attempts failed")
+
+                print_error(
+                    f"Connection to {self.host} failed. "
+                    "Check that the tablet is connected and try again. "
+                    "See log for details."
+                )
                 return False
 
             except (paramiko.SSHException, OSError) as e:
-                logging.error("Failed to connect to ReMarkable: %s", e)
+                logging.debug("Failed to connect to ReMarkable: %s", e)
+
+                print_error(
+                    f"Connection to {self.host} failed: {e}. "
+                    "Check that the tablet is connected and try again."
+                )
                 return False
 
         print("\nMaximum password retry attempts reached.")

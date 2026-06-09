@@ -381,6 +381,31 @@ def run_config_command() -> int:
         click.echo("  Could not connect to tablet. Folder selection skipped.")
         folders = current.get("folders", [])
 
+    # 9. Pre/post-sync commands (optional)
+    pre_sync_command = current.get("pre_sync_command", "")
+    post_sync_command = current.get("post_sync_command", "")
+
+    click.echo()
+    click.echo("  Optional: shell commands to run before and after sync.")
+    click.echo("  Useful for disabling VPNs, network tools, etc. Leave blank to skip.")
+    click.echo()
+
+    pre_sync_command = (
+        inquirer.text(
+            message="Pre-sync command (blank=none):",
+            default=pre_sync_command,
+        ).execute()
+        or ""
+    )
+
+    post_sync_command = (
+        inquirer.text(
+            message="Post-sync command (blank=none):",
+            default=post_sync_command,
+        ).execute()
+        or ""
+    )
+
     # Save configuration — preserve keys not managed by this wizard
     config = dict(current)
     config.update(
@@ -397,6 +422,8 @@ def run_config_command() -> int:
             "embed_images": embed_images,
             "ai_provider": ai_provider,
             "ai_model": ai_model,
+            "pre_sync_command": pre_sync_command,
+            "post_sync_command": post_sync_command,
         }
     )
 
@@ -423,6 +450,10 @@ def run_config_command() -> int:
         click.echo(f"  AI:      {ai_provider} ({ai_model})")
         has_token = bool(github_token or claude_api_key)
         click.echo(f"  Token:   {'OK - saved in keyring' if has_token else '(not set)'}")
+    if pre_sync_command:
+        click.echo(f"  Pre:     {pre_sync_command}")
+    if post_sync_command:
+        click.echo(f"  Post:    {post_sync_command}")
     click.echo()
 
     return 0

@@ -6,6 +6,8 @@ from typing import Optional
 
 from ..backup import ReMarkableBackup
 from ..backup.connection import USB_HOST
+from ..utils import run_shell_command
+from ..utils.console import print_error, print_success
 from ..utils.logging import setup_logging
 
 
@@ -41,9 +43,13 @@ def run_sync_command(
     """
     import time as _time
 
+    from ..config import load_config
+
     log_dir = backup_dir.parent
     setup_logging(log_level, log_dir=log_dir)
     _start_time = _time.monotonic()
+
+    config = load_config()
 
     print("ReMarkable Sync (Backup + Convert)")
     print("=" * 70)
@@ -59,6 +65,18 @@ def run_sync_command(
         print("Force backup: All files will be backed up")
     if force_convert:
         print("Force convert: All notebooks will be converted")
+
+    # ------------------------------------------------------------------
+    # Pre-sync command
+    # ------------------------------------------------------------------
+    pre_sync_cmd = config.get("pre_sync_command", "").strip()
+    if pre_sync_cmd:
+        print(f"\nRunning pre-sync command: {pre_sync_cmd}")
+        rc = run_shell_command(pre_sync_cmd)
+        if rc != 0:
+            print_error(f"  ERR - Pre-sync command failed (exit {rc}): {pre_sync_cmd}")
+            return 1
+        print_success("  OK - Pre-sync command completed")
 
     backup_tool = ReMarkableBackup(
         backup_dir,
@@ -87,14 +105,24 @@ def run_sync_command(
             print(f"  Backup     : {backup_tool.files_dir}")
             if not skip_templates:
                 print(f"  Templates  : {backup_tool.templates_dir}")
-            from ..config import load_config
-
-            _cfg = load_config()
-            _pdf_dir = _cfg.get("pdf_dir", "")
+            _pdf_dir = config.get("pdf_dir", "")
             if _pdf_dir and Path(_pdf_dir).exists():
                 print(f"  PDFs       : {_pdf_dir}")
             print(f"  Duration   : {mins}m {secs}s")
             print("=" * 70)
+
+            # ------------------------------------------------------------------
+            # Post-sync command
+            # ------------------------------------------------------------------
+            post_sync_cmd = config.get("post_sync_command", "").strip()
+            if post_sync_cmd:
+                print(f"\nRunning post-sync command: {post_sync_cmd}")
+                rc = run_shell_command(post_sync_cmd)
+                if rc != 0:
+                    print_error(f"  WRN - Post-sync command failed (exit {rc}): {post_sync_cmd}")
+                else:
+                    print_success("  OK - Post-sync command completed")
+
             return 0
         else:
             print("\n[ERROR] Sync failed. Check logs for details.")
