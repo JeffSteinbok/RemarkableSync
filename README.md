@@ -1,6 +1,6 @@
 # RemarkableSync
 
-![RemarkableSync](githubSocial.png)
+![RemarkableSync](https://raw.githubusercontent.com/JeffSteinbok/RemarkableSync/main/githubSocial.png)
 
 [![GitHub](https://img.shields.io/badge/GitHub-RemarkableSync-blue?logo=github)](https://github.com/JeffSteinbok/RemarkableSync)
 [![GitHub release](https://img.shields.io/github/v/release/JeffSteinbok/RemarkableSync)](https://github.com/JeffSteinbok/RemarkableSync/releases)
