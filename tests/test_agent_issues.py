@@ -335,11 +335,13 @@ class TestPrePostSyncCommands:
         (tmp_path / "backup").mkdir(parents=True, exist_ok=True)
         (tmp_path / "output").mkdir(parents=True, exist_ok=True)
 
+        # Post-sync wraps the SSH connection — it only runs when backup runs,
+        # not when backup is skipped.
         result = run_pipeline(
             backup_dir=tmp_path / "backup",
             output_dir=tmp_path / "output",
             log_level="NONE",
-            skip_backup=True,
+            skip_backup=False,
             skip_convert=True,
             ai_provider="",
             use_ai_ocr=False,

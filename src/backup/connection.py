@@ -19,7 +19,13 @@ import click
 import paramiko
 from scp import SCPClient
 
-from ..utils.console import print_error
+from ..utils.console import print_error, print_success, print_warn
+
+# Suppress paramiko noise regardless of when setup_logging is called
+for _n in ("paramiko", "paramiko.transport", "paramiko.auth", "paramiko.channel"):
+    _l = logging.getLogger(_n)
+    _l.setLevel(logging.CRITICAL)
+    _l.propagate = False
 
 try:
     import keyring  # type: ignore
@@ -78,6 +84,8 @@ class ReMarkableConnection:
         password: str | None = None,
         use_wifi: bool = False,
         wifi_host: str = "",
+        pre_sync_command: str = "",
+        post_sync_command: str = "",
     ):
         """Initialize connection parameters.
 
@@ -91,6 +99,8 @@ class ReMarkableConnection:
                       Falls back to USB if *wifi_host* is empty.
             wifi_host: IP address or hostname of the tablet on the local
                        network.  Ignored when *use_wifi* is False.
+            pre_sync_command: Shell command to run before SSH connects.
+            post_sync_command: Shell command to run after SSH disconnects.
         """
         # Resolve effective host
         if use_wifi:
@@ -109,6 +119,8 @@ class ReMarkableConnection:
         self.scp_client = None
         self.password = password
         self.password_saved = False
+        self.pre_sync_command = pre_sync_command.strip()
+        self.post_sync_command = post_sync_command.strip()
 
     def get_saved_password(self) -> str | None:
         """Get saved password from system keyring.
@@ -190,13 +202,22 @@ class ReMarkableConnection:
     def connect(self) -> bool:
         """Establish SSH connection to ReMarkable tablet.
 
-        Attempts multiple connection strategies with different timeout values
-        to handle various network conditions and tablet responsiveness.
-        Handles password retry logic if saved password fails.
+        Runs the pre-sync command (if configured) before opening the SSH
+        connection, and the post-sync command (if configured) in disconnect().
 
         Returns:
             bool: True if connection successful, False otherwise
         """
+        if self.pre_sync_command:
+            from ..utils import run_shell_command
+
+            print(f"  Running pre-sync: {self.pre_sync_command}")
+            rc = run_shell_command(self.pre_sync_command)
+            if rc != 0:
+                print_error(f"  ERR - Pre-sync command failed (exit {rc})")
+                return False
+            print_success("  OK - Pre-sync done")
+
         max_password_retries = 3
         password_attempt = 0
         used_saved_password = False
@@ -248,7 +269,7 @@ class ReMarkableConnection:
                         logging.warning("Authentication failed on attempt %d: %s", i + 1, e)
                         # Authentication failed - might be wrong password
                         if used_saved_password:
-                            print("\nSaved password appears to be incorrect.")
+                            print_warn("  WRN - Saved password appears to be incorrect.")
                             if click.confirm(
                                 "Would you like to enter a new password?", default=True
                             ):
@@ -265,8 +286,9 @@ class ReMarkableConnection:
                                 else:
                                     return False
                         else:
-                            # User-entered password was wrong
-                            print("\nAuthentication failed. Please check your password.")
+                            print_error(
+                                "  ERR - Authentication failed. Please check your password."
+                            )
                             self.password = None
                             password_attempt += 1
                             break
@@ -283,35 +305,40 @@ class ReMarkableConnection:
                 logging.debug("All connection attempts failed")
 
                 print_error(
-                    f"Connection to {self.host} failed. "
-                    "Check that the tablet is connected and try again. "
-                    "See log for details."
+                    f"  ERR - Connection to {self.host} failed. "
+                    "Check that the tablet is connected and try again."
                 )
                 return False
 
             except (paramiko.SSHException, OSError) as e:
                 logging.debug("Failed to connect to ReMarkable: %s", e)
-
                 print_error(
-                    f"Connection to {self.host} failed: {e}. "
+                    f"  ERR - Connection to {self.host} failed. "
                     "Check that the tablet is connected and try again."
                 )
                 return False
 
-        print("\nMaximum password retry attempts reached.")
+        print_error("  ERR - Maximum password retry attempts reached.")
         return False
 
     def disconnect(self):
-        """Close SSH and SCP connections to ReMarkable tablet.
-
-        Safely closes both SCP and SSH client connections,
-        ensuring clean disconnection from the tablet.
-        """
+        """Close SSH and SCP connections to ReMarkable tablet."""
+        print("  Disconnecting...")
         if self.scp_client:
             self.scp_client.close()
         if self.ssh_client:
             self.ssh_client.close()
         logging.info("Disconnected from ReMarkable tablet")
+
+        if self.post_sync_command:
+            from ..utils import run_shell_command
+
+            print(f"  Running post-sync: {self.post_sync_command}")
+            rc = run_shell_command(self.post_sync_command)
+            if rc != 0:
+                print_error(f"  ERR - Post-sync command failed (exit {rc})")
+            else:
+                print_success("  OK - Post-sync done")
 
     def execute_command(self, command: str) -> Tuple[str, str, int]:
         """Execute command on ReMarkable tablet via SSH.

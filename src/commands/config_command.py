@@ -10,6 +10,7 @@ from typing import Any, Dict, List
 import click
 
 from src.config import SYNC_ACTIONS, load_config, save_config
+from src.utils.console import print_warn
 
 
 def run_config_command() -> int:
@@ -381,16 +382,12 @@ def run_config_command() -> int:
     click.echo()
     click.echo("  Connecting to tablet to discover folders...")
 
-    if pre_sync_command:
-        import subprocess
-
-        click.echo(f"  Running pre-sync command: {pre_sync_command}")
-        subprocess.run(pre_sync_command, shell=True)
-
     folder_choices = _get_folder_choices_live(
         connection_mode,
         password,
         wifi_host,
+        pre_sync_command=pre_sync_command,
+        post_sync_command=post_sync_command,
     )
     folders: List[str] = []
 
@@ -410,7 +407,7 @@ def run_config_command() -> int:
             click.echo("Configuration cancelled.")
             return 0
     else:
-        click.echo("  Could not connect to tablet. Folder selection skipped.")
+        print_warn("  WRN - Could not connect to tablet. Folder selection skipped.")
         folders = current.get("folders", [])
 
     # Save configuration — preserve keys not managed by this wizard
@@ -441,26 +438,26 @@ def run_config_command() -> int:
     click.echo("  Configuration saved!")
     click.echo("=" * 70)
     click.echo()
-    click.echo(f"  File:    {path}")
-    click.echo(f"  Mode:    {connection_mode.upper()}")
+    click.echo(f"  File:      {path}")
+    click.echo(f"  Mode:      {connection_mode.upper()}")
     if connection_mode == "wifi":
-        click.echo(f"  Host:    {wifi_host}")
-    click.echo(f"  Password: {'••••••••' if password else '(not set)'}")
-    click.echo(f"  Backup:  {backup_dir}")
+        click.echo(f"  Host:      {wifi_host}")
+    click.echo(f"  Password:  {'••••••••' if password else '(not set)'}")
+    click.echo(f"  Backup:    {backup_dir}")
     if pdf_dir:
-        click.echo(f"  PDFs:    {pdf_dir}")
-    click.echo(f"  Folders: {', '.join(folders) if folders else '(all)'}")
-    click.echo(f"  Actions: {', '.join(sync_actions)}")
+        click.echo(f"  PDFs:      {pdf_dir}")
+    click.echo(f"  Folders:   {', '.join(folders) if folders else '(all)'}")
+    click.echo(f"  Actions:   {', '.join(sync_actions)}")
     if ocr_enabled:
-        click.echo(f"  MD:      {output_dir}")
-        click.echo(f"  Images:  {'yes (_images/ folder)' if embed_images else 'no'}")
-        click.echo(f"  AI:      {ai_provider} ({ai_model})")
+        click.echo(f"  MD:        {output_dir}")
+        click.echo(f"  Images:    {'yes (_images/ folder)' if embed_images else 'no'}")
+        click.echo(f"  AI:        {ai_provider} ({ai_model})")
         has_token = bool(github_token or claude_api_key)
-        click.echo(f"  Token:   {'OK - saved in keyring' if has_token else '(not set)'}")
+        click.echo(f"  Token:     {'OK - saved in keyring' if has_token else '(not set)'}")
     if pre_sync_command:
-        click.echo(f"  Pre:     {pre_sync_command}")
+        click.echo(f"  Pre:       {pre_sync_command}")
     if post_sync_command:
-        click.echo(f"  Post:    {post_sync_command}")
+        click.echo(f"  Post:      {post_sync_command}")
     click.echo()
 
     return 0
@@ -511,7 +508,7 @@ def _enable_wifi_ssh(password: str) -> str:
     click.echo("  Connecting via USB...")
 
     if not conn.connect():
-        click.echo("  WRN - Could not connect via USB. Is the tablet plugged in?")
+        print_warn("  WRN - Could not connect via USB. Is the tablet plugged in?")
         return ""
 
     try:
@@ -546,7 +543,11 @@ def _enable_wifi_ssh(password: str) -> str:
 
 
 def _get_folder_choices_live(
-    connection_mode: str, password: str, wifi_host: str
+    connection_mode: str,
+    password: str,
+    wifi_host: str,
+    pre_sync_command: str = "",
+    post_sync_command: str = "",
 ) -> List[Dict[str, Any]]:
     """Connect to the tablet and discover top-level folders.
 
@@ -567,13 +568,14 @@ def _get_folder_choices_live(
         host=host,
         use_wifi=use_wifi,
         wifi_host=wifi_host,
+        pre_sync_command=pre_sync_command,
+        post_sync_command=post_sync_command,
     )
 
-    if not conn.connect():
-        click.echo("  WRN - Could not connect to tablet.")
-        return []
-
     try:
+        if not conn.connect():
+            print_warn("  WRN - Could not connect to tablet.")
+            return []
         xochitl = "/home/root/.local/share/remarkable/xochitl"
 
         # Use a single command to dump all metadata files efficiently

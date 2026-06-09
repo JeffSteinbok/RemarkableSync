@@ -73,7 +73,6 @@ def run_pipeline(
     _start_time = _time.monotonic()
 
     from ..config import load_config
-    from ..utils import run_shell_command
 
     config = load_config()
 
@@ -100,22 +99,10 @@ def run_pipeline(
     print("=" * 70)
 
     # ------------------------------------------------------------------
-    # Pre-sync command
+    # Stage 1: Backup
     # ------------------------------------------------------------------
     pre_sync_cmd = config.get("pre_sync_command", "").strip()
     post_sync_cmd = config.get("post_sync_command", "").strip()
-
-    if pre_sync_cmd:
-        print(f"\n[0/3] Running pre-sync command: {pre_sync_cmd}")
-        rc = run_shell_command(pre_sync_cmd)
-        if rc != 0:
-            print_error(f"  ERR - Pre-sync command failed (exit {rc}): {pre_sync_cmd}")
-            return 1
-        print_success("  OK - Pre-sync command completed")
-
-    # ------------------------------------------------------------------
-    # Stage 1: Backup
-    # ------------------------------------------------------------------
     updated_uuids: set = set()
     updated_pages: dict = {}
 
@@ -128,14 +115,17 @@ def run_pipeline(
             host=host,
             use_wifi=use_wifi,
             wifi_host=wifi_host,
+            pre_sync_command=pre_sync_cmd,
+            post_sync_command=post_sync_cmd,
         )
         backup_ok = False
         try:
-            success, updated_uuids, updated_pages = backup_tool.backup_files()
+            success, updated_uuids, updated_pages = backup_tool.run_backup(
+                backup_templates=True,
+            )
             if not success:
                 print_error("  ERR - Backup failed.")
             else:
-                backup_tool.backup_templates()
                 print_success(f"  OK - Backed up ({len(updated_uuids)} notebooks updated)")
                 write_manifest(
                     backup_dir.parent / "updated_notebooks.txt",
@@ -146,26 +136,11 @@ def run_pipeline(
         except Exception as exc:  # noqa: BLE001
             logging.error("Backup error: %s", exc)
             print_error(f"  ERR - Backup failed: {exc}")
-        finally:
-            if post_sync_cmd:
-                print(f"\n  Running post-sync command: {post_sync_cmd}")
-                rc = run_shell_command(post_sync_cmd)
-                if rc != 0:
-                    print_error(f"  ERR - Post-sync command failed (exit {rc})")
-                else:
-                    print_success("  OK - Post-sync command completed")
 
         if not backup_ok:
             return 1
     else:
         print("\n[1/3] Backup skipped (--skip-backup)")
-        if post_sync_cmd:
-            print(f"\n  Running post-sync command: {post_sync_cmd}")
-            rc = run_shell_command(post_sync_cmd)
-            if rc != 0:
-                print_error(f"  ERR - Post-sync command failed (exit {rc})")
-            else:
-                print_success("  OK - Post-sync command completed")
 
     # ------------------------------------------------------------------
     # Stage 2: PDF conversion

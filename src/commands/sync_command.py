@@ -6,8 +6,6 @@ from typing import Optional
 
 from ..backup import ReMarkableBackup
 from ..backup.connection import USB_HOST
-from ..utils import run_shell_command
-from ..utils.console import print_error, print_success
 from ..utils.logging import setup_logging
 
 
@@ -67,23 +65,16 @@ def run_sync_command(
         print("Force convert: All notebooks will be converted")
 
     # ------------------------------------------------------------------
-    # Pre-sync command
+    # Backup + convert
     # ------------------------------------------------------------------
-    pre_sync_cmd = config.get("pre_sync_command", "").strip()
-    if pre_sync_cmd:
-        print(f"\nRunning pre-sync command: {pre_sync_cmd}")
-        rc = run_shell_command(pre_sync_cmd)
-        if rc != 0:
-            print_error(f"  ERR - Pre-sync command failed (exit {rc}): {pre_sync_cmd}")
-            return 1
-        print_success("  OK - Pre-sync command completed")
-
     backup_tool = ReMarkableBackup(
         backup_dir,
         password=password,
         host=host,
         use_wifi=use_wifi,
         wifi_host=wifi_host,
+        pre_sync_command=config.get("pre_sync_command", "").strip(),
+        post_sync_command=config.get("post_sync_command", "").strip(),
     )
 
     try:
@@ -114,15 +105,6 @@ def run_sync_command(
             # ------------------------------------------------------------------
             # Post-sync command
             # ------------------------------------------------------------------
-            post_sync_cmd = config.get("post_sync_command", "").strip()
-            if post_sync_cmd:
-                print(f"\nRunning post-sync command: {post_sync_cmd}")
-                rc = run_shell_command(post_sync_cmd)
-                if rc != 0:
-                    print_error(f"  WRN - Post-sync command failed (exit {rc}): {post_sync_cmd}")
-                else:
-                    print_success("  OK - Post-sync command completed")
-
             return 0
         else:
             print("\n[ERROR] Sync failed. Check logs for details.")
