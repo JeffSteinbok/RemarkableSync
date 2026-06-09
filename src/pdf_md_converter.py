@@ -614,9 +614,7 @@ class MarkdownExporter:
                             ordered = self._get_content_page_order(notebook)
                             if ordered:
                                 page_pdfs_list = [
-                                    pdfs_on_disk[pid]
-                                    for pid in ordered
-                                    if pid in pdfs_on_disk
+                                    pdfs_on_disk[pid] for pid in ordered if pid in pdfs_on_disk
                                 ]
                             else:
                                 page_pdfs_list = sorted(pdfs_on_disk.values())
