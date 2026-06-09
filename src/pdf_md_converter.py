@@ -442,7 +442,7 @@ class MarkdownExporter:
                                 )
                         except AIProviderError as exc:
                             logging.error("OCR failed for '%s' page %d: %s", name, pg_idx, exc)
-                            print_error(f"  [ERR] OCR failed for '{name}' page {pg_idx}: {exc}")
+                            print_error(f"  [ERR] OCR failed for '{name}' page {pg_idx}")
                             ocr_failed = True
 
                 if ocr_failed:
