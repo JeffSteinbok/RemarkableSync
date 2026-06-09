@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - main
+    paths-ignore:
+      - 'src/__version__.py'
   pull_request:
     branches:
       - main
