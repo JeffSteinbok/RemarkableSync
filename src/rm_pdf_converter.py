@@ -113,6 +113,7 @@ def run_conversion(
                 return include_root  # Root-level notebooks
             top_folder = fp.split("/")[0]
             return top_folder in real_folders
+
         before = len(notebooks)
         notebooks = [nb for nb in notebooks if _in_selected_folders(nb)]
         logging.info(
@@ -158,16 +159,19 @@ def run_conversion(
 
         for notebook in notebooks:
             nb_name = notebook["name"][:30]
-            nb_total = (len(notebook.get("v5_files", []))
-                        + len(notebook.get("v6_files", []))
-                        + len(notebook.get("v4_files", []))
-                        + len(notebook.get("pdf_files", [])))
+            nb_total = (
+                len(notebook.get("v5_files", []))
+                + len(notebook.get("v6_files", []))
+                + len(notebook.get("v4_files", []))
+                + len(notebook.get("pdf_files", []))
+            )
             page_counter = [0]  # mutable so the lambda can update it
 
             def _on_page_done(_pc=page_counter, _nb=nb_name, _nbt=nb_total):
                 _pc[0] += 1
                 progress.update(
-                    task, advance=1,
+                    task,
+                    advance=1,
                     description=f"{_nb} (page {_pc[0]} of {_nbt})",
                 )
                 logging.info("PDF: %s (page %d/%d)", _nb, _pc[0], _nbt)
@@ -180,7 +184,10 @@ def run_conversion(
                     notebook_changed_pages = updated_pages[notebook["uuid"]]
 
                 results = convert_notebook(
-                    notebook, output_dir, backup_dir, template_renderer,
+                    notebook,
+                    output_dir,
+                    backup_dir,
+                    template_renderer,
                     changed_page_ids=notebook_changed_pages,
                     on_page_done=_on_page_done,
                 )

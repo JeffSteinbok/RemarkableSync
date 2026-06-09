@@ -11,6 +11,7 @@ from src.ai import ClaudeProvider, GitHubModelsProvider, get_provider
 # get_provider factory
 # ---------------------------------------------------------------------------
 
+
 class TestGetProvider:
     def test_returns_claude_provider(self):
         p = get_provider("claude", api_key="dummy")
@@ -41,11 +42,13 @@ class TestGetProvider:
 # ClaudeProvider
 # ---------------------------------------------------------------------------
 
+
 class TestClaudeProvider:
     def test_is_not_available_without_api_key(self):
         with patch.dict("os.environ", {}, clear=True):
             # Ensure env-var is not set
             import os
+
             os.environ.pop("ANTHROPIC_API_KEY", None)
             p = ClaudeProvider(api_key="")
         assert not p.is_available()
@@ -93,9 +96,11 @@ class TestClaudeProvider:
 # GitHubModelsProvider
 # ---------------------------------------------------------------------------
 
+
 class TestGitHubModelsProvider:
     def test_is_not_available_without_api_key(self):
         import os
+
         for key in ("GITHUB_TOKEN", "OPENAI_API_KEY"):
             os.environ.pop(key, None)
         p = GitHubModelsProvider(api_key="")

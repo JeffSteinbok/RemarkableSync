@@ -167,12 +167,15 @@ class ReMarkableBackup:  # pylint: disable=too-many-instance-attributes
 
         logging.info(
             "Folder filter: %d/%d items in selected folders",
-            len(allowed), len(metadata_cache),
+            len(allowed),
+            len(metadata_cache),
         )
         print(f"  Found {len(allowed)} notebooks in selected folders")
         return allowed
 
-    def backup_files(self) -> Tuple[bool, Set[str], Dict[str, Set[str]]]:  # pylint: disable=too-many-branches
+    def backup_files(
+        self,
+    ) -> Tuple[bool, Set[str], Dict[str, Set[str]]]:  # pylint: disable=too-many-branches
         """Backup files from ReMarkable tablet.
 
         Returns:
@@ -191,6 +194,7 @@ class ReMarkableBackup:  # pylint: disable=too-many-instance-attributes
 
             # Get list of remote files
             from src.utils.console import console
+
             with console.status("[bold blue]Scanning tablet files..."):
                 remote_files = self.connection.list_files(self.remote_xochitl_dir)
             print(f"  Scanned {len(remote_files)} files on tablet")
@@ -201,6 +205,7 @@ class ReMarkableBackup:  # pylint: disable=too-many-instance-attributes
 
             # Apply folder filter — only sync files belonging to allowed UUIDs
             if allowed_uuids is not None:
+
                 def _file_in_allowed(rf):
                     rel = os.path.relpath(rf["path"], self.remote_xochitl_dir)
                     parts = rel.split(os.sep)
@@ -269,13 +274,15 @@ class ReMarkableBackup:  # pylint: disable=too-many-instance-attributes
                         if len(path_parts) >= 1:
                             first_part = path_parts[0].split(".")[0]
                             if len(first_part) == 36 and first_part not in [
-                                "templates", "version",
+                                "templates",
+                                "version",
                             ]:
                                 notebook_uuid = first_part
 
                         if len(path_parts) >= 2:
                             if len(path_parts[0]) == 36 and path_parts[0] not in [
-                                "templates", "version",
+                                "templates",
+                                "version",
                             ]:
                                 notebook_uuid = path_parts[0]
 
@@ -511,6 +518,7 @@ class ReMarkableBackup:  # pylint: disable=too-many-instance-attributes
 
         # Set output directory from config
         from ..config import load_config
+
         config = load_config()
         pdf_dir = config.get("pdf_dir", "")
         if pdf_dir:
@@ -542,6 +550,7 @@ class ReMarkableBackup:  # pylint: disable=too-many-instance-attributes
 
         # Load folder filter from config
         from ..config import load_config
+
         config = load_config()
         folder_filter = config.get("folders", []) or None
 

@@ -66,6 +66,7 @@ class TestBackupManagerHostPropagation:
         with patch("src.backup.backup_manager.ReMarkableConnection") as MockConn:
             MockConn.return_value = MagicMock()
             import tempfile
+
             with tempfile.TemporaryDirectory() as tmp:
                 ReMarkableBackup(
                     backup_dir=Path(tmp),
@@ -83,6 +84,7 @@ class TestBackupManagerHostPropagation:
         with patch("src.backup.backup_manager.ReMarkableConnection") as MockConn:
             MockConn.return_value = MagicMock()
             import tempfile
+
             with tempfile.TemporaryDirectory() as tmp:
                 ReMarkableBackup(
                     backup_dir=Path(tmp),

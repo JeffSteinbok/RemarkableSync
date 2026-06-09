@@ -37,9 +37,7 @@ def get_provider(provider_name: str, **kwargs: Any) -> BaseAIProvider:
     cls = _REGISTRY.get(provider_name.lower())
     if cls is None:
         known = sorted({k for k in _REGISTRY if not k.startswith("_")})
-        raise ValueError(
-            f"Unknown AI provider '{provider_name}'. Choose from: {known}"
-        )
+        raise ValueError(f"Unknown AI provider '{provider_name}'. Choose from: {known}")
     return cls(**kwargs)
 
 

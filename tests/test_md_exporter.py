@@ -10,6 +10,7 @@ from src.pdf_md_converter import MarkdownExporter, _file_hash, _safe_name
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _make_notebook(name: str, uuid: str, folder_path: str = "") -> dict:
     return {
         "uuid": uuid,
@@ -27,6 +28,7 @@ def _write_dummy_pdf(path: Path) -> None:
 # ---------------------------------------------------------------------------
 # Utility helpers
 # ---------------------------------------------------------------------------
+
 
 class TestSafeName:
     def test_removes_special_chars(self):
@@ -104,8 +106,11 @@ class TestFileHash:
 # MarkdownExporter
 # ---------------------------------------------------------------------------
 
+
 class TestMarkdownExporter:
-    def _make_exporter(self, output_dir: Path, backup_dir: Path, ocr_engine=None) -> MarkdownExporter:
+    def _make_exporter(
+        self, output_dir: Path, backup_dir: Path, ocr_engine=None
+    ) -> MarkdownExporter:
         return MarkdownExporter(
             output_dir=output_dir,
             backup_dir=backup_dir,
@@ -192,6 +197,7 @@ class TestMarkdownExporter:
         assert result1 is not None
 
         import time
+
         time.sleep(0.05)
 
         # Second export – unchanged PDF should be skipped

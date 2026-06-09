@@ -95,9 +95,7 @@ class ReMarkableConnection:
             if wifi_host:
                 resolved_host = wifi_host
             else:
-                logging.info(
-                    "Wi-Fi mode enabled but no host specified - attempting auto-discovery"
-                )
+                logging.info("Wi-Fi mode enabled but no host specified - attempting auto-discovery")
                 resolved_host = discover_tablet_host() or USB_HOST
         else:
             resolved_host = host

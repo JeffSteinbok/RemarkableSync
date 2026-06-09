@@ -71,6 +71,7 @@ def run_pipeline(
     _start_time = _time.monotonic()
 
     from ..config import load_config
+
     config = load_config()
 
     pdf_output_dir = Path(config.get("pdf_dir", "")) if config.get("pdf_dir") else None
@@ -137,9 +138,7 @@ def run_pipeline(
         if not force_convert and updated_uuids is not None and not skip_backup:
             updated_list_file = backup_dir / "updated_notebooks.txt"
             try:
-                updated_list_file.write_text(
-                    "\n".join(sorted(updated_uuids)), encoding="utf-8"
-                )
+                updated_list_file.write_text("\n".join(sorted(updated_uuids)), encoding="utf-8")
             except OSError as exc:
                 logging.warning("Could not write updated notebooks list: %s", exc)
                 updated_list_file = None
@@ -218,7 +217,8 @@ def run_pipeline(
         include_root = "(Root)" in folder_filter
         real_folders = [f for f in folder_filter if f != "(Root)"]
         notebooks = [
-            nb for nb in notebooks
+            nb
+            for nb in notebooks
             if (include_root and not nb.get("folder_path", ""))
             or (nb.get("folder_path", "") and nb["folder_path"].split("/")[0] in real_folders)
         ]
@@ -226,8 +226,7 @@ def run_pipeline(
     # Filter by notebook name/UUID if specified
     if notebook_filter:
         notebooks = [
-            nb for nb in notebooks
-            if nb["uuid"] == notebook_filter or nb["name"] == notebook_filter
+            nb for nb in notebooks if nb["uuid"] == notebook_filter or nb["name"] == notebook_filter
         ]
         if not notebooks:
             print(f"  Notebook not found: {notebook_filter}")
@@ -267,7 +266,9 @@ def run_pipeline(
     else:
         print("  Backup     : skipped")
     if not skip_convert:
-        print(f"  PDF        : {len(converted_pages or {})} notebooks converted -> {pdf_output_dir.absolute()}")
+        print(
+            f"  PDF        : {len(converted_pages or {})} notebooks converted -> {pdf_output_dir.absolute()}"
+        )
     else:
         print("  PDF        : skipped")
     print(f"  Markdown   : {exported} exported, {skipped} unchanged -> {output_dir.absolute()}")

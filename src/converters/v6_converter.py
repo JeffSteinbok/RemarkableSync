@@ -133,8 +133,12 @@ class V6Converter(BaseConverter):
             if sys.platform == "win32":
                 kwargs["creationflags"] = 0x08000000
             result = subprocess.run(
-                ["rmc", "--version"], capture_output=True, text=True, timeout=5,
-                check=False, **kwargs
+                ["rmc", "--version"],
+                capture_output=True,
+                text=True,
+                timeout=5,
+                check=False,
+                **kwargs,
             )
             return result.returncode == 0
         except (subprocess.TimeoutExpired, FileNotFoundError):

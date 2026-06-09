@@ -28,7 +28,11 @@ class ClaudeProvider(BaseAIProvider):
             model: Claude model identifier.  Defaults to
                 ``claude-sonnet-4-6``.
         """
-        self.api_key = api_key or os.environ.get("ANTHROPIC_API_KEY", "") or os.environ.get("ANTHROPIC_AUTH_TOKEN", "")
+        self.api_key = (
+            api_key
+            or os.environ.get("ANTHROPIC_API_KEY", "")
+            or os.environ.get("ANTHROPIC_AUTH_TOKEN", "")
+        )
         self.model = model or self.DEFAULT_MODEL
         self._client = None
         self._init_client()
@@ -49,9 +53,7 @@ class ClaudeProvider(BaseAIProvider):
             else:
                 self._client = anthropic.Anthropic(api_key=self.api_key)
         except ImportError:
-            logging.warning(
-                "anthropic package not installed – run: pip install anthropic"
-            )
+            logging.warning("anthropic package not installed – run: pip install anthropic")
 
     def is_available(self) -> bool:
         return self._client is not None and bool(self.api_key)

@@ -20,6 +20,7 @@ class AIRateLimitError(AIProviderError):
         super().__init__(message)
         self.retry_after = retry_after
 
+
 # ---------------------------------------------------------------------------
 # Shared prompt templates
 # ---------------------------------------------------------------------------

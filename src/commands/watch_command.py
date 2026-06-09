@@ -18,18 +18,18 @@ from typing import Callable, Optional
 from ..utils.logging import setup_logging
 
 # Back-off parameters
-_INITIAL_BACKOFF = 60       # seconds
-_MAX_BACKOFF = 3600         # 1 hour
+_INITIAL_BACKOFF = 60  # seconds
+_MAX_BACKOFF = 3600  # 1 hour
 _BACKOFF_FACTOR = 2
 
 # Interval choices: (label, seconds)  — 0 means "Manual" (Sync Now only)
 INTERVAL_CHOICES = [
-    ("Every 5 minutes",  5 * 60),
+    ("Every 5 minutes", 5 * 60),
     ("Every 30 minutes", 30 * 60),
-    ("Every 1 hour",     60 * 60),
-    ("Every 4 hours",    4 * 60 * 60),
-    ("Every 8 hours",    8 * 60 * 60),
-    ("Manual only",      0),
+    ("Every 1 hour", 60 * 60),
+    ("Every 4 hours", 4 * 60 * 60),
+    ("Every 8 hours", 8 * 60 * 60),
+    ("Manual only", 0),
 ]
 
 # Registry key for Windows startup
@@ -40,6 +40,7 @@ _STARTUP_REG_NAME = "RemarkableSync"
 # ---------------------------------------------------------------------------
 # Cross-platform file lock
 # ---------------------------------------------------------------------------
+
 
 class FileLock:
     """Simple advisory file lock (Windows + Unix)."""
@@ -53,9 +54,11 @@ class FileLock:
             self._fh = open(self._lock_path, "w", encoding="utf-8")
             if sys.platform == "win32":
                 import msvcrt
+
                 msvcrt.locking(self._fh.fileno(), msvcrt.LK_NBLCK, 1)
             else:
                 import fcntl
+
                 fcntl.flock(self._fh, fcntl.LOCK_EX | fcntl.LOCK_NB)
             self._fh.write(f"{datetime.now(timezone.utc).isoformat()}\n")
             self._fh.flush()
@@ -71,10 +74,12 @@ class FileLock:
             try:
                 if sys.platform == "win32":
                     import msvcrt
+
                     self._fh.seek(0)
                     msvcrt.locking(self._fh.fileno(), msvcrt.LK_UNLCK, 1)
                 else:
                     import fcntl
+
                     fcntl.flock(self._fh, fcntl.LOCK_UN)
             except OSError:
                 pass
@@ -90,6 +95,7 @@ class FileLock:
 # Run-at-startup helpers (Windows registry, macOS launchd, Linux autostart)
 # ---------------------------------------------------------------------------
 
+
 def _get_watch_command_line() -> str:
     """Build the command line that would re-launch watch mode."""
     script = Path(sys.argv[0]).resolve()
@@ -100,9 +106,8 @@ def _is_startup_enabled() -> bool:
     if sys.platform == "win32":
         try:
             import winreg
-            key = winreg.OpenKey(
-                winreg.HKEY_CURRENT_USER, _STARTUP_REG_KEY, 0, winreg.KEY_READ
-            )
+
+            key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, _STARTUP_REG_KEY, 0, winreg.KEY_READ)
             try:
                 winreg.QueryValueEx(key, _STARTUP_REG_NAME)
                 return True
@@ -127,6 +132,7 @@ def _set_startup_enabled(enabled: bool) -> bool:
     if sys.platform == "win32":
         try:
             import winreg
+
             key = winreg.OpenKey(
                 winreg.HKEY_CURRENT_USER, _STARTUP_REG_KEY, 0, winreg.KEY_SET_VALUE
             )
@@ -149,7 +155,8 @@ def _set_startup_enabled(enabled: bool) -> bool:
         plist = Path.home() / "Library/LaunchAgents/com.remarkablesync.watch.plist"
         if enabled:
             plist.parent.mkdir(parents=True, exist_ok=True)
-            plist.write_text(f"""<?xml version="1.0" encoding="UTF-8"?>
+            plist.write_text(
+                f"""<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
   "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -164,7 +171,9 @@ def _set_startup_enabled(enabled: bool) -> bool:
   <key>RunAtLoad</key><true/>
 </dict>
 </plist>
-""", encoding="utf-8")
+""",
+                encoding="utf-8",
+            )
             return True
         else:
             plist.unlink(missing_ok=True)
@@ -174,14 +183,17 @@ def _set_startup_enabled(enabled: bool) -> bool:
         desktop = Path.home() / ".config/autostart/remarkablesync-watch.desktop"
         if enabled:
             desktop.parent.mkdir(parents=True, exist_ok=True)
-            desktop.write_text(f"""[Desktop Entry]
+            desktop.write_text(
+                f"""[Desktop Entry]
 Type=Application
 Name=RemarkableSync Watch
 Exec={cmd_line}
 Hidden=false
 NoDisplay=false
 X-GNOME-Autostart-enabled=true
-""", encoding="utf-8")
+""",
+                encoding="utf-8",
+            )
             return True
         else:
             desktop.unlink(missing_ok=True)
@@ -191,6 +203,7 @@ X-GNOME-Autostart-enabled=true
 # ---------------------------------------------------------------------------
 # System tray with menu
 # ---------------------------------------------------------------------------
+
 
 class _WatchTray:
     """System tray icon with status indicator and context menu."""
@@ -213,7 +226,7 @@ class _WatchTray:
         self._last_sync: Optional[str] = None
         self._last_sync_ok: Optional[bool] = None
         self._next_sync: Optional[str] = None
-        self._interval = interval   # 0 = manual
+        self._interval = interval  # 0 = manual
         # Threading events for menu actions
         self.sync_now_event = threading.Event()
         self.quit_event = threading.Event()
@@ -262,7 +275,7 @@ class _WatchTray:
         with self._log_lock:
             self._log_lines.append(text)
             if len(self._log_lines) > self._MAX_LOG_LINES:
-                self._log_lines = self._log_lines[-self._MAX_LOG_LINES:]
+                self._log_lines = self._log_lines[-self._MAX_LOG_LINES :]
 
     def get_log_lines(self) -> list:
         with self._log_lock:
@@ -331,6 +344,7 @@ class _WatchTray:
             label = _format_interval(secs) if secs else "manual"
             print(f"  Interval changed to {label}")
             self._rebuild_icon_menu()
+
         return handler
 
     def _on_toggle_startup(self, icon, item):
@@ -416,7 +430,8 @@ class _WatchTray:
             pystray.Menu.SEPARATOR,
             pystray.MenuItem("Show Status", self._on_show_status, default=True),
             pystray.MenuItem(
-                "Sync Now", self._on_sync_now,
+                "Sync Now",
+                self._on_sync_now,
                 enabled=self._status in ("Idle", "Success", "Failure"),
             ),
             pystray.MenuItem(pause_label, self._on_pause_resume),
@@ -425,17 +440,11 @@ class _WatchTray:
         ]
 
         if self._backup_dir:
-            items.append(
-                pystray.MenuItem("Open Backup Folder", self._on_open_backup)
-            )
+            items.append(pystray.MenuItem("Open Backup Folder", self._on_open_backup))
         if self._output_dir:
-            items.append(
-                pystray.MenuItem("Open Markdown Folder", self._on_open_output)
-            )
+            items.append(pystray.MenuItem("Open Markdown Folder", self._on_open_output))
         if self._backup_dir:
-            items.append(
-                pystray.MenuItem("Open Log File", self._on_open_log)
-            )
+            items.append(pystray.MenuItem("Open Log File", self._on_open_log))
         if self._backup_dir or self._output_dir:
             items.append(pystray.Menu.SEPARATOR)
 
@@ -537,6 +546,7 @@ class _WatchTray:
 # Status window (tkinter)
 # ---------------------------------------------------------------------------
 
+
 class _StatusWindow(threading.Thread):
     """Small tkinter window showing progress bar and recent log lines."""
 
@@ -569,6 +579,7 @@ class _StatusWindow(threading.Thread):
         try:
             icon_img = self._tray._build_icon_image("#4A90E2")
             from PIL import ImageTk
+
             self._icon_photo = ImageTk.PhotoImage(icon_img)
             root.iconphoto(True, self._icon_photo)
         except Exception:
@@ -577,22 +588,23 @@ class _StatusWindow(threading.Thread):
         # Dark theme style
         style = ttk.Style(root)
         style.theme_use("clam")
-        style.configure("dark.Horizontal.TProgressbar",
-                        troughcolor="#333", background="#4A90E2",
-                        thickness=20)
-        style.configure("TLabel", background="#1e1e1e", foreground="#ccc",
-                        font=("Segoe UI", 10))
+        style.configure(
+            "dark.Horizontal.TProgressbar", troughcolor="#333", background="#4A90E2", thickness=20
+        )
+        style.configure("TLabel", background="#1e1e1e", foreground="#ccc", font=("Segoe UI", 10))
 
         # Status label (blue text)
-        self._status_label = ttk.Label(root, text="Idle", style="TLabel",
-                                       foreground="#4A90E2",
-                                       font=("Segoe UI", 11, "bold"))
+        self._status_label = ttk.Label(
+            root, text="Idle", style="TLabel", foreground="#4A90E2", font=("Segoe UI", 11, "bold")
+        )
         self._status_label.pack(fill=tk.X, padx=10, pady=(10, 2))
 
         # Progress bar
         self._progress_var = tk.DoubleVar(value=0)
         self._progress_bar = ttk.Progressbar(
-            root, variable=self._progress_var, maximum=100,
+            root,
+            variable=self._progress_var,
+            maximum=100,
             style="dark.Horizontal.TProgressbar",
         )
         self._progress_bar.pack(fill=tk.X, padx=10, pady=4)
@@ -603,9 +615,16 @@ class _StatusWindow(threading.Thread):
 
         # Log text area
         self._log_text = tk.Text(
-            root, bg="#252525", fg="#ddd", font=("Consolas", 9),
-            wrap=tk.WORD, state=tk.DISABLED, relief=tk.FLAT,
-            highlightthickness=0, padx=6, pady=4,
+            root,
+            bg="#252525",
+            fg="#ddd",
+            font=("Consolas", 9),
+            wrap=tk.WORD,
+            state=tk.DISABLED,
+            relief=tk.FLAT,
+            highlightthickness=0,
+            padx=6,
+            pady=4,
         )
         self._log_text.pack(fill=tk.BOTH, expand=True, padx=10, pady=(0, 10))
 
@@ -700,6 +719,7 @@ class _StatusWindow(threading.Thread):
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 class _TrayLogHandler(logging.Handler):
     """Log handler that feeds the last meaningful line to the tray menu."""
 
@@ -720,7 +740,8 @@ class _TrayLogHandler(logging.Handler):
 
             # Parse progress from page callbacks: "PDF: Work (page 3/21)"
             import re
-            m = re.search(r'(PDF|MD): (.+?) \(page (\d+)/(\d+)\)', msg)
+
+            m = re.search(r"(PDF|MD): (.+?) \(page (\d+)/(\d+)\)", msg)
             if m:
                 label = f"{m.group(1)}: {m.group(2)}"
                 self._tray.set_progress(int(m.group(3)), int(m.group(4)), label)
@@ -750,6 +771,7 @@ def _next_run_time(seconds: int) -> str:
 # Interruptible sleep
 # ---------------------------------------------------------------------------
 
+
 def _interruptible_sleep(seconds: int, tray: _WatchTray) -> None:
     """Sleep for *seconds*, but wake early on Sync Now, Quit, or Pause."""
     deadline = time.monotonic() + seconds
@@ -772,6 +794,7 @@ def _interruptible_sleep(seconds: int, tray: _WatchTray) -> None:
 # ---------------------------------------------------------------------------
 # Main loop
 # ---------------------------------------------------------------------------
+
 
 def run_watch_command(
     interval: int,
@@ -867,9 +890,7 @@ def run_watch_command(
             lock = FileLock(lock_path)
             if not lock.acquire():
                 tray.set_status("Idle")
-                logging.warning(
-                    "Another sync is already running (lock file exists). Skipping."
-                )
+                logging.warning("Another sync is already running (lock file exists). Skipping.")
                 if current_interval > 0:
                     _interruptible_sleep(current_interval, tray)
                 continue
@@ -900,8 +921,10 @@ def run_watch_command(
                         _MAX_BACKOFF,
                     )
                     ts2 = datetime.now().strftime("%H:%M:%S")
-                    print(f"  [{ts2}] ✗ {mode} failed (exit {exit_code}). "
-                          f"Failures: {consecutive_failures}.\n")
+                    print(
+                        f"  [{ts2}] ✗ {mode} failed (exit {exit_code}). "
+                        f"Failures: {consecutive_failures}.\n"
+                    )
             except Exception as exc:
                 tray.set_status("Failure", sync_ok=False)
                 consecutive_failures += 1

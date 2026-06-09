@@ -567,12 +567,8 @@ def convert_notebook(
                 template_name = page_templates.get(page_id, "Blank")
                 if template_name and template_name != "Blank":
                     temp_template_pdf = template_temp_dir / f"template_{page_id}.pdf"
-                    if template_renderer.render_template_to_pdf(
-                        template_name, temp_template_pdf
-                    ):
-                        if merge_pdf_with_template(
-                            content_pdf, temp_template_pdf, cached_pdf
-                        ):
+                    if template_renderer.render_template_to_pdf(template_name, temp_template_pdf):
+                        if merge_pdf_with_template(content_pdf, temp_template_pdf, cached_pdf):
                             # Clean up intermediate content PDF
                             try:
                                 content_pdf.unlink(missing_ok=True)
@@ -637,7 +633,9 @@ def convert_notebook(
                     f"[OK] {notebook['name']}: Merged {len(page_pdfs)} pages into {final_pdf.name}"
                 )
             else:
-                logging.warning(f"[FAIL] {notebook['name']}: Failed to merge {len(page_pdfs)} pages")
+                logging.warning(
+                    f"[FAIL] {notebook['name']}: Failed to merge {len(page_pdfs)} pages"
+                )
 
         results["total_files"] = (
             len(notebook["v5_files"])

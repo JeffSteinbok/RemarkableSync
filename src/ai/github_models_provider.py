@@ -41,9 +41,7 @@ class GitHubModelsProvider(BaseAIProvider):
                 GitHub Models endpoint.
         """
         self.api_key = (
-            api_key
-            or os.environ.get("GITHUB_TOKEN", "")
-            or os.environ.get("OPENAI_API_KEY", "")
+            api_key or os.environ.get("GITHUB_TOKEN", "") or os.environ.get("OPENAI_API_KEY", "")
         )
         self.model = model or self.DEFAULT_MODEL
         self.endpoint = endpoint or self.GITHUB_MODELS_ENDPOINT
@@ -62,9 +60,7 @@ class GitHubModelsProvider(BaseAIProvider):
 
             self._client = OpenAI(base_url=self.endpoint, api_key=self.api_key)
         except ImportError:
-            logging.warning(
-                "openai package not installed – run: pip install openai"
-            )
+            logging.warning("openai package not installed – run: pip install openai")
 
     def is_available(self) -> bool:
         return self._client is not None and bool(self.api_key)
@@ -84,9 +80,7 @@ class GitHubModelsProvider(BaseAIProvider):
                 continue
             with open(img_path, "rb") as fh:
                 img_b64 = base64.standard_b64encode(fh.read()).decode("utf-8")
-            mime = (
-                "image/jpeg" if img_path.suffix.lower() in (".jpg", ".jpeg") else "image/png"
-            )
+            mime = "image/jpeg" if img_path.suffix.lower() in (".jpg", ".jpeg") else "image/png"
             content.append(
                 {
                     "type": "image_url",
@@ -161,6 +155,7 @@ def _parse_retry_after(exc: Exception) -> int | None:
 
     try:
         from openai import RateLimitError
+
         if not isinstance(exc, RateLimitError):
             return None
     except ImportError:

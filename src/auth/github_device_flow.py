@@ -35,7 +35,9 @@ def request_device_code() -> dict:
     return resp.json()
 
 
-def poll_for_token(device_code: str, interval: int = 5, expires_in: int = 900) -> Tuple[Optional[str], Optional[str]]:
+def poll_for_token(
+    device_code: str, interval: int = 5, expires_in: int = 900
+) -> Tuple[Optional[str], Optional[str]]:
     """Poll GitHub until the user authorizes or the code expires.
 
     Args:

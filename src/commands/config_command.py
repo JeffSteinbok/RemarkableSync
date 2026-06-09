@@ -251,16 +251,22 @@ def run_config_command() -> int:
         # Model selection
         if ai_provider == "github":
             default_model = ai_model if ai_model else "gpt-4o-mini"
-            ai_model = inquirer.text(
-                message="GitHub Models model:",
-                default=default_model,
-            ).execute() or default_model
+            ai_model = (
+                inquirer.text(
+                    message="GitHub Models model:",
+                    default=default_model,
+                ).execute()
+                or default_model
+            )
         elif ai_provider == "claude":
             default_model = ai_model if ai_model else "claude-sonnet-4-6"
-            ai_model = inquirer.text(
-                message="Claude model:",
-                default=default_model,
-            ).execute() or default_model
+            ai_model = (
+                inquirer.text(
+                    message="Claude model:",
+                    default=default_model,
+                ).execute()
+                or default_model
+            )
 
     # 8. AI token (only if OCR enabled)
     github_token = ""
@@ -302,10 +308,13 @@ def run_config_command() -> int:
                 default=False,
             ).execute()
             if change:
-                claude_api_key = inquirer.secret(
-                    message="Anthropic API key:",
-                    transformer=lambda _: "••••••••" if _ else "(empty)",
-                ).execute() or ""
+                claude_api_key = (
+                    inquirer.secret(
+                        message="Anthropic API key:",
+                        transformer=lambda _: "••••••••" if _ else "(empty)",
+                    ).execute()
+                    or ""
+                )
                 if claude_api_key:
                     set_secret(KEY_CLAUDE_API_KEY, claude_api_key)
             else:
@@ -321,10 +330,13 @@ def run_config_command() -> int:
             click.echo("  4. Paste it below — it will be stored securely in")
             click.echo("     your system keyring (never written to config files)")
             click.echo()
-            claude_api_key = inquirer.secret(
-                message="Anthropic API key:",
-                transformer=lambda _: "••••••••" if _ else "(empty)",
-            ).execute() or ""
+            claude_api_key = (
+                inquirer.secret(
+                    message="Anthropic API key:",
+                    transformer=lambda _: "••••••••" if _ else "(empty)",
+                ).execute()
+                or ""
+            )
             if claude_api_key:
                 set_secret(KEY_CLAUDE_API_KEY, claude_api_key)
             else:
@@ -334,7 +346,9 @@ def run_config_command() -> int:
     click.echo()
     click.echo("  Connecting to tablet to discover folders...")
     folder_choices = _get_folder_choices_live(
-        connection_mode, password, wifi_host,
+        connection_mode,
+        password,
+        wifi_host,
     )
     folders: List[str] = []
 
@@ -359,20 +373,22 @@ def run_config_command() -> int:
 
     # Save configuration — preserve keys not managed by this wizard
     config = dict(current)
-    config.update({
-        "connection_mode": connection_mode,
-        "wifi_host": wifi_host,
-        "password": password,
-        "backup_dir": backup_dir,
-        "pdf_dir": pdf_dir,
-        "folders": folders,
-        "sync_actions": sync_actions,
-        "ocr_enabled": ocr_enabled,
-        "output_dir": output_dir,
-        "embed_images": embed_images,
-        "ai_provider": ai_provider,
-        "ai_model": ai_model,
-    })
+    config.update(
+        {
+            "connection_mode": connection_mode,
+            "wifi_host": wifi_host,
+            "password": password,
+            "backup_dir": backup_dir,
+            "pdf_dir": pdf_dir,
+            "folders": folders,
+            "sync_actions": sync_actions,
+            "ocr_enabled": ocr_enabled,
+            "output_dir": output_dir,
+            "embed_images": embed_images,
+            "ai_provider": ai_provider,
+            "ai_model": ai_model,
+        }
+    )
 
     path = save_config(config)
 
@@ -414,6 +430,7 @@ def _offer_keyring_save(password: str) -> None:
 
     try:
         from InquirerPy import inquirer
+
         save = inquirer.confirm(
             message="Save password to system keyring?",
             default=True,
@@ -466,7 +483,7 @@ def _enable_wifi_ssh(password: str) -> str:
         if exit_code == 0 and stdout.strip():
             ip = stdout.strip().split("\n")[0]
             # Validate it looks like an IP
-            if re.match(r'^\d+\.\d+\.\d+\.\d+$', ip):
+            if re.match(r"^\d+\.\d+\.\d+\.\d+$", ip):
                 click.echo(f"  Tablet WiFi IP: {ip}")
                 return ip
 
@@ -515,7 +532,7 @@ def _get_folder_choices_live(
         # Output format: one JSON object per line, prefixed with filename
         stdout, stderr, exit_code = conn.execute_command(
             f"for f in {xochitl}/*.metadata; do "
-            f"[ -f \"$f\" ] && echo \"FILE:$f\" && cat \"$f\"; "
+            f'[ -f "$f" ] && echo "FILE:$f" && cat "$f"; '
             f"done"
         )
         if exit_code != 0:
@@ -564,10 +581,7 @@ def _parse_folder_metadata(json_text: str, folders: List[str]) -> None:
         return
     try:
         meta = json.loads(json_text)
-        if (
-            meta.get("type") == "CollectionType"
-            and meta.get("parent", "") == ""
-        ):
+        if meta.get("type") == "CollectionType" and meta.get("parent", "") == "":
             name = meta.get("visibleName", "")
             if name:
                 folders.append(name)
@@ -589,8 +603,11 @@ def _run_device_flow() -> str:
         # Copy code to clipboard for easy pasting
         try:
             import subprocess
+
             subprocess.run(
-                ["clip"], input=code.encode(), check=True,
+                ["clip"],
+                input=code.encode(),
+                check=True,
                 creationflags=subprocess.CREATE_NO_WINDOW,
             )
             copied = " (copied to clipboard)"

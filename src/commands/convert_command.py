@@ -38,6 +38,7 @@ def run_convert_command(
     # Set default output directory from config
     if not output_dir:
         from ..config import load_config
+
         config = load_config()
         pdf_dir = config.get("pdf_dir", "")
         if pdf_dir:

@@ -179,7 +179,5 @@ class OCREngine:
                 processed = self.ai_provider.cleanup_text(raw, context=notebook_name)
                 return raw, processed
 
-            logging.warning(
-                "AI transcription returned empty for '%s'", notebook_name
-            )
+            logging.warning("AI transcription returned empty for '%s'", notebook_name)
             return "", ""

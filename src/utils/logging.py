@@ -13,6 +13,7 @@ _NONE_LEVEL = logging.CRITICAL + 10
 
 class LogLevel(str, Enum):
     """Log verbosity levels (short 3-char names)."""
+
     DBG = "DBG"
     INF = "INF"
     WRN = "WRN"
@@ -46,6 +47,7 @@ def is_interactive() -> bool:
     if os.name == "nt":
         try:
             import msvcrt
+
             return msvcrt.get_osfhandle(sys.stderr.fileno()) != -1
         except (OSError, ValueError, AttributeError):
             pass
@@ -90,13 +92,16 @@ def setup_logging(
     if console_level < _NONE_LEVEL:
         if interactive:
             from .console import get_rich_logging_handler
+
             console_handler = get_rich_logging_handler()
         else:
             console_handler = logging.StreamHandler(sys.stderr)
-            console_handler.setFormatter(logging.Formatter(
-                "%(asctime)s - %(levelname)s - %(message)s",
-                datefmt="%Y-%m-%d %H:%M:%S",
-            ))
+            console_handler.setFormatter(
+                logging.Formatter(
+                    "%(asctime)s - %(levelname)s - %(message)s",
+                    datefmt="%Y-%m-%d %H:%M:%S",
+                )
+            )
         console_handler.setLevel(console_level)
         root.addHandler(console_handler)
 
@@ -106,14 +111,17 @@ def setup_logging(
         log_file = log_dir / "remarkablesync.log"
         file_handler = logging.FileHandler(log_file, mode="w", encoding="utf-8")
         file_handler.setLevel(logging.DEBUG)
-        file_handler.setFormatter(logging.Formatter(
-            "%(asctime)s %(levelname)s [%(name)s] %(message)s",
-            datefmt="%Y-%m-%d %H:%M:%S",
-        ))
+        file_handler.setFormatter(
+            logging.Formatter(
+                "%(asctime)s %(levelname)s [%(name)s] %(message)s",
+                datefmt="%Y-%m-%d %H:%M:%S",
+            )
+        )
         root.addHandler(file_handler)
 
-    logging.debug("Interactive: %s, Console log level: %s, Log dir: %s",
-                  interactive, log_level.value, log_dir)
+    logging.debug(
+        "Interactive: %s, Console log level: %s, Log dir: %s", interactive, log_level.value, log_dir
+    )
 
     # Suppress verbose debug messages from third-party libraries
     logging.getLogger("svglib.svglib").setLevel(logging.WARNING)

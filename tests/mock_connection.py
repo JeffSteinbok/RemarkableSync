@@ -107,11 +107,13 @@ class MockConnection:
                 # Build the "remote" path as the tablet would report it
                 rel = f.relative_to(self._fixture_dir)
                 remote_file_path = f"/home/root/.local/share/remarkable/{rel.as_posix()}"
-                files.append({
-                    "path": remote_file_path,
-                    "mtime": int(stat.st_mtime),
-                    "size": stat.st_size,
-                })
+                files.append(
+                    {
+                        "path": remote_file_path,
+                        "mtime": int(stat.st_mtime),
+                        "size": stat.st_size,
+                    }
+                )
 
         return files
 
@@ -146,10 +148,12 @@ class MockConnection:
             with open(meta_file, "r", encoding="utf-8") as f:
                 meta = json.load(f)
             if meta.get("type") == "CollectionType" and meta.get("parent", "") == "":
-                folders.append({
-                    "uuid": meta_file.stem,
-                    "name": meta.get("visibleName", ""),
-                })
+                folders.append(
+                    {
+                        "uuid": meta_file.stem,
+                        "name": meta.get("visibleName", ""),
+                    }
+                )
         return sorted(folders, key=lambda x: x["name"])
 
     # ------------------------------------------------------------------
@@ -160,11 +164,11 @@ class MockConnection:
         """Map a remote tablet path to the local fixture path."""
         prefix = "/home/root/.local/share/remarkable/"
         if remote_path.startswith(prefix):
-            rel = remote_path[len(prefix):]
+            rel = remote_path[len(prefix) :]
             return self._fixture_dir / rel
         # Try xochitl shorthand
         if remote_path.startswith(REMOTE_XOCHITL):
-            rel = remote_path[len(REMOTE_XOCHITL):].lstrip("/")
+            rel = remote_path[len(REMOTE_XOCHITL) :].lstrip("/")
             return self._xochitl_dir / rel if rel else self._xochitl_dir
         return None
 

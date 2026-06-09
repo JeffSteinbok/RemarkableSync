@@ -29,6 +29,7 @@ from .ocr.ocr_engine import OCREngine
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _safe_name(name: str) -> str:
     """Return a filesystem-safe version of *name*."""
     return "".join(c for c in name if c.isalnum() or c in " -_()").strip()
@@ -46,6 +47,7 @@ def _file_hash(path: Path) -> str:
 # ---------------------------------------------------------------------------
 # Markdown exporter
 # ---------------------------------------------------------------------------
+
 
 class MarkdownExporter:
     """Export ReMarkable notebooks as Markdown notes.
@@ -220,7 +222,7 @@ class MarkdownExporter:
 
         props = (
             "---\n"
-            f"title: \"{title}\"\n"
+            f'title: "{title}"\n'
             f"source: reMarkable\n"
             f"remarkable_id: {notebook_uuid}\n"
             f"notebook: {notebook_name}\n"
@@ -268,11 +270,20 @@ class MarkdownExporter:
             # Matches: 8/27/24, 08/27/2024, 2024-08-27, Aug 27, 2024, etc.
             date_patterns = [
                 # YYYY-MM-DD
-                (r'(\d{4})-(\d{1,2})-(\d{1,2})', lambda m: f"{m.group(1)}-{int(m.group(2)):02d}-{int(m.group(3)):02d}"),
+                (
+                    r"(\d{4})-(\d{1,2})-(\d{1,2})",
+                    lambda m: f"{m.group(1)}-{int(m.group(2)):02d}-{int(m.group(3)):02d}",
+                ),
                 # M/D/YY or MM/DD/YY
-                (r'(\d{1,2})/(\d{1,2})/(\d{2})(?!\d)', lambda m: f"20{m.group(3)}-{int(m.group(1)):02d}-{int(m.group(2)):02d}"),
+                (
+                    r"(\d{1,2})/(\d{1,2})/(\d{2})(?!\d)",
+                    lambda m: f"20{m.group(3)}-{int(m.group(1)):02d}-{int(m.group(2)):02d}",
+                ),
                 # M/D/YYYY or MM/DD/YYYY
-                (r'(\d{1,2})/(\d{1,2})/(\d{4})', lambda m: f"{m.group(3)}-{int(m.group(1)):02d}-{int(m.group(2)):02d}"),
+                (
+                    r"(\d{1,2})/(\d{1,2})/(\d{4})",
+                    lambda m: f"{m.group(3)}-{int(m.group(1)):02d}-{int(m.group(2)):02d}",
+                ),
             ]
             for pattern, formatter in date_patterns:
                 match = re.search(pattern, text)
@@ -289,9 +300,9 @@ class MarkdownExporter:
                 if not line:
                     continue
                 # Skip lines that are just dates
-                if re.match(r'^[_*]*\d{1,2}/\d{1,2}/\d{2,4}[_*]*$', line):
+                if re.match(r"^[_*]*\d{1,2}/\d{1,2}/\d{2,4}[_*]*$", line):
                     continue
-                if re.match(r'^[_*]*\d{4}-\d{1,2}-\d{1,2}[_*]*$', line):
+                if re.match(r"^[_*]*\d{4}-\d{1,2}-\d{1,2}[_*]*$", line):
                     continue
                 if line.startswith("#"):
                     candidate = line.lstrip("#").strip()
@@ -369,7 +380,6 @@ class MarkdownExporter:
 
         total_pages = len(pages_to_process)
 
-
         with tempfile.TemporaryDirectory(prefix="rs_md_") as tmp_str:
             tmp_dir = Path(tmp_str)
             rate_limited = False
@@ -384,6 +394,7 @@ class MarkdownExporter:
                     images_dir.mkdir(parents=True, exist_ok=True)
                     try:
                         import fitz  # PyMuPDF
+
                         doc = fitz.open(str(pg_pdf))
                         for fitz_page in doc:
                             pix = fitz_page.get_pixmap(dpi=150)
@@ -505,8 +516,7 @@ class MarkdownExporter:
             else:
                 cache = self.backup_dir / "PagePDFs" / nb["uuid"]
                 if cache.exists():
-                    count = len([p for p in cache.glob("*.pdf")
-                                 if not p.stem.endswith("_content")])
+                    count = len([p for p in cache.glob("*.pdf") if not p.stem.endswith("_content")])
             count = max(count, 1)  # at least 1 so progress always advances
             nb_page_counts.append(count)
             total_pages += count
@@ -549,18 +559,25 @@ class MarkdownExporter:
                     if page_filter <= len(page_pdfs_list):
                         page_pdfs_list = [page_pdfs_list[page_filter - 1]]
                     else:
-                        logging.warning("Page %d not found (notebook has %d pages)",
-                                        page_filter, len(page_pdfs_list))
+                        logging.warning(
+                            "Page %d not found (notebook has %d pages)",
+                            page_filter,
+                            len(page_pdfs_list),
+                        )
 
                 def _on_page(pg_num, pg_total, _nb_name=nb_name):
                     progress.update(
-                        task, advance=1,
+                        task,
+                        advance=1,
                         description=f"{_nb_name} (page {pg_num} of {pg_total})",
                     )
                     logging.info("MD: %s (page %d/%d)", _nb_name, pg_num, pg_total)
 
                 result = self.export_notebook(
-                    notebook, pdf_path, force=force, page_pdfs=page_pdfs_list,
+                    notebook,
+                    pdf_path,
+                    force=force,
+                    page_pdfs=page_pdfs_list,
                     on_page_done=_on_page,
                 )
                 # Ensure we advance the full count even if pages were fewer
@@ -575,7 +592,5 @@ class MarkdownExporter:
                     progress.update(task, advance=nb_pages)
                     skipped += 1
 
-        logging.info(
-            "Markdown export complete: %d exported, %d skipped", exported, skipped
-        )
+        logging.info("Markdown export complete: %d exported, %d skipped", exported, skipped)
         return exported, skipped

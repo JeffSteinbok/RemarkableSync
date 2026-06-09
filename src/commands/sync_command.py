@@ -87,6 +87,7 @@ def run_sync_command(
             if not skip_templates:
                 print(f"  Templates  : {backup_tool.templates_dir}")
             from ..config import load_config
+
             _cfg = load_config()
             _pdf_dir = _cfg.get("pdf_dir", "")
             if _pdf_dir and Path(_pdf_dir).exists():

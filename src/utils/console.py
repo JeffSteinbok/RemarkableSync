@@ -1,6 +1,5 @@
 """Colored console output helpers and progress bar utilities using Rich."""
 
-
 from rich.console import Console
 from rich.logging import RichHandler
 from rich.progress import (
@@ -51,8 +50,7 @@ def create_progress(description: str = "Working") -> Progress:
 
     return Progress(
         SpinnerColumn(),
-        TextColumn("[bold blue]{task.description}",
-                   table_column=Column(min_width=45)),
+        TextColumn("[bold blue]{task.description}", table_column=Column(min_width=45)),
         BarColumn(),
         MofNCompleteColumn(),
         TimeElapsedColumn(),
