@@ -4,10 +4,7 @@ The pipeline function uses late (local) imports inside run_pipeline, so we
 patch at the source module level rather than at pipeline module level.
 """
 
-from pathlib import Path
 from unittest.mock import MagicMock, patch
-
-import pytest
 
 
 class TestRunPipeline:

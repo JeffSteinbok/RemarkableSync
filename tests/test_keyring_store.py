@@ -1,8 +1,6 @@
 """Tests for the keyring_store module."""
 
-from unittest.mock import MagicMock, patch
-
-import pytest
+from unittest.mock import patch
 
 from src import keyring_store
 

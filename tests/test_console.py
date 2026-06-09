@@ -1,7 +1,6 @@
 """Tests for the console utility module."""
 
 from src.utils.console import (
-    console,
     create_progress,
     print_error,
     print_status,

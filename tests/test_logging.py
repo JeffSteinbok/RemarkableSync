@@ -1,10 +1,6 @@
 """Tests for the logging utility module."""
 
 import logging
-from pathlib import Path
-from unittest.mock import patch
-
-import pytest
 
 from src.utils.logging import LogLevel, setup_logging
 
@@ -62,7 +58,7 @@ class TestSetupLogging:
     def test_no_log_dir_skips_file_handler(self):
         setup_logging(LogLevel.NONE, log_dir=None)
         root = logging.getLogger()
-        file_handlers = [h for h in root.handlers if isinstance(h, logging.FileHandler)]
+        _ = [h for h in root.handlers if isinstance(h, logging.FileHandler)]
         # We can't guarantee no file handlers from previous tests, but at least no crash
         # The key test is that it doesn't raise
 

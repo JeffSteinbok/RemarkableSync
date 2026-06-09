@@ -1,7 +1,6 @@
 """Tests for the TemplateRenderer module."""
 
 import json
-from pathlib import Path
 
 import pytest
 

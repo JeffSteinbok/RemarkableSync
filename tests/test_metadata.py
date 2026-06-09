@@ -1,9 +1,6 @@
 """Tests for the backup metadata module (FileMetadata)."""
 
 import json
-from pathlib import Path
-
-import pytest
 
 from src.backup.metadata import FileMetadata
 
