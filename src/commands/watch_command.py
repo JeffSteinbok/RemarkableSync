@@ -815,7 +815,7 @@ def run_watch_command(
     backup_dir.mkdir(parents=True, exist_ok=True)
 
     print(f"RemarkableSync Watch ({mode})")
-    print("=" * 50)
+    print("=" * 70)
     label = _format_interval(interval) if interval else "manual (Sync Now only)"
     print(f"  Interval   : {label}")
     print(f"  Backup dir : {backup_dir.absolute()}")

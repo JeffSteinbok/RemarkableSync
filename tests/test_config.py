@@ -117,6 +117,8 @@ class TestConfigModule:
             "output_dir": "~/Documents/Markdown/Notes",
             "pdf_dir": "~/Documents/RemarkableSync/PDF",
             "ai_provider": "github",
+            "embed_images": True,
+            "ai_model": "",
         }
 
         with patch("src.config.get_config_path", return_value=fake_path):

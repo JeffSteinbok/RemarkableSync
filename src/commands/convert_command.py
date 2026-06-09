@@ -47,7 +47,7 @@ def run_convert_command(
             return 1
 
     print("ReMarkable PDF Converter")
-    print("=" * 50)
+    print("=" * 70)
     print(f"Backup directory: {backup_dir}")
     print(f"Output directory: {output_dir}")
 

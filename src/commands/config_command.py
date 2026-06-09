@@ -24,9 +24,9 @@ def run_config_command() -> int:
 
     current = load_config()
 
-    click.echo("=" * 50)
+    click.echo("=" * 70)
     click.echo("  RemarkableSync Configuration Wizard")
-    click.echo("=" * 50)
+    click.echo("=" * 70)
     click.echo()
 
     # 1. Connection Mode
@@ -220,8 +220,20 @@ def run_config_command() -> int:
             output_dir = str(docs / "RemarkableSync" / "Markdown")
             click.echo(f"  Using default: {output_dir}")
 
+        # 7b. Embed page images with Markdown?
+        embed_images = current.get("embed_images", True)
+        embed_images = inquirer.confirm(
+            message="Include page images alongside Markdown files?",
+            default=embed_images,
+        ).execute()
+
+        if embed_images is None:
+            click.echo("Configuration cancelled.")
+            return 0
+
     # 7. AI provider selection (only if OCR is enabled)
     ai_provider = current.get("ai_provider", "github")
+    ai_model = current.get("ai_model", "")
     if ocr_enabled:
         ai_provider = inquirer.select(
             message="AI provider for handwriting recognition:",
@@ -235,6 +247,20 @@ def run_config_command() -> int:
         if ai_provider is None:
             click.echo("Configuration cancelled.")
             return 0
+
+        # Model selection
+        if ai_provider == "github":
+            default_model = ai_model if ai_model else "gpt-4o-mini"
+            ai_model = inquirer.text(
+                message="GitHub Models model:",
+                default=default_model,
+            ).execute() or default_model
+        elif ai_provider == "claude":
+            default_model = ai_model if ai_model else "claude-sonnet-4-6"
+            ai_model = inquirer.text(
+                message="Claude model:",
+                default=default_model,
+            ).execute() or default_model
 
     # 8. AI token (only if OCR enabled)
     github_token = ""
@@ -343,15 +369,17 @@ def run_config_command() -> int:
         "sync_actions": sync_actions,
         "ocr_enabled": ocr_enabled,
         "output_dir": output_dir,
+        "embed_images": embed_images,
         "ai_provider": ai_provider,
+        "ai_model": ai_model,
     })
 
     path = save_config(config)
 
     click.echo()
-    click.echo("=" * 50)
+    click.echo("=" * 70)
     click.echo("  Configuration saved!")
-    click.echo("=" * 50)
+    click.echo("=" * 70)
     click.echo()
     click.echo(f"  File:    {path}")
     click.echo(f"  Mode:    {connection_mode.upper()}")
@@ -365,7 +393,8 @@ def run_config_command() -> int:
     click.echo(f"  Actions: {', '.join(sync_actions)}")
     if ocr_enabled:
         click.echo(f"  MD:      {output_dir}")
-        click.echo(f"  AI:      {ai_provider}")
+        click.echo(f"  Images:  {'yes (_images/ folder)' if embed_images else 'no'}")
+        click.echo(f"  AI:      {ai_provider} ({ai_model})")
         has_token = bool(github_token or claude_api_key)
         click.echo(f"  Token:   {'[OK] saved in keyring' if has_token else '(not set)'}")
     click.echo()

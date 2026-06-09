@@ -53,8 +53,10 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "ocr_enabled": False,
     "ocr_output_dir": "",
     "output_dir": "",
+    "embed_images": True,
     "pdf_dir": "",
     "ai_provider": "github",
+    "ai_model": "",
 }
 
 # All available sync actions

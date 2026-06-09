@@ -82,9 +82,9 @@ def run_pipeline(
     conn_label = f"Wi-Fi ({wifi_host or 'auto-discover'})" if use_wifi else f"USB ({host})"
 
     print()
-    print("=" * 50)
+    print("=" * 70)
     print("  ReMarkable -> Markdown Export")
-    print("=" * 50)
+    print("=" * 70)
     if not skip_backup:
         print(f"  * Backup via {conn_label} to {backup_dir.absolute()}")
     if not skip_convert:
@@ -93,7 +93,7 @@ def run_pipeline(
         print(f"  * Export Markdown using {ai_provider} to {output_dir.absolute()}")
     else:
         print(f"  * Export Markdown to {output_dir.absolute()}")
-    print("=" * 50)
+    print("=" * 70)
 
     # ------------------------------------------------------------------
     # Stage 1: Backup
@@ -183,7 +183,7 @@ def run_pipeline(
             provider = get_ai_provider(ai_provider, **kwargs)
             if provider.is_available():
                 ocr_engine = OCREngine(ai_provider=provider, use_ai=True)
-                print(f"  AI OCR provider: {ai_provider} ({ai_model or 'default model'})")
+                print(f"  AI OCR provider: {ai_provider} ({provider.model})")
             else:
                 print_warn(
                     f"  [WRN] AI provider '{ai_provider}' not available "
@@ -259,9 +259,9 @@ def run_pipeline(
     mins, secs = divmod(int(elapsed), 60)
 
     print()
-    print("=" * 50)
+    print("=" * 70)
     print("  Sync Summary")
-    print("=" * 50)
+    print("=" * 70)
     if not skip_backup:
         print(f"  Backup     : {len(updated_uuids)} notebooks updated -> {backup_dir.absolute()}")
     else:
@@ -272,5 +272,5 @@ def run_pipeline(
         print("  PDF        : skipped")
     print(f"  Markdown   : {exported} exported, {skipped} unchanged -> {output_dir.absolute()}")
     print(f"  Duration   : {mins}m {secs}s")
-    print("=" * 50)
+    print("=" * 70)
     return 0

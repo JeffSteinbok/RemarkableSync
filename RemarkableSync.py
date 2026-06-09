@@ -262,7 +262,8 @@ def sync(
 @click.option('--page', type=int, help='Export only this page number (requires --notebook)')
 @click.option('--tags', default='remarkable',
               help='Comma-separated tags to add to note frontmatter')
-@click.option('--no-images', 'embed_images', is_flag=True, default=False,
+@click.option('--no-images', 'embed_images', is_flag=True, default=None,
+              flag_value=False,
               help='Do not embed page images in notes')
 @add_connection_options
 def md(
@@ -318,12 +319,17 @@ def md(
 
     if ai_provider is None:
         ai_provider = cfg.get("ai_provider", "github")
+    if not ai_model:
+        ai_model = cfg.get("ai_model", "")
     if not ai_api_key:
         from src.keyring_store import KEY_CLAUDE_API_KEY, KEY_GITHUB_TOKEN, get_secret
         if ai_provider == "claude":
             ai_api_key = get_secret(KEY_CLAUDE_API_KEY)
         else:
             ai_api_key = get_secret(KEY_GITHUB_TOKEN)
+
+    if embed_images is None:
+        embed_images = cfg.get("embed_images", True)
 
     # Connection defaults from config
     cfg_conn = cfg.get("connection_mode", "usb")
@@ -488,11 +494,11 @@ def watch(
                 force_convert=False,
                 force_export=False,
                 ai_provider=ai_provider or "github",
-                ai_model="",
+                ai_model=cfg.get("ai_model", ""),
                 ai_api_key=ai_api_key,
                 use_ai_ocr=True,
                 tags=tags,
-                embed_images=True,
+                embed_images=cfg.get("embed_images", True),
                 host=host,
                 use_wifi=use_wifi,
                 wifi_host=wifi_host,

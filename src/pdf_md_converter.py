@@ -139,26 +139,25 @@ class MarkdownExporter:
         pdf_path: Path,
         images_dir: Path,
     ) -> List[Path]:
-        """Rasterise PDF pages and copy them into *images_dir*.
+        """Rasterise PDF pages and copy them into *images_dir/_images/*.
 
-        Returns a list of relative paths suitable for embedded image links
-        (relative to the output root).
+        Returns a list of paths suitable for embedded image links.
         """
         if not self.embed_images:
             return []
         if not pdf_path.exists():
             return []
 
-        images_dir.mkdir(parents=True, exist_ok=True)
+        target_dir = images_dir / "_images"
+        target_dir.mkdir(parents=True, exist_ok=True)
 
-        # Use pdf2image if available
         try:
             from pdf2image import convert_from_path  # type: ignore
 
             pages = convert_from_path(str(pdf_path), dpi=150)
             image_paths: List[Path] = []
             for idx, page in enumerate(pages, start=1):
-                dest = images_dir / f"page_{idx:03d}.png"
+                dest = target_dir / f"page_{idx:03d}.png"
                 page.save(str(dest), "PNG")
                 image_paths.append(dest)
             return image_paths
@@ -212,9 +211,6 @@ class MarkdownExporter:
             self._build_frontmatter(notebook_name, notebook_uuid, folder_path, self.tags)
         )
 
-        # Title heading
-        lines.append(f"# {notebook_name}\n\n")
-
         # Transcribed text
         if processed_text.strip():
             lines.append(processed_text.strip())
@@ -224,13 +220,8 @@ class MarkdownExporter:
         if image_paths:
             lines.append("---\n\n## Pages\n\n")
             for img_path in image_paths:
-                # Use an output-directory-relative wiki-style link for embedded images.
-                try:
-                    rel = img_path.relative_to(self.output_dir)
-                    link = str(rel).replace("\\", "/")
-                except ValueError:
-                    link = img_path.name
-                lines.append(f"![[{link}]]\n\n")
+                link = f"_images/{img_path.name}"
+                lines.append(f"![{img_path.stem}]({link})\n\n")
 
         return "".join(lines)
 
@@ -249,7 +240,16 @@ class MarkdownExporter:
 
         now = datetime.now(timezone.utc).strftime("%Y-%m-%d")
         tag_lines = "\n".join(f"  - {t}" for t in self.tags)
-        lines.append(
+
+        # Determine AI provider/model from OCR engine
+        ai_provider = ""
+        ai_model = ""
+        if self.ocr_engine and self.ocr_engine.ai_provider:
+            provider = self.ocr_engine.ai_provider
+            ai_model = getattr(provider, "model", "")
+            ai_provider = type(provider).__name__
+
+        props = (
             "---\n"
             f"title: \"{title}\"\n"
             f"source: reMarkable\n"
@@ -258,24 +258,27 @@ class MarkdownExporter:
             f"folder: {folder_path or '/'}\n"
             f"page: {page_num}\n"
             f"created: {now}\n"
-            f"tags:\n"
-            f"{tag_lines}\n"
-            "---\n\n"
         )
-
-        lines.append(f"# {title}\n\n")
+        if ai_provider:
+            props += f"ai_provider: {ai_provider}\n"
+        if ai_model:
+            props += f"ai_model: {ai_model}\n"
+        props += f"tags:\n{tag_lines}\n---\n\n"
+        lines.append(props)
 
         if page_text.strip():
-            lines.append(page_text.strip())
-            lines.append("\n\n")
+            # Strip leading H1 if it matches the title (already in frontmatter)
+            body = page_text.strip()
+            first_line = body.split("\n", 1)[0].strip()
+            if first_line.startswith("# ") and first_line[2:].strip().upper() == title.upper():
+                body = body.split("\n", 1)[1].strip() if "\n" in body else ""
+            if body:
+                lines.append(body)
+                lines.append("\n\n")
 
         if page_image and page_image.exists():
-            try:
-                rel = page_image.relative_to(self.output_dir)
-                link = str(rel).replace("\\", "/")
-            except ValueError:
-                link = page_image.name
-            lines.append(f"![[{link}]]\n")
+            link = f"_images/{page_image.name}"
+            lines.append(f"![page {page_num}]({link})\n")
 
         return "".join(lines)
 
@@ -400,6 +403,7 @@ class MarkdownExporter:
 
         with tempfile.TemporaryDirectory(prefix="rs_md_") as tmp_str:
             tmp_dir = Path(tmp_str)
+            rate_limited = False
 
             for pg_idx, pg_pdf in enumerate(pages_to_process, start=1):
                 # Rasterise page to image
@@ -407,12 +411,14 @@ class MarkdownExporter:
                 page_images: List[Path] = []  # noqa: F841
 
                 if self.embed_images:
+                    images_dir = notebook_dir / "_images"
+                    images_dir.mkdir(parents=True, exist_ok=True)
                     try:
                         import fitz  # PyMuPDF
                         doc = fitz.open(str(pg_pdf))
                         for fitz_page in doc:
                             pix = fitz_page.get_pixmap(dpi=150)
-                            dest = notebook_dir / f"page_{pg_idx:03d}.png"
+                            dest = images_dir / f"page_{pg_idx:03d}.png"
                             pix.save(str(dest))
                             page_image = dest
                         doc.close()
@@ -424,9 +430,9 @@ class MarkdownExporter:
                 # OCR this page
                 page_text = ""
                 ocr_failed = False
-                if self.ocr_engine:
-                    from src.ai.base_provider import AIProviderError
-                    from src.utils.console import print_error
+                if self.ocr_engine and not rate_limited:
+                    from src.ai.base_provider import AIProviderError, AIRateLimitError
+                    from src.utils.console import print_error, print_warn
 
                     raster_images = self.ocr_engine.pdf_to_images(
                         pg_pdf, tmp_dir / f"ocr_page_{pg_idx:03d}"
@@ -440,6 +446,15 @@ class MarkdownExporter:
                                 page_text = self.ocr_engine.ai_provider.cleanup_text(
                                     raw, context=f"{name} (page {pg_idx})"
                                 )
+                        except AIRateLimitError as exc:
+                            wait_min = (exc.retry_after + 59) // 60
+                            logging.warning("Rate limited for '%s' page %d: %s", name, pg_idx, exc)
+                            print_warn(
+                                f"  [WARN] Rate limited — retry in ~{wait_min} min. "
+                                f"Skipping OCR for remaining pages."
+                            )
+                            rate_limited = True
+                            ocr_failed = True
                         except AIProviderError as exc:
                             logging.error("OCR failed for '%s' page %d: %s", name, pg_idx, exc)
                             print_error(f"  [ERR] OCR failed for '{name}' page {pg_idx}")
