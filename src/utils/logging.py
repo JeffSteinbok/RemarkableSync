@@ -78,7 +78,11 @@ def setup_logging(
     interactive = is_interactive()
 
     root = logging.getLogger()
+    # Preserve tray log handlers across re-initialization
+    preserved = [h for h in root.handlers if h.__class__.__name__ == "_TrayLogHandler"]
     root.handlers.clear()
+    for h in preserved:
+        root.addHandler(h)
     # Root logger at DEBUG so the file handler sees everything
     root.setLevel(logging.DEBUG)
 

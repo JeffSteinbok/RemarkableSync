@@ -119,11 +119,10 @@ def run_md_sync_command(
     # ------------------------------------------------------------------
     # Stage 2: PDF conversion
     # ------------------------------------------------------------------
-    pdf_output_dir = backup_dir / "PDF"
-
     from ..config import load_config
 
     config = load_config()
+    pdf_output_dir = Path(config.get("pdf_dir", "")) if config.get("pdf_dir") else backup_dir / "PDF"
     folder_filter = config.get("folders", []) or None
 
     converted_pages: Optional[Dict[str, List[Path]]] = None  # None = run on all

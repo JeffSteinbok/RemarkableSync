@@ -28,6 +28,21 @@ def get_config_path() -> Path:
     return get_config_dir() / "config.json"
 
 
+def _default_backup_dir() -> str:
+    """Return the default backup directory inside the app data folder."""
+    return str(get_config_dir() / "backup")
+
+
+def _default_documents_dir() -> Path:
+    """Return the user's Documents directory."""
+    if platform.system() == "Windows":
+        return Path.home() / "Documents"
+    elif platform.system() == "Darwin":
+        return Path.home() / "Documents"
+    else:
+        return Path.home() / "Documents"
+
+
 # Default configuration values
 DEFAULT_CONFIG: Dict[str, Any] = {
     "connection_mode": "usb",
@@ -38,6 +53,7 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "ocr_enabled": False,
     "ocr_output_dir": "",
     "output_dir": "",
+    "pdf_dir": "",
     "ai_provider": "github",
 }
 

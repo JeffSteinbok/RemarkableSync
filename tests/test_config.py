@@ -115,6 +115,7 @@ class TestConfigModule:
             "ocr_enabled": True,
             "ocr_output_dir": "",
             "output_dir": "~/Documents/Markdown/Notes",
+            "pdf_dir": "~/Documents/RemarkableSync/PDF",
             "ai_provider": "github",
         }
 

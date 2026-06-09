@@ -146,11 +146,14 @@ def run_config_command() -> int:
         if password:
             _offer_keyring_save(password)
 
-    # 4. Backup directory
+    # 4. Backup directory (internal data — defaults to AppData)
+    from src.config import _default_backup_dir
+
     current_backup_dir = current.get("backup_dir", "")
+    default_backup = current_backup_dir or _default_backup_dir()
     backup_dir = inquirer.text(
-        message="Backup directory (where tablet files are stored):",
-        default=current_backup_dir or "",
+        message="Backup directory (internal sync data):",
+        default=default_backup,
         validate=lambda x: len(x.strip()) > 0,
         invalid_message="Backup directory cannot be empty.",
     ).execute()
@@ -177,13 +180,32 @@ def run_config_command() -> int:
         click.echo("Configuration cancelled.")
         return 0
 
-    # 6. Markdown export settings — OCR is implied when export is selected
+    # 6. PDF output directory (if PDF or OCR selected)
+    from src.config import _default_documents_dir
+
+    docs = _default_documents_dir()
+    pdf_dir = current.get("pdf_dir", "")
+
+    if "pdf" in sync_actions or "ocr" in sync_actions:
+        default_pdf_dir = pdf_dir or str(docs / "RemarkableSync" / "PDF")
+        pdf_dir = inquirer.text(
+            message="PDF output directory:",
+            default=default_pdf_dir,
+            validate=lambda x: len(x.strip()) > 0,
+            invalid_message="PDF directory cannot be empty.",
+        ).execute()
+
+        if pdf_dir is None:
+            click.echo("Configuration cancelled.")
+            return 0
+
+    # 7. Markdown export settings — OCR is implied when export is selected
     ocr_enabled = current.get("ocr_enabled", False)
     output_dir = current.get("output_dir", "")
 
     if "ocr" in sync_actions:
         ocr_enabled = True
-        default_output_dir = output_dir or ""
+        default_output_dir = output_dir or str(docs / "RemarkableSync" / "Markdown")
         output_dir = inquirer.text(
             message="Markdown output directory:",
             default=default_output_dir,
@@ -312,6 +334,7 @@ def run_config_command() -> int:
         "wifi_host": wifi_host,
         "password": password,
         "backup_dir": backup_dir,
+        "pdf_dir": pdf_dir,
         "folders": folders,
         "sync_actions": sync_actions,
         "ocr_enabled": ocr_enabled,
@@ -326,20 +349,21 @@ def run_config_command() -> int:
     click.echo("  Configuration saved!")
     click.echo("=" * 50)
     click.echo()
-    click.echo(f"  File: {path}")
-    click.echo(f"  Mode: {connection_mode.upper()}")
+    click.echo(f"  File:    {path}")
+    click.echo(f"  Mode:    {connection_mode.upper()}")
     if connection_mode == "wifi":
-        click.echo(f"  Host: {wifi_host}")
+        click.echo(f"  Host:    {wifi_host}")
     click.echo(f"  Password: {'••••••••' if password else '(not set)'}")
+    click.echo(f"  Backup:  {backup_dir}")
+    if pdf_dir:
+        click.echo(f"  PDFs:    {pdf_dir}")
     click.echo(f"  Folders: {', '.join(folders) if folders else '(all)'}")
     click.echo(f"  Actions: {', '.join(sync_actions)}")
     if ocr_enabled:
-        click.echo(f"  OCR:     enabled -> {output_dir}")
+        click.echo(f"  MD:      {output_dir}")
         click.echo(f"  AI:      {ai_provider}")
         has_token = bool(github_token or claude_api_key)
         click.echo(f"  Token:   {'[OK] saved in keyring' if has_token else '(not set)'}")
-    else:
-        click.echo("  OCR:     disabled")
     click.echo()
 
     return 0

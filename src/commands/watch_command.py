@@ -218,6 +218,11 @@ class _WatchTray:
         self.sync_now_event = threading.Event()
         self.quit_event = threading.Event()
         self._paused = False
+        # Recent log lines for the status window
+        self._log_lines: list = []
+        self._log_lock = threading.Lock()
+        self._MAX_LOG_LINES = 50
+        self._status_window: Optional["_StatusWindow"] = None
 
     @property
     def interval(self) -> int:
@@ -266,6 +271,12 @@ class _WatchTray:
     def _on_open_output(self, icon, item):
         self._open_folder(self._output_dir)
 
+    def _on_open_log(self, icon, item):
+        if self._backup_dir:
+            log_file = self._backup_dir / "remarkablesync.log"
+            if log_file.exists():
+                self._open_file(log_file)
+
     def _on_quit(self, icon, item):
         self.quit_event.set()
         icon.stop()
@@ -299,6 +310,19 @@ class _WatchTray:
                 subprocess.Popen(["xdg-open", str(folder)])
         except Exception as exc:
             logging.debug("Could not open folder: %s", exc)
+
+    @staticmethod
+    def _open_file(filepath: Path):
+        """Open a file with the system default application."""
+        try:
+            if sys.platform == "win32":
+                os.startfile(str(filepath))
+            elif sys.platform == "darwin":
+                subprocess.Popen(["open", str(filepath)])
+            else:
+                subprocess.Popen(["xdg-open", str(filepath)])
+        except Exception as exc:
+            logging.debug("Could not open file: %s", exc)
 
     # -- Menu building --
 
@@ -344,7 +368,10 @@ class _WatchTray:
             )
         items += [
             pystray.Menu.SEPARATOR,
-            pystray.MenuItem("Sync Now", self._on_sync_now),
+            pystray.MenuItem(
+                "Sync Now", self._on_sync_now,
+                enabled=self._status in ("Idle", "Success", "Failure"),
+            ),
             pystray.MenuItem(pause_label, self._on_pause_resume),
             pystray.MenuItem("Sync Interval", interval_submenu),
             pystray.Menu.SEPARATOR,
@@ -357,6 +384,10 @@ class _WatchTray:
         if self._output_dir:
             items.append(
                 pystray.MenuItem("Open Markdown Folder", self._on_open_output)
+            )
+        if self._backup_dir:
+            items.append(
+                pystray.MenuItem("Open Log File", self._on_open_log)
             )
         if self._backup_dir or self._output_dir:
             items.append(pystray.Menu.SEPARATOR)

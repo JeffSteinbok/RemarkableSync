@@ -170,6 +170,7 @@ def run_conversion(
                     task, advance=1,
                     description=f"{_nb} (page {_pc[0]} of {_nbt})",
                 )
+                logging.info("PDF: %s (page %d/%d)", _nb, _pc[0], _nbt)
 
             progress.update(task, description=f"{nb_name} (page 0 of {nb_total})")
 

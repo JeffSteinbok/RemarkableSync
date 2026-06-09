@@ -570,6 +570,7 @@ class MarkdownExporter:
                         task, advance=1,
                         description=f"{_nb_name} (page {pg_num} of {pg_total})",
                     )
+                    logging.info("MD: %s (page %d/%d)", _nb_name, pg_num, pg_total)
 
                 result = self.export_notebook(
                     notebook, pdf_path, force=force, page_pdfs=page_pdfs_list,
