@@ -117,10 +117,10 @@ def run_pipeline(
         try:
             success, updated_uuids, updated_pages = backup_tool.backup_files()
             if not success:
-                print_error("  [ERR] Backup failed.")
+                print_error("  ERR - Backup failed.")
                 return 1
             backup_tool.backup_templates()
-            print_success(f"  [OK] Backed up ({len(updated_uuids)} notebooks updated)")
+            print_success(f"  OK - Backed up ({len(updated_uuids)} notebooks updated)")
             write_manifest(
                 backup_dir.parent / "updated_notebooks.txt",
                 sorted(updated_uuids),
@@ -128,7 +128,7 @@ def run_pipeline(
             )
         except Exception as exc:  # noqa: BLE001
             logging.error("Backup error: %s", exc)
-            print_error(f"  [ERR] Backup failed: {exc}")
+            print_error(f"  ERR - Backup failed: {exc}")
             return 1
     else:
         print("\n[1/3] Backup skipped (--skip-backup)")
@@ -150,7 +150,7 @@ def run_pipeline(
                 updated_pages=updated_pages,
                 folder_filter=folder_filter,
             )
-            print_success("  [OK] PDF conversion done")
+            print_success("  OK - PDF conversion done")
             all_page_pdfs = sorted(p for pages in converted_pages.values() for p in pages)
             write_manifest(
                 backup_dir.parent / "updated_pdf_pages.txt", all_page_pdfs, "updated_pdf_pages"
@@ -160,7 +160,7 @@ def run_pipeline(
             )
         except Exception as exc:  # noqa: BLE001
             logging.error("Conversion error: %s", exc)
-            print_error(f"  [ERR] PDF conversion failed: {exc}")
+            print_error(f"  ERR - PDF conversion failed: {exc}")
             return 1
     else:
         print("\n[2/3] PDF conversion skipped (--skip-convert)")
@@ -190,13 +190,13 @@ def run_pipeline(
                 print(f"  AI OCR provider: {ai_provider} ({provider.model})")
             else:
                 print_warn(
-                    f"  [WRN] AI provider '{ai_provider}' not available "
+                    f"  WRN - AI provider '{ai_provider}' not available "
                     "(missing API key or package). OCR skipped."
                 )
         except (ValueError, ImportError) as exc:
             logging.warning("Could not initialise AI provider: %s", exc)
     elif use_ai_ocr:
-        print_warn("  [WRN] --use-ai-ocr set but no --ai-provider given. OCR skipped.")
+        print_warn("  WRN - --use-ai-ocr set but no --ai-provider given. OCR skipped.")
 
     tag_list = [t.strip() for t in tags.split(",") if t.strip()] if tags else ["remarkable"]
 

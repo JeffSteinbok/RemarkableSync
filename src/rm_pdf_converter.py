@@ -51,7 +51,7 @@ def run_conversion(
     """
     if not backup_dir.exists():
         logging.error(f"Backup directory not found: {backup_dir}")
-        return False, {}
+        return False, {}, []
 
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -63,18 +63,18 @@ def run_conversion(
 
     if not all_items:
         logging.warning("No items found in backup directory")
-        return False, {}
+        return False, {}, []
 
     # Filter by updated UUIDs if provided
     if updated_uuids is not None:
         if not updated_uuids:
             logging.info("No updated notebooks — skipping conversion")
             print("  No notebooks changed — skipping conversion")
-            return True, {}
+            return True, {}, []
         all_items = [item for item in all_items if item["uuid"] in updated_uuids]
         if not all_items:
             logging.info("No updated notebooks found for conversion")
-            return True, {}
+            return True, {}, []
 
     # Filter by notebook name/UUID if provided
     if notebook_filter:
@@ -85,7 +85,7 @@ def run_conversion(
         ]
         if not all_items:
             logging.error(f"Notebook not found: {notebook_filter}")
-            return False, {}
+            return False, {}, []
 
     # Organize into folder structure
     organization = organize_notebooks_by_structure(all_items, backup_dir)
@@ -111,7 +111,7 @@ def run_conversion(
 
     if not notebooks:
         logging.warning("No convertible notebooks found")
-        return False, {}
+        return False, {}, []
 
     # Apply sample limit if specified
     if sample and sample > 0:
@@ -198,7 +198,7 @@ def run_conversion(
                             "PDF unchanged after conversion, skipping MD: %s", notebook["name"]
                         )
             except Exception as e:
-                print_error(f"  [ERR] Failed to convert {notebook['name']}: {e}")
+                print_error(f"  ERR - Failed to convert {notebook['name']}: {e}")
 
     print(f"  Conversion complete: {successful}/{len(notebooks)} notebooks converted")
     return successful > 0, converted, merged_pdfs

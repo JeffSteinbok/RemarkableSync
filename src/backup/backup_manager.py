@@ -298,7 +298,7 @@ class ReMarkableBackup:  # pylint: disable=too-many-instance-attributes
                         progress.update(task, advance=1, description=local_path.name[:40])
 
                     except (OSError, SCPException) as e:
-                        print_error(f"  [ERR] Failed to download {remote_file['path']}: {e}")
+                        print_error(f"  ERR - Failed to download {remote_file['path']}: {e}")
                         progress.update(task, advance=1)
 
             # Save metadata
@@ -373,7 +373,7 @@ class ReMarkableBackup:  # pylint: disable=too-many-instance-attributes
                         self.metadata.update_file_metadata(remote_file, local_path)
 
                     except (OSError, SCPException) as e:
-                        print_error(f"  [ERR] Failed to download {remote_file['path']}: {e}")
+                        print_error(f"  ERR - Failed to download {remote_file['path']}: {e}")
 
                     progress.update(task, advance=1, description=local_path.name[:40])
 

@@ -396,14 +396,14 @@ class MarkdownExporter:
                             wait_min = (exc.retry_after + 59) // 60
                             logging.warning("Rate limited for '%s' page %d: %s", name, pg_idx, exc)
                             print_warn(
-                                f"  [WARN] Rate limited — retry in ~{wait_min} min. "
+                                f"  WRN - Rate limited — retry in ~{wait_min} min. "
                                 f"Skipping OCR for remaining pages."
                             )
                             rate_limited = True
                             ocr_failed = True
                         except AIProviderError as exc:
                             logging.error("OCR failed for '%s' page %d: %s", name, pg_idx, exc)
-                            print_error(f"  [ERR] OCR failed for '{name}' page {pg_idx}")
+                            print_error(f"  ERR - OCR failed for '{name}' page {pg_idx}")
                             ocr_failed = True
 
                 if ocr_failed:

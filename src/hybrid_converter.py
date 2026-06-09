@@ -680,7 +680,7 @@ def convert_notebook(
                 results["output_files"].append(final_pdf)
                 results["pdf_changed"] = _hash_file(final_pdf) != pre_merge_hash
                 logging.info(
-                    f"[OK] {notebook['name']}: Merged {len(page_pdfs)} pages into {final_pdf.name}"
+                    f"OK - {notebook['name']}: Merged {len(page_pdfs)} pages into {final_pdf.name}"
                 )
             else:
                 logging.warning(

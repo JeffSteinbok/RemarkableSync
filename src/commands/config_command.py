@@ -422,7 +422,7 @@ def run_config_command() -> int:
         click.echo(f"  Images:  {'yes (_images/ folder)' if embed_images else 'no'}")
         click.echo(f"  AI:      {ai_provider} ({ai_model})")
         has_token = bool(github_token or claude_api_key)
-        click.echo(f"  Token:   {'[OK] saved in keyring' if has_token else '(not set)'}")
+        click.echo(f"  Token:   {'OK - saved in keyring' if has_token else '(not set)'}")
     click.echo()
 
     return 0
@@ -466,14 +466,14 @@ def _enable_wifi_ssh(password: str) -> str:
     try:
         from src.backup.connection import USB_HOST, ReMarkableConnection
     except ImportError:
-        click.echo("  [WARN] Could not import connection module.")
+        click.echo("  WRN - Could not import connection module.")
         return ""
 
     conn = ReMarkableConnection(password=password, host=USB_HOST)
     click.echo("  Connecting via USB...")
 
     if not conn.connect():
-        click.echo("  [WARN] Could not connect via USB. Is the tablet plugged in?")
+        click.echo("  WRN - Could not connect via USB. Is the tablet plugged in?")
         return ""
 
     try:
@@ -481,7 +481,7 @@ def _enable_wifi_ssh(password: str) -> str:
         click.echo("  Enabling WiFi SSH...")
         stdout, stderr, exit_code = conn.execute_command("rm-ssh-over-wlan on")
         if exit_code != 0:
-            click.echo(f"  [WARN] Command failed: {stderr.strip() or stdout.strip()}")
+            click.echo(f"  WRN - Command failed: {stderr.strip() or stdout.strip()}")
             return ""
 
         click.echo("  WiFi SSH enabled!")
@@ -497,11 +497,11 @@ def _enable_wifi_ssh(password: str) -> str:
                 click.echo(f"  Tablet WiFi IP: {ip}")
                 return ip
 
-        click.echo("  [WARN] Could not determine WiFi IP. Is the tablet on WiFi?")
+        click.echo("  WRN - Could not determine WiFi IP. Is the tablet on WiFi?")
         return ""
 
     except Exception as exc:
-        click.echo(f"  [WARN] Error enabling WiFi SSH: {exc}")
+        click.echo(f"  WRN - Error enabling WiFi SSH: {exc}")
         return ""
     finally:
         conn.disconnect()
@@ -532,7 +532,7 @@ def _get_folder_choices_live(
     )
 
     if not conn.connect():
-        click.echo("  [WARN] Could not connect to tablet.")
+        click.echo("  WRN - Could not connect to tablet.")
         return []
 
     try:
@@ -546,7 +546,7 @@ def _get_folder_choices_live(
             f"done"
         )
         if exit_code != 0:
-            click.echo("  [WARN] Failed to read metadata from tablet.")
+            click.echo("  WRN - Failed to read metadata from tablet.")
             return []
 
         # Parse the output — each metadata block starts with FILE: line
@@ -576,7 +576,7 @@ def _get_folder_choices_live(
 
     except Exception as exc:
         logging.debug("Failed to list folders from tablet: %s", exc)
-        click.echo(f"  [WARN] Error reading folders: {exc}")
+        click.echo(f"  WRN - Error reading folders: {exc}")
         return []
     finally:
         conn.disconnect()
