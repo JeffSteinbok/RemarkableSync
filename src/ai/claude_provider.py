@@ -16,18 +16,19 @@ from .base_provider import CLEANUP_PROMPT, TRANSCRIPTION_PROMPT, BaseAIProvider
 class ClaudeProvider(BaseAIProvider):
     """AI provider backed by Anthropic Claude (vision + text models)."""
 
-    DEFAULT_MODEL = "claude-3-5-sonnet-20241022"
+    DEFAULT_MODEL = "claude-sonnet-4-6"
 
     def __init__(self, api_key: str = "", model: str = ""):
         """Initialise the Claude provider.
 
         Args:
-            api_key: Anthropic API key.  Falls back to the
-                ``ANTHROPIC_API_KEY`` environment variable when empty.
+            api_key: Anthropic API key or OAuth token.  Falls back to the
+                ``ANTHROPIC_API_KEY`` / ``ANTHROPIC_AUTH_TOKEN`` environment
+                variables when empty.
             model: Claude model identifier.  Defaults to
-                ``claude-3-5-sonnet-20241022``.
+                ``claude-sonnet-4-6``.
         """
-        self.api_key = api_key or os.environ.get("ANTHROPIC_API_KEY", "")
+        self.api_key = api_key or os.environ.get("ANTHROPIC_API_KEY", "") or os.environ.get("ANTHROPIC_AUTH_TOKEN", "")
         self.model = model or self.DEFAULT_MODEL
         self._client = None
         self._init_client()
@@ -42,7 +43,11 @@ class ClaudeProvider(BaseAIProvider):
         try:
             import anthropic  # type: ignore
 
-            self._client = anthropic.Anthropic(api_key=self.api_key)
+            # OAuth tokens (e.g. Claude Code) use auth_token; API keys use api_key
+            if self.api_key.startswith("sk-ant-oat"):
+                self._client = anthropic.Anthropic(auth_token=self.api_key)
+            else:
+                self._client = anthropic.Anthropic(api_key=self.api_key)
         except ImportError:
             logging.warning(
                 "anthropic package not installed – run: pip install anthropic"

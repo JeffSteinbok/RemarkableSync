@@ -408,12 +408,14 @@ class MarkdownExporter:
 
                 if self.embed_images:
                     try:
-                        from pdf2image import convert_from_path  # type: ignore
-                        pil_pages = convert_from_path(str(pg_pdf), dpi=150)
-                        for pil_page in pil_pages:
+                        import fitz  # PyMuPDF
+                        doc = fitz.open(str(pg_pdf))
+                        for fitz_page in doc:
+                            pix = fitz_page.get_pixmap(dpi=150)
                             dest = notebook_dir / f"page_{pg_idx:03d}.png"
-                            pil_page.save(str(dest), "PNG")
+                            pix.save(str(dest))
                             page_image = dest
+                        doc.close()
                     except ImportError:
                         pass
                     except Exception as exc:

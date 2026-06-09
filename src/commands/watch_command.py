@@ -209,6 +209,7 @@ class _WatchTray:
         self._output_dir = output_dir
         self._icon = None
         self._status = "Idle"
+        self._detail = ""  # last activity line shown in menu
         self._last_sync: Optional[str] = None
         self._last_sync_ok: Optional[bool] = None
         self._next_sync: Optional[str] = None
@@ -236,6 +237,17 @@ class _WatchTray:
     def paused(self) -> bool:
         return self._paused
 
+    def set_detail(self, text: str) -> None:
+        """Update the activity detail line shown in the tray menu."""
+        # Truncate long lines for the menu
+        self._detail = (text[:60] + "…") if len(text) > 60 else text
+        if self._icon:
+            try:
+                self._icon.title = f"RemarkableSync - {self._detail}"
+            except Exception:
+                pass
+            self._rebuild_icon_menu()
+
     # -- Menu callbacks --
 
     def _on_sync_now(self, icon, item):
@@ -256,6 +268,7 @@ class _WatchTray:
 
     def _on_quit(self, icon, item):
         self.quit_event.set()
+        icon.stop()
 
     def _make_interval_handler(self, secs: int):
         def handler(icon, item):
@@ -303,6 +316,9 @@ class _WatchTray:
 
         pause_label = "Resume" if self._paused else "Pause"
 
+        # Activity detail line
+        detail_text = self._detail or ""
+
         # Interval submenu
         interval_items = []
         for label, secs in INTERVAL_CHOICES:
@@ -321,6 +337,12 @@ class _WatchTray:
 
         items = [
             pystray.MenuItem(status_text, None, enabled=False),
+        ]
+        if detail_text:
+            items.append(
+                pystray.MenuItem(f"  {detail_text}", None, enabled=False),
+            )
+        items += [
             pystray.Menu.SEPARATOR,
             pystray.MenuItem("Sync Now", self._on_sync_now),
             pystray.MenuItem(pause_label, self._on_pause_resume),
@@ -376,7 +398,7 @@ class _WatchTray:
             self._icon = pystray.Icon(
                 "remarkablesync-watch",
                 self._build_icon_image("#4A90E2"),
-                title=f"RemarkableSync ({self._mode})",
+                title="RemarkableSync",
                 menu=self._build_menu(),
             )
             if hasattr(self._icon, "run_detached"):
@@ -416,7 +438,7 @@ class _WatchTray:
         if self._icon:
             try:
                 self._icon.icon = self._build_icon_image(color)
-                self._icon.title = f"RemarkableSync ({self._mode}) - {status}"
+                self._icon.title = f"RemarkableSync - {status}"
             except Exception:
                 pass
 
@@ -434,6 +456,27 @@ class _WatchTray:
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
+class _TrayLogHandler(logging.Handler):
+    """Log handler that feeds the last meaningful line to the tray menu."""
+
+    # Only surface these levels — skip DEBUG noise
+    _MIN_LEVEL = logging.INFO
+
+    def __init__(self, tray: _WatchTray):
+        super().__init__(level=self._MIN_LEVEL)
+        self._tray = tray
+
+    def emit(self, record: logging.LogRecord) -> None:
+        try:
+            msg = record.getMessage()
+            # Skip noisy library loggers
+            if record.name in ("openai", "httpcore", "httpx", "urllib3"):
+                return
+            self._tray.set_detail(msg)
+        except Exception:
+            pass
+
 
 def _format_interval(seconds: int) -> str:
     if seconds <= 0:
@@ -513,6 +556,10 @@ def run_watch_command(
         output_dir=output_dir,
     )
     tray.start()
+
+    # Install log handler that feeds activity into the tray menu
+    tray_handler = _TrayLogHandler(tray)
+    logging.getLogger().addHandler(tray_handler)
 
     lock_path = backup_dir / ".remarkable_watch.lock"
     backup_dir.mkdir(parents=True, exist_ok=True)
@@ -618,6 +665,7 @@ def run_watch_command(
             # Wait for next cycle (interruptible by Sync Now / Quit)
             if current_interval > 0:
                 next_ts = _next_run_time(current_interval)
+                tray.set_detail("")
                 tray.set_status(
                     "Idle" if consecutive_failures == 0 else "Failure",
                     next_sync=next_ts,
@@ -628,6 +676,7 @@ def run_watch_command(
         pass
 
     print("\n  [STOPPED] Watch mode stopped.")
+    logging.getLogger().removeHandler(tray_handler)
     tray.set_status("Stopped")
     tray.stop()
     return 0

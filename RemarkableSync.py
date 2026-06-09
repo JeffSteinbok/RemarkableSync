@@ -516,16 +516,13 @@ def watch(
 
         mode = "sync"
 
-    # Build display mode: "watch(md)" or "watch(sync)"
-    display_mode = f"watch({mode})"
-
     sys.exit(
         run_watch_command(
             interval=interval_secs,
             backup_dir=backup_dir,
             run_once=run_once,
             log_level=log_level,
-            mode=display_mode,
+            mode=mode,
             use_systray=systray,
             output_dir=output_dir,
         )
@@ -537,9 +534,15 @@ def _detach_watch():
     import subprocess as sp
 
     script = Path(sys.argv[0]).resolve()
-    args = [sys.executable, str(script), "watch", "--foreground"]
 
     if sys.platform == "win32":
+        # Use pythonw.exe to avoid any console windows
+        exe = Path(sys.executable)
+        pythonw = exe.parent / "pythonw.exe"
+        if not pythonw.exists():
+            pythonw = exe  # fallback
+
+        args = [str(pythonw), str(script), "watch", "--foreground"]
         DETACHED_PROCESS = 0x00000008
         CREATE_NO_WINDOW = 0x08000000
         sp.Popen(
@@ -550,6 +553,7 @@ def _detach_watch():
             stderr=sp.DEVNULL,
         )
     else:
+        args = [sys.executable, str(script), "watch", "--foreground"]
         sp.Popen(
             args,
             start_new_session=True,
