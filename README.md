@@ -211,7 +211,3 @@ Page images are stored in a `_images/` subfolder next to the Markdown files.
 - SSH password and AI tokens are stored in your **system keyring** (never in plain-text config files)
 - All communication is over your local network (USB or LAN) — nothing goes to the internet except AI API calls
 - Config file at `<AppData>/remarkablesync/config.json` contains only non-secret settings
-
-## License
-
-This tool is for personal use with your own reMarkable tablet. Respect reMarkable's terms of service.
