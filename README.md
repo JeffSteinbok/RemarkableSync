@@ -10,6 +10,8 @@ A comprehensive Python toolkit for backing up reMarkable tablet notebooks, conve
 
 > [!IMPORTANT]
 > Tested on reMarkable 2. Compatibility with reMarkable 1 is not guaranteed.
+>
+> AI handwriting-to-text features require a **GitHub Copilot** or **Claude** (Anthropic) account. Support for additional providers can be added as needed.
 
 ## Features
 
