@@ -402,6 +402,16 @@ class MarkdownExporter:
 
         total_pages = len(pages_to_process)
 
+        # Backfill per-page hashes for notebooks that were exported before
+        # this feature existed.  Seed hashes from current page PDFs so that
+        # only genuinely changed pages trigger OCR on the first run.
+        nb_state = self._state.get(uuid, {})
+        if not force and page_pdfs and nb_state and "page_hashes" not in nb_state:
+            logging.debug("Backfilling page hashes for '%s'", name)
+            for pg_idx, pg_pdf in enumerate(pages_to_process, start=1):
+                self._record_page_hash(uuid, pg_idx, pg_pdf)
+            self._save_state()
+
         with tempfile.TemporaryDirectory(prefix="rs_md_") as tmp_str:
             tmp_dir = Path(tmp_str)
             rate_limited = False
