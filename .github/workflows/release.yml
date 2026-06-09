@@ -16,72 +16,34 @@ on:
 jobs:
   # Run linting before creating release
   lint:
-    name: Lint
-    runs-on: windows-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.13'
-
-      - name: Install system dependencies
-        run: |
-          choco install -y pkgconfiglite
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install -r requirements-dev.txt
-
-      - name: Run ruff linter
-        run: |
-          ruff check src/ tests/
-
-      - name: Run black formatter check
-        run: |
-          black --check src/ tests/
-
-      - name: Run isort import sorting check
-        run: |
-          isort --check-only src/ tests/
-
-      - name: Run mypy type checking
-        run: |
-          mypy src/
-        continue-on-error: true
-
-  # Run tests before creating release
-  test-macos-311:
-    uses: ./.github/workflows/common-test.yml
-    with:
-      python-version: '3.11'
-      os: macos-latest
-
-  test-macos-313:
-    uses: ./.github/workflows/common-test.yml
-    with:
-      python-version: '3.13'
-      os: macos-latest
+    uses: ./.github/workflows/common-lint.yml
 
   test-windows-311:
+    needs: lint
     uses: ./.github/workflows/common-test.yml
     with:
       python-version: '3.11'
       os: windows-latest
 
-  test-windows-313:
+  test-remaining:
+    needs: test-windows-311
+    strategy:
+      matrix:
+        include:
+          - python-version: '3.11'
+            os: macos-latest
+          - python-version: '3.13'
+            os: macos-latest
+          - python-version: '3.13'
+            os: windows-latest
     uses: ./.github/workflows/common-test.yml
     with:
-      python-version: '3.13'
-      os: windows-latest
+      python-version: ${{ matrix.python-version }}
+      os: ${{ matrix.os }}
 
   bump-version:
     runs-on: ubuntu-latest
-    needs: [lint, test-macos-311, test-macos-313, test-windows-311, test-windows-313]
+    needs: [lint, test-windows-311, test-remaining]
     outputs:
       new_version: ${{ steps.calc_version.outputs.new_version }}
     permissions:
@@ -145,6 +107,7 @@ jobs:
         run: |
           git add src/__version__.py
           git commit -m "Bump version to ${{ steps.calc_version.outputs.new_version }}"
+          git pull --rebase
           git push
 
       - name: Create Git tag
