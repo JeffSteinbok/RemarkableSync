@@ -588,8 +588,6 @@ class MarkdownExporter:
                 if result:
                     exported += 1
                 else:
-                    # Advance for skipped notebooks too
-                    progress.update(task, advance=nb_pages)
                     skipped += 1
 
         logging.info("Markdown export complete: %d exported, %d skipped", exported, skipped)

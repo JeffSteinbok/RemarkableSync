@@ -74,7 +74,7 @@ def run_conversion(
 
     if not all_items:
         logging.warning("No items found in backup directory")
-        return False
+        return False, {}
 
     # Filter by updated UUIDs if provided
     if updated_uuids is not None:
@@ -96,7 +96,7 @@ def run_conversion(
         ]
         if not all_items:
             logging.error(f"Notebook not found: {notebook_filter}")
-            return False
+            return False, {}
 
     # Organize into folder structure
     organization = organize_notebooks_by_structure(all_items, backup_dir)
@@ -122,7 +122,7 @@ def run_conversion(
 
     if not notebooks:
         logging.warning("No convertible notebooks found")
-        return False
+        return False, {}
 
     # Apply sample limit if specified
     if sample and sample > 0:
