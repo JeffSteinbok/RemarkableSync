@@ -536,6 +536,10 @@ def convert_notebook(
                 with open(content_path, "r", encoding="utf-8") as cf:
                     content_json = json.load(cf)
                 page_ids = content_json.get("pages", [])
+                # v6 notebooks use cPages.pages with {id, idx, ...} dicts
+                if not page_ids:
+                    cpages = content_json.get("cPages", {}).get("pages", [])
+                    page_ids = [p["id"] for p in cpages if "id" in p]
                 base_dir = content_path.parent / content_path.stem
                 for pid in page_ids:
                     if pid in all_rm_by_id:
