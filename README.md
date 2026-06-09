@@ -55,15 +55,18 @@ The wizard walks you through:
 | **Folders** | Choose which tablet folders to sync (or all) |
 
 > [!TIP]
+> **Multi-device setup:** Use the folder filter to sync different tablet folders to different computers — e.g., sync your "Work" folder to your work PC and "Home" to your personal machine. Each machine gets its own config.
+
+> [!TIP]
 > Clear any directory field and press Enter to reset it to the default.
 
-### 3. Run watch mode once by hand
+### 3. Run it
 
 ```bash
 RemarkableSync watch
 ```
 
-This performs a full sync cycle (backup → PDF → Markdown) and keeps running, syncing every 30 minutes. Verify everything works — check your PDF and Markdown output directories.
+This will use your configured defaults and launch a sync cycle (backup → PDF → Markdown), then keep running and re-sync every 30 minutes. Check your output directories to verify everything looks right.
 
 ### 4. Set it to run at startup
 
@@ -74,17 +77,13 @@ Once you're happy with the output, enable run-at-startup from the system tray ic
 
 ## AI Provider Setup
 
-The config wizard handles this interactively, but here's what each provider needs:
+Both AI provider SDKs are installed with `pip install -r requirements.txt`. The config wizard handles authentication interactively.
 
-### GitHub Models (recommended — free)
+### GitHub Models
 
 The wizard runs a GitHub device-code flow to authenticate. No manual token setup needed.
 
 Alternatively, set a `GITHUB_TOKEN` environment variable with a PAT that has `models:read` scope.
-
-```bash
-pip install openai  # required dependency
-```
 
 ### Claude (Anthropic)
 
@@ -92,23 +91,7 @@ pip install openai  # required dependency
 2. Click **Create Key** and copy it (starts with `sk-ant-api03-...`)
 3. Paste it into the config wizard — it's saved in your system keyring
 
-```bash
-pip install anthropic  # required dependency
-```
-
-Default model: `claude-sonnet-4-6`. Supports both standard API keys and Claude Code OAuth tokens.
-
-### Offline OCR (pytesseract)
-
-When no AI provider is configured, falls back to local Tesseract:
-
-```bash
-# macOS
-brew install tesseract && pip install pytesseract Pillow
-
-# Ubuntu / Debian
-sudo apt install tesseract-ocr && pip install pytesseract Pillow
-```
+Default model: `claude-sonnet-4-6`.
 
 Less accurate for handwriting but works entirely offline and for free.
 
@@ -185,74 +168,32 @@ The config wizard can enable Wi-Fi SSH on your tablet automatically via USB. If 
 
 ## Generated Markdown Format
 
-Each notebook becomes a `.md` file preserving the device folder hierarchy:
+Each notebook becomes a folder with one Markdown file per page:
 
 ```markdown
 ---
-title: My Meeting Notes
+title: "My Meeting Notes"
 source: reMarkable
 remarkable_id: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+notebook: Work
 folder: Work/Meetings
+page: 1
 created: 2025-01-15
+ai_provider: GitHubModelsProvider
+ai_model: gpt-4o-mini
 tags:
   - remarkable
 ---
-
-# My Meeting Notes
 
 ## Action Items
 
 - **Follow up** with Alice on the Q1 plan
 - Schedule review for next Friday
 
----
-
-## Pages
-
-![[My Meeting Notes/page_001.png]]
-
-![[My Meeting Notes/page_002.png]]
+![page 1](_images/page_001.png)
 ```
 
-Page images are stored alongside in `<notebook-name>/page_NNN.png`.
-
-## Directory Structure
-
-```
-# Internal backup data (AppData by default)
-<backup_dir>/
-├── Notebooks/              # Raw notebook files and metadata
-├── Templates/              # Template files from device
-├── PagePDFs/               # Cached per-page PDFs
-├── sync_metadata.json      # Sync state
-└── remarkablesync.log      # Log file
-
-# PDF output (Documents by default)
-<pdf_dir>/
-└── [folder hierarchy]/
-    └── Notebook Name.pdf
-
-# Markdown output (Documents by default)
-<output_dir>/
-└── [folder hierarchy]/
-    ├── Notebook Name.md
-    └── Notebook Name/
-        ├── page_001.png
-        └── page_002.png
-```
-
-## How It Works
-
-1. **Connect** to tablet via SSH (USB or Wi-Fi)
-2. **Discover** notebooks in `/home/root/.local/share/remarkable/xochitl/`
-3. **Backup** changed files incrementally via SCP
-4. **Convert** .rm files → SVG (via rmc) → PDF with template backgrounds
-5. **Rasterise** PDF pages to PNG images
-6. **Transcribe** handwriting via AI vision model (or pytesseract offline)
-7. **Clean up** raw text into structured Markdown via LLM
-8. **Export** Markdown files with frontmatter + embedded images
-
-Only changed notebooks are processed on each run.
+Page images are stored in a `_images/` subfolder next to the Markdown files.
 
 ## Troubleshooting
 

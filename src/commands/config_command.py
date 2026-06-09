@@ -238,7 +238,7 @@ def run_config_command() -> int:
         ai_provider = inquirer.select(
             message="AI provider for handwriting recognition:",
             choices=[
-                {"name": "GitHub Models  (free with GitHub account)", "value": "github"},
+                {"name": "GitHub Models", "value": "github"},
                 {"name": "Claude / Anthropic  (requires API key)", "value": "claude"},
             ],
             default=ai_provider,

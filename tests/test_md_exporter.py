@@ -57,7 +57,7 @@ class TestExtractTitle:
 
     def test_date_only(self):
         text = "8/27/24\n"
-        assert self._et(text, 5) == "2024-08-27 - Page 5"
+        assert self._et(text, 5) == "2024-08-27"
 
     def test_title_only(self):
         text = "# Weekly Standup\nNotes from the call"
@@ -68,10 +68,10 @@ class TestExtractTitle:
         assert self._et(text, 4) == "Just some text on the page"
 
     def test_empty_text(self):
-        assert self._et("", 7) == "Page 7"
+        assert self._et("", 7) == ""
 
     def test_whitespace_only(self):
-        assert self._et("   \n\n  ", 3) == "Page 3"
+        assert self._et("   \n\n  ", 3) == ""
 
     def test_mm_dd_yyyy_format(self):
         text = "12/25/2024\n# Christmas Plans"

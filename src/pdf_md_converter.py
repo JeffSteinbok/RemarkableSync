@@ -194,37 +194,6 @@ class MarkdownExporter:
             "---\n\n"
         )
 
-    def _build_markdown(
-        self,
-        notebook_name: str,
-        notebook_uuid: str,
-        folder_path: str,
-        processed_text: str,
-        image_paths: List[Path],
-        output_images_dir: Path,
-    ) -> str:
-        """Build the full Markdown content for one notebook."""
-        lines: List[str] = []
-
-        # Frontmatter
-        lines.append(
-            self._build_frontmatter(notebook_name, notebook_uuid, folder_path, self.tags)
-        )
-
-        # Transcribed text
-        if processed_text.strip():
-            lines.append(processed_text.strip())
-            lines.append("\n\n")
-
-        # Embedded page images
-        if image_paths:
-            lines.append("---\n\n## Pages\n\n")
-            for img_path in image_paths:
-                link = f"_images/{img_path.name}"
-                lines.append(f"![{img_path.stem}]({link})\n\n")
-
-        return "".join(lines)
-
     def _build_page_markdown(
         self,
         title: str,
@@ -337,11 +306,11 @@ class MarkdownExporter:
         if date_str and title:
             return f"{date_str} - {title}"
         elif date_str:
-            return f"{date_str} - Page {page_num}"
+            return date_str
         elif title:
             return title
         else:
-            return f"Page {page_num}"
+            return ""
 
     # ------------------------------------------------------------------
     # Export entry point
@@ -467,11 +436,11 @@ class MarkdownExporter:
 
                 # Derive title from OCR text
                 title = self._extract_title(page_text, pg_idx)
-                safe_title = _safe_name(title) or f"page_{pg_idx:03d}"
+                safe_title = _safe_name(title)
 
                 # Build and write per-page Markdown
                 md_content = self._build_page_markdown(
-                    title=title,
+                    title=title or f"Page {pg_idx}",
                     notebook_name=name,
                     notebook_uuid=uuid,
                     folder_path=folder_path,
@@ -480,7 +449,10 @@ class MarkdownExporter:
                     page_image=page_image,
                 )
 
-                md_path = notebook_dir / f"{safe_title}.md"
+                if safe_title:
+                    md_path = notebook_dir / f"{pg_idx:03d} - {safe_title}.md"
+                else:
+                    md_path = notebook_dir / f"{pg_idx:03d}.md"
                 try:
                     with open(md_path, "w", encoding="utf-8") as fh:
                         fh.write(md_content)

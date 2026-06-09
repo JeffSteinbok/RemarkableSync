@@ -19,7 +19,6 @@ pdf2image>=1.16.0
 Pillow>=10.0.0
 pystray>=0.19.5
 
-# AI providers (optional – install the ones you need)
-# pip install anthropic       (Claude)
-# pip install openai          (GitHub Models / OpenAI)
-# pip install pytesseract     (offline OCR fallback; also needs system Tesseract)
+# AI providers
+anthropic>=0.30.0
+openai>=1.0.0
