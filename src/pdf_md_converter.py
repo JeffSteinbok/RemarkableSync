@@ -124,13 +124,33 @@ class MarkdownExporter:
         current_hash = _file_hash(pdf_path)
         return current_hash != self._state[notebook_uuid].get("pdf_hash", "")
 
+    def _page_needs_export(self, notebook_uuid: str, page_idx: int, page_pdf: Path) -> bool:
+        """Return True if a single page PDF has changed since last export."""
+        nb_state = self._state.get(notebook_uuid, {})
+        page_hashes = nb_state.get("page_hashes", {})
+        stored = page_hashes.get(str(page_idx))
+        if stored is None:
+            return True
+        if not page_pdf.exists():
+            return False
+        return _file_hash(page_pdf) != stored
+
     def _record_export(self, notebook_uuid: str, pdf_path: Path, md_path: Path) -> None:
         pdf_hash = _file_hash(pdf_path) if pdf_path.exists() else ""
+        prev_state = self._state.get(notebook_uuid, {})
         self._state[notebook_uuid] = {
             "pdf_hash": pdf_hash,
             "md_path": str(md_path),
             "exported_at": datetime.now(timezone.utc).isoformat(),
+            "page_hashes": prev_state.get("page_hashes", {}),
         }
+
+    def _record_page_hash(self, notebook_uuid: str, page_idx: int, page_pdf: Path) -> None:
+        """Store the hash of a single page PDF in the notebook state."""
+        if notebook_uuid not in self._state:
+            self._state[notebook_uuid] = {}
+        page_hashes = self._state[notebook_uuid].setdefault("page_hashes", {})
+        page_hashes[str(page_idx)] = _file_hash(page_pdf) if page_pdf.exists() else ""
 
     # ------------------------------------------------------------------
     # Page image export
@@ -342,8 +362,9 @@ class MarkdownExporter:
             pdf_path: Path to the converted PDF for this notebook.
             force: Re-export even if the notebook hasn't changed.
             page_pdfs: Optional list of cached per-page PDF paths.
-            on_page_done: Callback ``(page_num, total_pages)`` called after
-                each page is processed.
+            on_page_done: Callback ``(page_num, total_pages, cached=False)``
+                called after each page is processed.  *cached* is True when
+                the page was skipped because its PDF hash was unchanged.
 
         Returns:
             Path to the notebook folder, or *None* on failure.
@@ -352,8 +373,9 @@ class MarkdownExporter:
         name = notebook["name"]
         folder_path = notebook.get("folder_path", "")
 
-        # Skip if nothing changed
-        if not force and not self._needs_export(uuid, pdf_path):
+        # Skip if nothing changed (notebook-level check only when we don't
+        # have per-page PDFs — per-page hashing handles the granular case).
+        if not force and not page_pdfs and not self._needs_export(uuid, pdf_path):
             logging.debug("Skipping unchanged notebook: %s", name)
             return self._state.get(uuid, {}).get("md_path")
 
@@ -385,6 +407,13 @@ class MarkdownExporter:
             rate_limited = False
 
             for pg_idx, pg_pdf in enumerate(pages_to_process, start=1):
+                # Skip unchanged pages (per-page hash check)
+                if not force and not self._page_needs_export(uuid, pg_idx, pg_pdf):
+                    logging.debug("Skipping unchanged page %d of '%s'", pg_idx, name)
+                    if on_page_done:
+                        on_page_done(pg_idx, total_pages, cached=True)
+                    continue
+
                 # Rasterise page to image
                 page_image: Optional[Path] = None
                 page_images: List[Path] = []  # noqa: F841
@@ -469,6 +498,9 @@ class MarkdownExporter:
                         fh.write(md_content)
                 except OSError as exc:
                     logging.error("Failed to write page %d of '%s': %s", pg_idx, name, exc)
+
+                # Record per-page hash so unchanged pages are skipped next time
+                self._record_page_hash(uuid, pg_idx, pg_pdf)
 
                 if on_page_done:
                     on_page_done(pg_idx, total_pages)
@@ -565,13 +597,16 @@ class MarkdownExporter:
                             len(page_pdfs_list),
                         )
 
-                def _on_page(pg_num, pg_total, _nb_name=nb_name):
+                def _on_page(pg_num, pg_total, _nb_name=nb_name, cached=False):
                     progress.update(
                         task,
                         advance=1,
                         description=f"{_nb_name} (page {pg_num} of {pg_total})",
                     )
-                    logging.info("MD: %s (page %d/%d)", _nb_name, pg_num, pg_total)
+                    if cached:
+                        logging.info("MD: %s (page %d/%d) [cached]", _nb_name, pg_num, pg_total)
+                    else:
+                        logging.info("MD: %s (page %d/%d)", _nb_name, pg_num, pg_total)
 
                 result = self.export_notebook(
                     notebook,

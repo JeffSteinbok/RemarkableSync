@@ -738,7 +738,7 @@ class _TrayLogHandler(logging.Handler):
                 return
             self._tray.set_detail(msg)
 
-            # Parse progress from page callbacks: "PDF: Work (page 3/21)"
+            # Parse progress from page callbacks: "PDF: Work (page 3/21)" or "PDF: Work (page 3/21) [cached]"
             import re
 
             m = re.search(r"(PDF|MD): (.+?) \(page (\d+)/(\d+)\)", msg)

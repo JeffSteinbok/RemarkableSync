@@ -167,14 +167,17 @@ def run_conversion(
             )
             page_counter = [0]  # mutable so the lambda can update it
 
-            def _on_page_done(_pc=page_counter, _nb=nb_name, _nbt=nb_total):
+            def _on_page_done(_pc=page_counter, _nb=nb_name, _nbt=nb_total, cached=False):
                 _pc[0] += 1
                 progress.update(
                     task,
                     advance=1,
                     description=f"{_nb} (page {_pc[0]} of {_nbt})",
                 )
-                logging.info("PDF: %s (page %d/%d)", _nb, _pc[0], _nbt)
+                if cached:
+                    logging.info("PDF: %s (page %d/%d) [cached]", _nb, _pc[0], _nbt)
+                else:
+                    logging.info("PDF: %s (page %d/%d)", _nb, _pc[0], _nbt)
 
             progress.update(task, description=f"{nb_name} (page 0 of {nb_total})")
 

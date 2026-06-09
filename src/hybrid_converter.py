@@ -462,6 +462,8 @@ def convert_notebook(
         template_renderer: Optional template renderer for backgrounds.
         changed_page_ids: Set of page IDs whose ``.rm`` files changed.
             When *None* all pages are (re-)converted.
+        on_page_done: Callback ``(cached: bool)`` called after each page.
+            *cached* is True when the page was served from cache.
     """
     # Create safe filename
     safe_name = "".join(c for c in notebook["name"] if c.isalnum() or c in (" ", "-", "_")).rstrip()
@@ -543,24 +545,24 @@ def convert_notebook(
                 return True  # No change info → convert all
             return page_id in changed_page_ids
 
-        def _convert_page(
-            rm_file: Path, version_tag: str, convert_fn, result_key: str
-        ) -> Optional[Path]:
+        def _convert_page(rm_file: Path, version_tag: str, convert_fn, result_key: str) -> tuple:
             """Convert a single page, using cache when possible.
 
-            Returns the path to the cached page PDF, or None on failure.
+            Returns ``(path, cached)`` where *cached* is True when the
+            page was served from the persistent cache without conversion.
+            Returns ``(None, False)`` on failure.
             """
             page_id = rm_file.stem
             cached_pdf = page_cache_dir / f"{page_id}.pdf"
 
             # Use cached PDF if page hasn't changed
             if not _needs_conversion(page_id) and cached_pdf.exists():
-                return cached_pdf
+                return cached_pdf, True
 
             # Convert the .rm file to a content PDF
             content_pdf = page_cache_dir / f"{page_id}_content.pdf"
             if not convert_fn(rm_file, content_pdf):
-                return None
+                return None, False
 
             # Apply template if available
             if template_renderer and template_temp_dir:
@@ -575,7 +577,7 @@ def convert_notebook(
                             except OSError:
                                 pass
                             results[result_key] += 1
-                            return cached_pdf
+                            return cached_pdf, False
 
             # No template or template merge failed — content PDF is the final
             if content_pdf != cached_pdf:
@@ -585,35 +587,36 @@ def convert_notebook(
                 except OSError:
                     cached_pdf = content_pdf
             results[result_key] += 1
-            return cached_pdf
+            return cached_pdf, False
 
         # Convert v5 files in determined order
         for rm_file in ordered_v5_pages:
-            pdf = _convert_page(rm_file, "v5", convert_v5_file_with_rmrl, "v5_converted")
+            pdf, cached = _convert_page(rm_file, "v5", convert_v5_file_with_rmrl, "v5_converted")
             if pdf:
                 page_pdfs.append(pdf)
             if on_page_done:
-                on_page_done()
+                on_page_done(cached=cached)
 
         # Convert v6 files
         for rm_file in notebook["v6_files"]:
-            pdf = _convert_page(rm_file, "v6", convert_v6_file_with_rmc, "v6_converted")
+            pdf, cached = _convert_page(rm_file, "v6", convert_v6_file_with_rmc, "v6_converted")
             if pdf:
                 page_pdfs.append(pdf)
             if on_page_done:
-                on_page_done()
+                on_page_done(cached=cached)
 
         # Convert v4 files (best-effort; may not succeed)
         for rm_file in notebook.get("v4_files", []):
-            pdf = _convert_page(rm_file, "v4", convert_v4_file_with_rmrl, "v4_converted")
+            pdf, cached = _convert_page(rm_file, "v4", convert_v4_file_with_rmrl, "v4_converted")
             if pdf:
                 page_pdfs.append(pdf)
             if on_page_done:
-                on_page_done()
+                on_page_done(cached=cached)
 
         # Copy existing PDFs
         for i, pdf_file in enumerate(notebook["pdf_files"]):
             cached_pdf = page_cache_dir / f"existing_{i+1:03d}.pdf"
+            was_cached = False
             if not cached_pdf.exists() or changed_page_ids is None:
                 if copy_existing_pdf(pdf_file, cached_pdf):
                     page_pdfs.append(cached_pdf)
@@ -621,8 +624,9 @@ def convert_notebook(
             else:
                 page_pdfs.append(cached_pdf)
                 results["pdfs_copied"] += 1
+                was_cached = True
             if on_page_done:
-                on_page_done()
+                on_page_done(cached=was_cached)
 
         # Create merged PDF if we have any pages
         if page_pdfs:
