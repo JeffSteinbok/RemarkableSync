@@ -28,7 +28,9 @@ class TestRequestDeviceCode:
         }
         mock_resp.raise_for_status = MagicMock()
 
-        with patch("src.auth.github_device_flow.requests.post", return_value=mock_resp) as mock_post:
+        with patch(
+            "src.auth.github_device_flow.requests.post", return_value=mock_resp
+        ) as mock_post:
             result = request_device_code()
 
         mock_post.assert_called_once_with(

@@ -31,7 +31,10 @@ class TestRunPipeline:
 
     @patch("src.config.load_config")
     @patch("src.hybrid_converter.find_notebooks", return_value=[])
-    @patch("src.hybrid_converter.organize_notebooks_by_structure", return_value={"documents_to_convert": []})
+    @patch(
+        "src.hybrid_converter.organize_notebooks_by_structure",
+        return_value={"documents_to_convert": []},
+    )
     def test_no_notebooks_returns_zero(self, mock_org, mock_find, mock_config, tmp_path):
         mock_config.return_value = {"pdf_dir": str(tmp_path / "pdf"), "folders": []}
         (tmp_path / "pdf").mkdir()
@@ -61,7 +64,10 @@ class TestRunPipeline:
     @patch("src.commands.pipeline.ReMarkableBackup")
     @patch("src.commands.pipeline.run_conversion")
     @patch("src.hybrid_converter.find_notebooks", return_value=[])
-    @patch("src.hybrid_converter.organize_notebooks_by_structure", return_value={"documents_to_convert": []})
+    @patch(
+        "src.hybrid_converter.organize_notebooks_by_structure",
+        return_value={"documents_to_convert": []},
+    )
     def test_successful_backup_proceeds(
         self, mock_org, mock_find, mock_convert, mock_backup_cls, mock_config, tmp_path
     ):
@@ -87,9 +93,7 @@ class TestRunPipeline:
         mock_config.return_value = {"pdf_dir": str(tmp_path / "pdf"), "folders": []}
         (tmp_path / "pdf").mkdir()
 
-        notebooks = [
-            {"uuid": "nb-1", "name": "Note 1", "type": "DocumentType", "folder_path": ""}
-        ]
+        notebooks = [{"uuid": "nb-1", "name": "Note 1", "type": "DocumentType", "folder_path": ""}]
         mock_find.return_value = notebooks
         mock_org.return_value = {"documents_to_convert": notebooks}
 
@@ -113,7 +117,12 @@ class TestRunPipeline:
 
         notebooks = [
             {"uuid": "nb-1", "name": "Work Note", "type": "DocumentType", "folder_path": "Work"},
-            {"uuid": "nb-2", "name": "Personal Note", "type": "DocumentType", "folder_path": "Personal"},
+            {
+                "uuid": "nb-2",
+                "name": "Personal Note",
+                "type": "DocumentType",
+                "folder_path": "Personal",
+            },
         ]
         mock_find.return_value = notebooks
         mock_org.return_value = {"documents_to_convert": notebooks}
@@ -126,7 +135,9 @@ class TestRunPipeline:
         assert result == 0
         # Only the Work notebook should be passed to export
         call_args = mock_exporter.export_all.call_args
-        exported_notebooks = call_args.kwargs.get("notebooks") or call_args[1].get("notebooks") or call_args[0][0]
+        exported_notebooks = (
+            call_args.kwargs.get("notebooks") or call_args[1].get("notebooks") or call_args[0][0]
+        )
         assert len(exported_notebooks) == 1
         assert exported_notebooks[0]["name"] == "Work Note"
 
