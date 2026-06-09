@@ -590,7 +590,13 @@ def main():
 
     if not has_command and '--version' not in sys.argv and '--help' not in sys.argv:
         # Load config to decide which pipeline to run
-        from src.config import load_config
+        from src.config import get_config_path, load_config
+
+        if not get_config_path().exists():
+            script_name = Path(sys.argv[0]).name or "RemarkableSync.py"
+            click.echo("[ERROR] No configuration found.", err=True)
+            click.echo(f"Run: python {script_name} config", err=True)
+            sys.exit(1)
 
         cfg = load_config()
         actions = cfg.get("sync_actions", [])
@@ -638,4 +644,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
