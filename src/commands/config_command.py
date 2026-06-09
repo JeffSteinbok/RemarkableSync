@@ -214,6 +214,7 @@ def run_config_command() -> int:
     # 7. Markdown export settings — OCR is implied when export is selected
     ocr_enabled = current.get("ocr_enabled", False)
     output_dir = current.get("output_dir", "")
+    embed_images = current.get("embed_images", True)
 
     if "ocr" in sync_actions:
         ocr_enabled = True
@@ -231,7 +232,6 @@ def run_config_command() -> int:
             click.echo(f"  Using default: {output_dir}")
 
         # 7b. Embed page images with Markdown?
-        embed_images = current.get("embed_images", True)
         embed_images = inquirer.confirm(
             message="Include page images alongside Markdown files?",
             default=embed_images,
