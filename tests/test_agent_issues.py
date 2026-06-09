@@ -245,14 +245,13 @@ class TestPrePostSyncCommands:
         "src.hybrid_converter.organize_notebooks_by_structure",
         return_value={"documents_to_convert": []},
     )
-    @patch("src.utils.run_shell_command")
+    @patch("src.commands.pipeline.ReMarkableBackup")
     def test_pipeline_runs_pre_sync_command(
-        self, mock_run_cmd, mock_org, mock_find, mock_config, tmp_path
+        self, mock_backup_cls, mock_org, mock_find, mock_config, tmp_path
     ):
-        """run_pipeline executes pre_sync_command before syncing."""
+        """run_pipeline passes pre_sync_command to ReMarkableConnection which runs it in connect()."""
         from src.commands.pipeline import run_pipeline
 
-        mock_run_cmd.return_value = 0
         mock_config.return_value = {
             "pdf_dir": str(tmp_path / "pdf"),
             "folders": [],
@@ -263,17 +262,23 @@ class TestPrePostSyncCommands:
         (tmp_path / "backup").mkdir(parents=True, exist_ok=True)
         (tmp_path / "output").mkdir(parents=True, exist_ok=True)
 
+        mock_backup = MagicMock()
+        mock_backup.run_backup.return_value = (True, set(), {})
+        mock_backup_cls.return_value = mock_backup
+
         run_pipeline(
             backup_dir=tmp_path / "backup",
             output_dir=tmp_path / "output",
             log_level="NONE",
-            skip_backup=True,
+            skip_backup=False,
             skip_convert=True,
             ai_provider="",
             use_ai_ocr=False,
         )
 
-        mock_run_cmd.assert_called_with("echo hello")
+        mock_backup_cls.assert_called_once()
+        _, kwargs = mock_backup_cls.call_args
+        assert kwargs.get("pre_sync_command") == "echo hello"
 
     @patch("src.config.load_config")
     @patch("src.hybrid_converter.find_notebooks", return_value=[])
@@ -281,14 +286,13 @@ class TestPrePostSyncCommands:
         "src.hybrid_converter.organize_notebooks_by_structure",
         return_value={"documents_to_convert": []},
     )
-    @patch("src.utils.run_shell_command")
+    @patch("src.commands.pipeline.ReMarkableBackup")
     def test_pipeline_aborts_when_pre_sync_fails(
-        self, mock_run_cmd, mock_org, mock_find, mock_config, tmp_path
+        self, mock_backup_cls, mock_org, mock_find, mock_config, tmp_path
     ):
-        """run_pipeline returns 1 when pre_sync_command exits non-zero."""
+        """run_pipeline returns 1 when backup fails (e.g. pre_sync_command exits non-zero)."""
         from src.commands.pipeline import run_pipeline
 
-        mock_run_cmd.return_value = 1  # simulate failure
         mock_config.return_value = {
             "pdf_dir": str(tmp_path / "pdf"),
             "folders": [],
@@ -299,11 +303,15 @@ class TestPrePostSyncCommands:
         (tmp_path / "backup").mkdir(parents=True, exist_ok=True)
         (tmp_path / "output").mkdir(parents=True, exist_ok=True)
 
+        mock_backup = MagicMock()
+        mock_backup.run_backup.return_value = (False, set(), {})
+        mock_backup_cls.return_value = mock_backup
+
         result = run_pipeline(
             backup_dir=tmp_path / "backup",
             output_dir=tmp_path / "output",
             log_level="NONE",
-            skip_backup=True,
+            skip_backup=False,
             skip_convert=True,
             ai_provider="",
             use_ai_ocr=False,
@@ -317,14 +325,13 @@ class TestPrePostSyncCommands:
         "src.hybrid_converter.organize_notebooks_by_structure",
         return_value={"documents_to_convert": []},
     )
-    @patch("src.utils.run_shell_command")
+    @patch("src.commands.pipeline.ReMarkableBackup")
     def test_pipeline_runs_post_sync_command(
-        self, mock_run_cmd, mock_org, mock_find, mock_config, tmp_path
+        self, mock_backup_cls, mock_org, mock_find, mock_config, tmp_path
     ):
-        """run_pipeline executes post_sync_command after syncing."""
+        """run_pipeline passes post_sync_command to ReMarkableConnection which runs it in disconnect()."""
         from src.commands.pipeline import run_pipeline
 
-        mock_run_cmd.return_value = 0
         mock_config.return_value = {
             "pdf_dir": str(tmp_path / "pdf"),
             "folders": [],
@@ -335,8 +342,10 @@ class TestPrePostSyncCommands:
         (tmp_path / "backup").mkdir(parents=True, exist_ok=True)
         (tmp_path / "output").mkdir(parents=True, exist_ok=True)
 
-        # Post-sync wraps the SSH connection — it only runs when backup runs,
-        # not when backup is skipped.
+        mock_backup = MagicMock()
+        mock_backup.run_backup.return_value = (True, set(), {})
+        mock_backup_cls.return_value = mock_backup
+
         result = run_pipeline(
             backup_dir=tmp_path / "backup",
             output_dir=tmp_path / "output",
@@ -348,4 +357,6 @@ class TestPrePostSyncCommands:
         )
 
         assert result == 0
-        mock_run_cmd.assert_called_with("echo done")
+        mock_backup_cls.assert_called_once()
+        _, kwargs = mock_backup_cls.call_args
+        assert kwargs.get("post_sync_command") == "echo done"

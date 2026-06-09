@@ -54,7 +54,7 @@ class TestRunPipeline:
         (tmp_path / "pdf").mkdir()
 
         mock_backup = MagicMock()
-        mock_backup.backup_files.return_value = (False, set(), {})
+        mock_backup.run_backup.return_value = (False, set(), {})
         mock_backup_cls.return_value = mock_backup
 
         result = self._run(tmp_path, skip_backup=False)
@@ -75,7 +75,7 @@ class TestRunPipeline:
         (tmp_path / "pdf").mkdir()
 
         mock_backup = MagicMock()
-        mock_backup.backup_files.return_value = (True, {"uuid-1"}, {})
+        mock_backup.run_backup.return_value = (True, {"uuid-1"}, {})
         mock_backup_cls.return_value = mock_backup
 
         mock_convert.return_value = (True, {"uuid-1": []}, [])
