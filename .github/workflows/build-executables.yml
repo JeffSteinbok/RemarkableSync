@@ -12,7 +12,20 @@ on:
   workflow_dispatch:  # Allow manual trigger
 
 jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: pip install ruff black
+      - run: ruff check src/ tests/
+      - run: black --check src/ tests/
+
   build-windows:
+    needs: lint
     runs-on: windows-latest
     steps:
       - name: Checkout code
@@ -59,6 +72,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   build-macos:
+    needs: lint
     runs-on: macos-latest
     steps:
       - name: Checkout code

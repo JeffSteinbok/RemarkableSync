@@ -49,24 +49,28 @@ jobs:
         continue-on-error: true  # Don't fail CI on type errors initially
 
   test-macos-311:
+    needs: lint
     uses: ./.github/workflows/common-test.yml
     with:
       python-version: '3.11'
       os: macos-latest
 
   test-macos-313:
+    needs: lint
     uses: ./.github/workflows/common-test.yml
     with:
       python-version: '3.13'
       os: macos-latest
 
   test-windows-311:
+    needs: lint
     uses: ./.github/workflows/common-test.yml
     with:
       python-version: '3.11'
       os: windows-latest
 
   test-windows-313:
+    needs: lint
     uses: ./.github/workflows/common-test.yml
     with:
       python-version: '3.13'
