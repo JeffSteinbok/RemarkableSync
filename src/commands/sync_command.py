@@ -5,16 +5,20 @@ from pathlib import Path
 from typing import Optional
 
 from ..backup import ReMarkableBackup
+from ..backup.connection import USB_HOST
 from ..utils.logging import setup_logging
 
 
 def run_sync_command(
     backup_dir: Path,
-    password: Optional[str],
-    verbose: bool,
-    skip_templates: bool,
-    force_backup: bool,
-    force_convert: bool,
+    password: Optional[str] = None,
+    log_level: str = "WRN",
+    skip_templates: bool = False,
+    force_backup: bool = False,
+    force_convert: bool = False,
+    host: str = USB_HOST,
+    use_wifi: bool = False,
+    wifi_host: str = "",
 ) -> int:
     """Execute the sync command (backup + convert).
 
@@ -24,20 +28,30 @@ def run_sync_command(
     Args:
         backup_dir: Directory to store backup files
         password: SSH password for tablet
-        verbose: Enable verbose logging
+        log_level: Log verbosity (DBG/INF/WRN/ERR)
         skip_templates: Skip backing up template files
         force_backup: Force backup all files
         force_convert: Force convert all notebooks
+        host: Tablet IP/hostname for USB connections
+        use_wifi: Use Wi-Fi instead of USB
+        wifi_host: Wi-Fi IP/hostname of the tablet
 
     Returns:
         Exit code (0 for success, 1 for failure)
     """
-    setup_logging(verbose)
+    import time as _time
+
+    setup_logging(log_level, log_dir=backup_dir)
+    _start_time = _time.monotonic()
 
     print("ReMarkable Sync (Backup + Convert)")
-    print("=" * 40)
+    print("=" * 70)
     print(f"Backup directory: {backup_dir.absolute()}")
 
+    if use_wifi:
+        print(f"Connection mode: Wi-Fi ({wifi_host or 'auto-discover'})")
+    else:
+        print(f"Connection mode: USB ({host})")
     if not skip_templates:
         print("Template backup: Enabled")
     if force_backup:
@@ -45,7 +59,13 @@ def run_sync_command(
     if force_convert:
         print("Force convert: All notebooks will be converted")
 
-    backup_tool = ReMarkableBackup(backup_dir, password)
+    backup_tool = ReMarkableBackup(
+        backup_dir,
+        password=password,
+        host=host,
+        use_wifi=use_wifi,
+        wifi_host=wifi_host,
+    )
 
     try:
         # Run backup with PDF conversion enabled
@@ -55,15 +75,25 @@ def run_sync_command(
             backup_templates=not skip_templates,
         )
 
-        if success:
-            print("\n[SUCCESS] Sync completed successfully!")
-            print(f"Files backed up to: {backup_tool.files_dir}")
-            if not skip_templates:
-                print(f"Templates backed up to: {backup_tool.templates_dir}")
+        elapsed = _time.monotonic() - _start_time
+        mins, secs = divmod(int(elapsed), 60)
 
-            pdfs_dir = backup_dir / "PDF"
-            if pdfs_dir.exists():
-                print(f"PDFs generated in: {pdfs_dir}")
+        if success:
+            print()
+            print("=" * 70)
+            print("  Sync Summary")
+            print("=" * 70)
+            print(f"  Backup     : {backup_tool.files_dir}")
+            if not skip_templates:
+                print(f"  Templates  : {backup_tool.templates_dir}")
+            from ..config import load_config
+
+            _cfg = load_config()
+            _pdf_dir = _cfg.get("pdf_dir", "")
+            if _pdf_dir and Path(_pdf_dir).exists():
+                print(f"  PDFs       : {_pdf_dir}")
+            print(f"  Duration   : {mins}m {secs}s")
+            print("=" * 70)
             return 0
         else:
             print("\n[ERROR] Sync failed. Check logs for details.")

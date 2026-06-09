@@ -4,14 +4,14 @@ import logging
 from pathlib import Path
 from typing import Optional
 
-from ..converter import run_conversion
+from ..rm_pdf_converter import run_conversion
 from ..utils.logging import setup_logging
 
 
 def run_convert_command(
     backup_dir: Path,
     output_dir: Optional[Path],
-    verbose: bool,
+    log_level: str,
     force_all: bool,
     sample: Optional[int],
     notebook: Optional[str],
@@ -21,7 +21,7 @@ def run_convert_command(
     Args:
         backup_dir: Directory containing ReMarkable backup files
         output_dir: Directory to save PDF files
-        verbose: Enable verbose logging
+        log_level: Log verbosity (DBG/INF/WRN/ERR)
         force_all: Convert all notebooks (ignore sync status)
         sample: Convert only first N notebooks
         notebook: Convert only this notebook (by UUID or name)
@@ -29,18 +29,26 @@ def run_convert_command(
     Returns:
         Exit code (0 for success, 1 for failure)
     """
-    setup_logging(verbose)
+    setup_logging(log_level)
 
     if not backup_dir.exists():
         print(f"[ERROR] Backup directory not found: {backup_dir}")
         return 1
 
-    # Set default output directory
+    # Set default output directory from config
     if not output_dir:
-        output_dir = backup_dir / "PDF"
+        from ..config import load_config
+
+        config = load_config()
+        pdf_dir = config.get("pdf_dir", "")
+        if pdf_dir:
+            output_dir = Path(pdf_dir)
+        else:
+            print("[ERROR] No PDF directory configured. Run 'remarkablesync config' first.")
+            return 1
 
     print("ReMarkable PDF Converter")
-    print("=" * 40)
+    print("=" * 70)
     print(f"Backup directory: {backup_dir}")
     print(f"Output directory: {output_dir}")
 
@@ -61,10 +69,10 @@ def run_convert_command(
                 updated_only_file = updated_list
                 print("Converting recently updated notebooks only")
 
-        success = run_conversion(
+        success, _converted = run_conversion(
             backup_dir=backup_dir,
             output_dir=output_dir,
-            verbose=verbose,
+            verbose=log_level,
             sample=sample,
             notebook_filter=notebook,
             updated_only=updated_only_file,

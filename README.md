@@ -1,323 +1,215 @@
 # RemarkableSync
+
 [![GitHub](https://img.shields.io/badge/GitHub-RemarkableSync-blue?logo=github)](https://github.com/JeffSteinbok/RemarkableSync)
 [![GitHub release](https://img.shields.io/github/v/release/JeffSteinbok/RemarkableSync)](https://github.com/JeffSteinbok/RemarkableSync/releases)
-
 [![CI](https://github.com/JeffSteinbok/RemarkableSync/actions/workflows/ci.yml/badge.svg)](https://github.com/JeffSteinbok/RemarkableSync/actions/workflows/ci.yml)
 [![Build Executables](https://github.com/JeffSteinbok/RemarkableSync/actions/workflows/build-executables.yml/badge.svg)](https://github.com/JeffSteinbok/RemarkableSync/actions/workflows/build-executables.yml)
-[![Release](https://github.com/JeffSteinbok/RemarkableSync/actions/workflows/release.yml/badge.svg)](https://github.com/JeffSteinbok/RemarkableSync/actions/workflows/release.yml)
-
-[![Publish to PyPI](https://github.com/JeffSteinbok/RemarkableSync/actions/workflows/publish-pypi.yml/badge.svg)](https://github.com/JeffSteinbok/RemarkableSync/actions/workflows/publish-pypi.yml)
 [![PyPI version](https://img.shields.io/pypi/v/remarkablesync.svg)](https://pypi.org/project/remarkablesync/)
-[![Homebrew](https://github.com/JeffSteinbok/RemarkableSync/actions/workflows/update-homebrew.yml/badge.svg)](https://github.com/JeffSteinbok/RemarkableSync/actions/workflows/update-homebrew.yml)
 
-
-A comprehensive Python toolkit for backing up and converting reMarkable tablet notebooks to PDF with template support and proper folder hierarchy preservation.
+A comprehensive Python toolkit for backing up reMarkable tablet notebooks, converting them to PDF, and transcribing handwriting to Markdown with AI — over USB or Wi-Fi.
 
 > [!IMPORTANT]
-> This tool has been tested exclusively on reMarkable 2. Compatibility with reMarkable 1 is not guaranteed.
-
+> Tested on reMarkable 2. Compatibility with reMarkable 1 is not guaranteed.
+>
+> AI handwriting-to-text features require a **GitHub Copilot** or **Claude** (Anthropic) account. Support for additional providers can be added as needed.
 
 ## Features
 
-### 🔄 Backup & Sync
-- **USB Connection**: Connects to reMarkable tablet over USB (10.11.99.1)
-- **Incremental Sync**: Only downloads files that have changed since last backup
-- **Complete Backup**: Backs up all notebooks, documents, and metadata
-- **Template Support**: Automatically backs up template files from the device
-- **File Integrity**: MD5 hash verification for synced files
-
-### 📄 PDF Conversion
-- **Hybrid Converter**: Supports both v5 and v6 .rm file formats
-- **Template Rendering**: Applies original notebook templates (grids, lines, etc.) to PDFs
-- **SVG Pipeline**: Uses rmc → SVG → PDF conversion for high quality output
-- **Folder Hierarchy**: Recreates original device folder structure in output
-- **Single PDF per Notebook**: Merges all pages into one PDF file per notebook
-- **Smart Conversion**: Only converts notebooks updated in the last backup
-- **Progress Tracking**: Visual progress bars and detailed logging
-
-## Prerequisites
-
-1. **reMarkable Tablet Setup**:
-   - Connect your reMarkable tablet to your computer via USB
-   - Enable SSH access (it's enabled by default)
-   - Get your SSH password from Settings → Help → Copyright and licenses
-
-2. **Python Requirements**:
-   - Python 3.11 or higher (required)
-   - Required packages (install with `pip install -r requirements.txt`)
-   - All dependencies including `rmc` are installed automatically
-
-## Installation
-
-### Option 1: Homebrew (Recommended for macOS)
-
-**macOS users** can install RemarkableSync using Homebrew:
-
-```bash
-# Add the tap (one time only)
-brew tap jeffsteinbok/remarkablesync
-
-# Install RemarkableSync
-brew install remarkablesync
-```
-
-This will automatically:
-- Install Python 3.13 and all dependencies (including `rmc`)
-- Set up everything needed for PDF conversion
-
-**Updating to latest version:**
-```bash
-brew upgrade remarkablesync
-```
-
-**Uninstalling:**
-```bash
-brew uninstall remarkablesync
-brew untap jeffsteinbok/remarkablesync
-```
-
-### Option 2: pip (All Platforms)
-
-**For users with Python 3.11+** installed:
-
-```bash
-# Install using pip (recommended: use a virtual environment)
-pip install remarkablesync
-```
-
-**Updating to latest version:**
-```bash
-pip install --upgrade remarkablesync
-```
-
-### Option 3: Pre-built Executables (Windows/macOS)
-
-**For users without Python** or who prefer standalone executables, download from the [Releases page](https://github.com/JeffSteinbok/RemarkableSync/releases).
-
-> [!IMPORTANT]
-> **macOS Users:** Use the included `RemarkableSync.sh` script to launch the application. This automatically handles macOS Gatekeeper security:
-> ```bash
-> ./RemarkableSync.sh
-> ```
-> The script removes the quarantine flag and runs the executable. You can pass any command-line arguments:
-> ```bash
-> ./RemarkableSync.sh backup -v
-> ./RemarkableSync.sh convert --sample 5
-> ```
-
-
-### Option 4: From Source (For Developers)
-
-1. Clone this repository:
-   ```bash
-   git clone https://github.com/JeffSteinbok/RemarkableSync.git
-   cd RemarkableSync
-   ```
-
-2. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
+- **USB & Wi-Fi sync** — connect via cable or wirelessly over your local network
+- **Incremental backup** — only downloads files that have changed (tracked by size, mtime, and MD5)
+- **PDF conversion** — v5 and v6 .rm formats with template backgrounds, folder hierarchy preserved
+- **AI handwriting recognition** — send page images to GitHub Models (GPT-4o) or Claude for transcription
+- **Markdown export** — each notebook becomes a `.md` file with YAML frontmatter and embedded page images
+- **Watch mode** — automatic periodic sync with system-tray status icon and run-at-startup option
+- **Secure credential storage** — SSH password and AI tokens stored in your system keyring
 
 ## Quick Start
 
-The simplest way to get started:
+### 1. Install
 
-1. **Connect your reMarkable tablet** via USB
-2. **Get your SSH password** from Settings → Help → Copyright and licenses on your tablet
-3. **Run RemarkableSync**:
-   ```bash
-   # If installed via Homebrew (macOS)
-   RemarkableSync
+```bash
+# macOS (Homebrew)
+brew tap jeffsteinbok/remarkablesync && brew install remarkablesync
 
-   # If using Python
-   python3 RemarkableSync.py
-   ```
-4. Enter your password when prompted (you can save it for future use)
-5. Your notebooks will be backed up to `./remarkable_backup/Notebooks/`
-6. PDFs will be created in `./remarkable_backup/PDF/`
+# All platforms (pip)
+pip install remarkablesync
 
-That's it! The tool will only sync changed files and convert updated notebooks on subsequent runs.
+# Or download a pre-built executable from the Releases page
+```
+
+### 2. Run the configuration wizard
+
+```bash
+RemarkableSync config
+```
+
+The wizard walks you through:
+
+| Setting | Default |
+|---------|---------|
+| **Connection mode** | USB or Wi-Fi (wizard can enable Wi-Fi SSH for you) |
+| **SSH password** | Saved to system keyring |
+| **Backup directory** | `<AppData>/remarkablesync/backup` (internal sync data) |
+| **PDF output** | `~/Documents/RemarkableSync/PDF` |
+| **Markdown output** | `~/Documents/RemarkableSync/Markdown` |
+| **AI provider** | GitHub Models (free) or Claude (requires API key) |
+| **AI token** | Stored securely in system keyring |
+| **Folders** | Choose which tablet folders to sync (or all) |
+
+> [!TIP]
+> **Multi-device setup:** Use the folder filter to sync different tablet folders to different computers — e.g., sync your "Work" folder to your work PC and "Home" to your personal machine. Each machine gets its own config.
+
+> [!TIP]
+> Clear any directory field and press Enter to reset it to the default.
+
+### 3. Run it
+
+```bash
+RemarkableSync watch
+```
+
+This will use your configured defaults and launch a sync cycle (backup → PDF → Markdown), then keep running and re-sync every 30 minutes. Check your output directories to verify everything looks right.
+
+### 4. Set it to run at startup
+
+Once you're happy with the output, enable run-at-startup from the system tray icon menu (or via the watch command). RemarkableSync will sync your tablet automatically in the background whenever your computer is on.
+
+> [!TIP]
+> **Obsidian users:** Point the Markdown output directory at a folder inside your Obsidian vault. Your handwritten notes appear as searchable Markdown with embedded page images. Pair with [Obsidian OneDrive Sync](https://github.com/JeffSteinbok/obsidian-onedrive) to sync your vault across devices.
+
+## AI Provider Setup
+
+The AI handwriting-to-text features require either a **GitHub Copilot** account (for GitHub Models) or a **Claude** (Anthropic) API key. Support for additional providers can be added as needed.
+
+Both AI provider SDKs are installed with `pip install -r requirements.txt`. The config wizard handles authentication interactively.
+
+### GitHub Models
+
+The wizard runs a GitHub device-code flow to authenticate. No manual token setup needed.
+
+Alternatively, set a `GITHUB_TOKEN` environment variable with a PAT that has `models:read` scope.
+
+### Claude (Anthropic)
+
+1. Go to https://console.anthropic.com/settings/keys
+2. Click **Create Key** and copy it (starts with `sk-ant-api03-...`)
+3. Paste it into the config wizard — it's saved in your system keyring
+
+Default model: `claude-sonnet-4-6`.
 
 ## Usage
 
-### Unified Command Line Interface
-
-RemarkableSync provides a single entry point with three main commands:
-
-#### Default Command: Sync (Backup + Convert)
-
-The most common workflow - backs up your device and converts only updated notebooks:
+After running `config`, most users only need `watch`. For one-off or scripted use:
 
 ```bash
-# If installed via Homebrew
+# Default: backup + PDF conversion (uses saved config)
 RemarkableSync
 
-# If using Python
-python3 RemarkableSync.py
-```
+# Full pipeline: backup + PDF + AI OCR + Markdown
+RemarkableSync md --with-backup --with-pdf
 
-This will:
-1. Connect to your ReMarkable tablet via USB
-2. Backup all changed files (including templates)
-3. Convert only notebooks that were updated in this backup
+# Individual steps
+RemarkableSync backup          # backup only
+RemarkableSync convert         # PDF conversion only (from existing backup)
+RemarkableSync md              # Markdown export only (from existing PDFs)
 
-#### Individual Commands
-
-**Backup only** (no conversion):
-```bash
-# Homebrew
-RemarkableSync backup
-
-# Python
-python3 RemarkableSync.py backup
-```
-
-**Convert only** (from existing backup):
-```bash
-# Homebrew
-RemarkableSync convert
-
-# Python
-python3 RemarkableSync.py convert
-```
-
-**Sync with options**:
-```bash
-# Force full backup and conversion (ignore sync status)
-RemarkableSync sync --force-backup --force-convert
-
-# Skip template backup
-RemarkableSync sync --skip-templates
-
-# Verbose output
-RemarkableSync sync -v
-```
-
-#### Testing and Selective Conversion
-
-**Convert a single notebook** (by name or UUID):
-```bash
-RemarkableSync convert --notebook "My Notebook"
-```
-
-**Convert first N notebooks** (for testing):
-```bash
-RemarkableSync convert --sample 5
-```
-
-**Force convert all notebooks** (ignore sync status):
-```bash
-RemarkableSync convert --force-all
+# Watch mode (periodic sync)
+RemarkableSync watch           # uses saved config for interval, dirs, AI
 ```
 
 ### Command Line Options
 
-**Common Options** (all commands):
-- `-d, --backup-dir`: Directory for backups (default: `./remarkable_backup`)
-- `-v, --verbose`: Enable debug logging
-- `--version`: Show version and repository information
+All commands read defaults from the saved config. CLI flags override config values.
 
-**Backup/Sync Options**:
-- `-p, --password`: ReMarkable SSH password (will prompt if not provided)
-- `--skip-templates`: Don't backup template files
-- `-f, --force` / `--force-backup`: Backup all files (ignore sync status)
+**Common:**
+- `-d, --backup-dir PATH` — backup directory
+- `-v, --verbose` — debug logging
+- `--version` — version info
 
-**Convert Options**:
-- `-o, --output-dir`: Output directory for PDFs (default: `backup_dir/pdfs_final`)
-- `-f, --force-all` / `--force-convert`: Convert all notebooks (ignore sync status)
-- `-s, --sample N`: Convert only first N notebooks
-- `-n, --notebook NAME`: Convert only specific notebook (by UUID or name)
+**Connection:**
+- `--host HOST` — tablet IP (default: `10.11.99.1`)
+- `--wifi` — connect over Wi-Fi
+- `--wifi-host HOST` — tablet Wi-Fi IP (auto-discovered if omitted)
 
-## How It Works
+**Backup:**
+- `-p, --password` — SSH password (prompted if not saved)
+- `--skip-templates` — don't backup templates
+- `--force-backup` — re-download everything
 
-1. **Connection**: Establishes SSH connection to ReMarkable tablet at 10.11.99.1
-2. **File Discovery**: Scans `/home/root/.local/share/remarkable/xochitl/` for notebook files
-3. **Template Backup**: Downloads template files from `/usr/share/remarkable/templates/`
-4. **Incremental Sync**: Compares file metadata (size, modification time, hash) to determine what needs updating
-5. **Download**: Uses SCP to efficiently transfer only changed files
-6. **PDF Conversion**:
-   - Converts .rm files to SVG using rmc (for v6 format)
-   - Renders template backgrounds (grids, lines, dots)
-   - Merges templates with notebook content
-   - Combines all pages into single PDF per notebook
-7. **Smart Updates**: Tracks which notebooks changed and only converts those
+**Convert:**
+- `-o, --output-dir PATH` — PDF output directory
+- `--force-all` — reconvert all notebooks
+- `--sample N` — convert first N notebooks only
+- `--notebook NAME` — convert a single notebook
 
-## File Structure
+**Markdown (md):**
+- `-V, --vault-dir PATH` — Markdown output directory
+- `--ai-provider` — `github` or `claude`
+- `--ai-model` — override default model
+- `--ai-api-key` — API key (prefer keyring or env vars)
+- `--tags` — comma-separated frontmatter tags (default: `remarkable`)
+- `--no-images` — skip embedding page images
+- `--with-backup` / `--with-pdf` — include earlier pipeline stages
+- `--force-export` — re-export all notes
 
-After backup, your directory will contain three clean folders:
+**Watch:**
+- `-i, --interval N` — minutes between syncs (default: 30)
+- `--systray / --no-systray` — system tray icon (default: enabled)
 
+## Wi-Fi Connection
+
+The config wizard can enable Wi-Fi SSH on your tablet automatically via USB. If you prefer to do it manually:
+
+1. Connect tablet via USB and SSH into `10.11.99.1`
+2. Run `rm-ssh-over-wlan on`
+3. Find the IP: `ip addr show wlan0`
+4. Use that IP in the config wizard or `--wifi-host`
+
+> [!TIP]
+> Assign a static DHCP lease to your tablet in your router so the IP doesn't change.
+
+## Generated Markdown Format
+
+Each notebook becomes a folder with one Markdown file per page:
+
+```markdown
+---
+title: "My Meeting Notes"
+source: reMarkable
+remarkable_id: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+notebook: Work
+folder: Work/Meetings
+page: 1
+created: 2025-01-15
+ai_provider: GitHubModelsProvider
+ai_model: gpt-4o-mini
+tags:
+  - remarkable
+---
+
+## Action Items
+
+- **Follow up** with Alice on the Q1 plan
+- Schedule review for next Friday
+
+![page 1](_images/page_001.png)
 ```
-remarkable_backup/
-├── Notebooks/                # All notebook files and metadata
-│   ├── [uuid].metadata       # Document metadata files
-│   ├── [uuid].content        # Document content info
-│   └── [uuid]/               # Notebook directories
-│       ├── [uuid]-metadata.json  # Page metadata
-│       └── *.rm              # Drawing/writing data (v5 or v6 format)
-├── Templates/                # Template files from device
-│   ├── *.png                 # Template preview images
-│   ├── *.template            # Template definition files
-│   └── templates.json        # Template metadata
-├── PDF/                      # Generated PDF outputs
-│   └── [notebook folders with PDFs preserving hierarchy]
-├── sync_metadata.json        # Sync state tracking
-├── updated_notebooks.txt     # List of notebooks updated in last backup
-└── .remarkable_backup.log    # Backup operation log
-```
 
-## PDF Conversion Technical Details
-
-RemarkableSync includes a hybrid converter that supports both v5 and v6 .rm file formats:
-
-- **v6 Format** (newer tablets): Uses external `rmc` tool to convert .rm → SVG → PDF
-- **v5 Format** (older tablets): Direct Python-based conversion (legacy support)
-- **Template Rendering**: Custom renderer applies original device templates with accurate scaling (226 DPI → 72 DPI PDF points)
-- **Page Merging**: Uses PyPDF2 to composite template backgrounds with notebook content
-
-### rmc Python Package
-
-For v6 notebook conversion, RemarkableSync uses the `rmc` Python package:
-- **Repository**: https://github.com/ricklupton/rmc
-- **Installation**: Automatically installed as a dependency with RemarkableSync
-- **Note**: This is included in `requirements.txt` and installed via pip
-
-## Incremental Sync Details
-
-The tool maintains a `sync_metadata.json` file that tracks:
-- File modification times
-- File sizes  
-- MD5 hashes of local files
-- Last sync timestamps
-
-Files are only downloaded if:
-- They don't exist locally
-- Remote modification time changed
-- Remote file size changed
-- Local file hash doesn't match stored hash
+Page images are stored in a `_images/` subfolder next to the Markdown files.
 
 ## Troubleshooting
 
-### Connection Issues
-- Ensure ReMarkable is connected via USB
-- Verify the tablet shows up as network interface
-- Try pinging `10.11.99.1`
-- Check SSH password from tablet settings
+| Problem | Fix |
+|---------|-----|
+| Can't connect via USB | Verify cable, ping `10.11.99.1`, check SSH password |
+| Can't connect via Wi-Fi | Same network? Try `ping remarkable.local` or use `--wifi-host <ip>` |
+| AI OCR returns errors | Check API key/token, verify package installed (`anthropic` or `openai`), check rate limits |
+| Empty Markdown files | AI provider may have failed — check log file for details |
+| Watch lock error | Delete `<backup-dir>/.remarkable_watch.lock` |
+| Permission errors | Ensure output directories are writable; run as admin on Windows if needed |
 
-### Permission Errors
-- Run as administrator on Windows if needed
-- Ensure backup directory is writable
+## Security
 
-### File Access Issues
-- Restart ReMarkable tablet if SSH becomes unresponsive
-- Check available disk space on both devices
-
-## Security Notes
-
-- SSH password is requested interactively (not stored)
-- Uses paramiko with auto-add host key policy
-- Files are transferred over local USB network (not internet)
-
-## License
-
-This tool is for personal use with your own ReMarkable tablet. Respect ReMarkable's terms of service.
+- SSH password and AI tokens are stored in your **system keyring** (never in plain-text config files)
+- All communication is over your local network (USB or LAN) — nothing goes to the internet except AI API calls
+- Config file at `<AppData>/remarkablesync/config.json` contains only non-secret settings

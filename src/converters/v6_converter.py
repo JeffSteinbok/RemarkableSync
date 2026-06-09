@@ -14,6 +14,7 @@ This module provides:
 """
 
 import subprocess
+import sys
 import tempfile
 from pathlib import Path
 
@@ -71,6 +72,10 @@ class V6Converter(BaseConverter):
                 temp_path = Path(temp_dir)
                 svg_file = temp_path / f"{rm_file.stem}.svg"
 
+                _no_window = {}
+                if sys.platform == "win32":
+                    _no_window["creationflags"] = 0x08000000  # CREATE_NO_WINDOW
+
                 # Step 1: Convert .rm to SVG using rmc
                 self.logger.debug("Converting %s to SVG using rmc", rm_file.name)
                 result = subprocess.run(
@@ -79,6 +84,7 @@ class V6Converter(BaseConverter):
                     text=True,
                     timeout=30,
                     check=False,
+                    **_no_window,
                 )
 
                 if result.returncode != 0:
@@ -123,8 +129,16 @@ class V6Converter(BaseConverter):
             bool: True if rmc command is available, False otherwise
         """
         try:
+            kwargs = {}
+            if sys.platform == "win32":
+                kwargs["creationflags"] = 0x08000000
             result = subprocess.run(
-                ["rmc", "--version"], capture_output=True, text=True, timeout=5, check=False
+                ["rmc", "--version"],
+                capture_output=True,
+                text=True,
+                timeout=5,
+                check=False,
+                **kwargs,
             )
             return result.returncode == 0
         except (subprocess.TimeoutExpired, FileNotFoundError):
