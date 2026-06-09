@@ -352,9 +352,41 @@ def run_config_command() -> int:
             else:
                 click.echo("  Skipped. You can set ANTHROPIC_API_KEY env var instead.")
 
-    # 8. Connect to tablet and select folders
+    # 8. Pre/post-sync commands (optional)
+    pre_sync_command = current.get("pre_sync_command", "")
+    post_sync_command = current.get("post_sync_command", "")
+
+    click.echo()
+    click.echo("  Optional: shell commands to run before and after sync.")
+    click.echo("  Useful for disabling VPNs, network tools, etc. Leave blank to skip.")
+    click.echo()
+
+    pre_sync_command = (
+        inquirer.text(
+            message="Pre-sync command (blank=none):",
+            default=pre_sync_command,
+        ).execute()
+        or ""
+    )
+
+    post_sync_command = (
+        inquirer.text(
+            message="Post-sync command (blank=none):",
+            default=post_sync_command,
+        ).execute()
+        or ""
+    )
+
+    # 9. Connect to tablet and select folders
     click.echo()
     click.echo("  Connecting to tablet to discover folders...")
+
+    if pre_sync_command:
+        import subprocess
+
+        click.echo(f"  Running pre-sync command: {pre_sync_command}")
+        subprocess.run(pre_sync_command, shell=True)
+
     folder_choices = _get_folder_choices_live(
         connection_mode,
         password,
@@ -380,31 +412,6 @@ def run_config_command() -> int:
     else:
         click.echo("  Could not connect to tablet. Folder selection skipped.")
         folders = current.get("folders", [])
-
-    # 9. Pre/post-sync commands (optional)
-    pre_sync_command = current.get("pre_sync_command", "")
-    post_sync_command = current.get("post_sync_command", "")
-
-    click.echo()
-    click.echo("  Optional: shell commands to run before and after sync.")
-    click.echo("  Useful for disabling VPNs, network tools, etc. Leave blank to skip.")
-    click.echo()
-
-    pre_sync_command = (
-        inquirer.text(
-            message="Pre-sync command (blank=none):",
-            default=pre_sync_command,
-        ).execute()
-        or ""
-    )
-
-    post_sync_command = (
-        inquirer.text(
-            message="Post-sync command (blank=none):",
-            default=post_sync_command,
-        ).execute()
-        or ""
-    )
 
     # Save configuration — preserve keys not managed by this wizard
     config = dict(current)
