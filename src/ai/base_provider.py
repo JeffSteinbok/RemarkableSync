@@ -8,6 +8,10 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import List
 
+
+class AIProviderError(Exception):
+    """Raised when an AI provider API call fails."""
+
 # ---------------------------------------------------------------------------
 # Shared prompt templates
 # ---------------------------------------------------------------------------

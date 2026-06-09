@@ -6,7 +6,7 @@ public classes so callers can import them directly from ``src.ai``.
 
 from typing import Any
 
-from .base_provider import BaseAIProvider
+from .base_provider import AIProviderError, BaseAIProvider
 from .claude_provider import ClaudeProvider
 from .github_models_provider import GitHubModelsProvider
 
@@ -44,6 +44,7 @@ def get_provider(provider_name: str, **kwargs: Any) -> BaseAIProvider:
 
 
 __all__ = [
+    "AIProviderError",
     "BaseAIProvider",
     "ClaudeProvider",
     "GitHubModelsProvider",

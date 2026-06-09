@@ -15,7 +15,7 @@ import os
 from pathlib import Path
 from typing import List
 
-from .base_provider import CLEANUP_PROMPT, TRANSCRIPTION_PROMPT, BaseAIProvider
+from .base_provider import CLEANUP_PROMPT, TRANSCRIPTION_PROMPT, AIProviderError, BaseAIProvider
 
 
 class GitHubModelsProvider(BaseAIProvider):
@@ -105,7 +105,7 @@ class GitHubModelsProvider(BaseAIProvider):
             return response.choices[0].message.content or ""
         except Exception as exc:  # noqa: BLE001
             logging.error("GitHub Models transcription error: %s", exc)
-            return ""
+            raise AIProviderError(f"GitHub Models transcription failed: {exc}") from exc
 
     def cleanup_text(self, raw_text: str, context: str = "") -> str:
         """Ask the model to clean up and structure raw transcribed text."""
@@ -134,4 +134,4 @@ class GitHubModelsProvider(BaseAIProvider):
             return response.choices[0].message.content or raw_text
         except Exception as exc:  # noqa: BLE001
             logging.error("GitHub Models cleanup error: %s", exc)
-            return raw_text
+            raise AIProviderError(f"GitHub Models cleanup failed: {exc}") from exc

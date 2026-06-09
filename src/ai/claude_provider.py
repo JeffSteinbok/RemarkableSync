@@ -10,7 +10,7 @@ import os
 from pathlib import Path
 from typing import List
 
-from .base_provider import CLEANUP_PROMPT, TRANSCRIPTION_PROMPT, BaseAIProvider
+from .base_provider import CLEANUP_PROMPT, TRANSCRIPTION_PROMPT, AIProviderError, BaseAIProvider
 
 
 class ClaudeProvider(BaseAIProvider):
@@ -102,7 +102,7 @@ class ClaudeProvider(BaseAIProvider):
             return message.content[0].text
         except Exception as exc:  # noqa: BLE001
             logging.error("Claude transcription API error: %s", exc)
-            return ""
+            raise AIProviderError(f"Claude transcription failed: {exc}") from exc
 
     def cleanup_text(self, raw_text: str, context: str = "") -> str:
         """Ask Claude to clean up and structure raw transcribed text."""
@@ -127,4 +127,4 @@ class ClaudeProvider(BaseAIProvider):
             return message.content[0].text
         except Exception as exc:  # noqa: BLE001
             logging.error("Claude cleanup API error: %s", exc)
-            return raw_text
+            raise AIProviderError(f"Claude cleanup failed: {exc}") from exc

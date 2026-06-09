@@ -423,18 +423,31 @@ class MarkdownExporter:
 
                 # OCR this page
                 page_text = ""
+                ocr_failed = False
                 if self.ocr_engine:
+                    from src.ai.base_provider import AIProviderError
+
                     raster_images = self.ocr_engine.pdf_to_images(
                         pg_pdf, tmp_dir / f"ocr_page_{pg_idx:03d}"
                     )
                     if raster_images and self.ocr_engine.use_ai and self.ocr_engine.ai_provider:
-                        raw = self.ocr_engine.ai_provider.transcribe_handwriting(
-                            raster_images, context=f"{name} (page {pg_idx})"
-                        )
-                        if raw:
-                            page_text = self.ocr_engine.ai_provider.cleanup_text(
-                                raw, context=f"{name} (page {pg_idx})"
+                        try:
+                            raw = self.ocr_engine.ai_provider.transcribe_handwriting(
+                                raster_images, context=f"{name} (page {pg_idx})"
                             )
+                            if raw:
+                                page_text = self.ocr_engine.ai_provider.cleanup_text(
+                                    raw, context=f"{name} (page {pg_idx})"
+                                )
+                        except AIProviderError as exc:
+                            logging.error("OCR failed for '%s' page %d: %s", name, pg_idx, exc)
+                            print(f"  [ERR] OCR failed for '{name}' page {pg_idx}: {exc}")
+                            ocr_failed = True
+
+                if ocr_failed:
+                    if on_page_done:
+                        on_page_done(pg_idx, total_pages)
+                    continue
 
                 # Derive title from OCR text
                 title = self._extract_title(page_text, pg_idx)
