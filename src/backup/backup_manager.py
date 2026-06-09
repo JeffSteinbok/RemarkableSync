@@ -48,6 +48,8 @@ class ReMarkableBackup:  # pylint: disable=too-many-instance-attributes
         host: str = "10.11.99.1",
         use_wifi: bool = False,
         wifi_host: str = "",
+        pre_sync_command: str = "",
+        post_sync_command: str = "",
     ):
         """Initialize backup orchestrator.
 
@@ -57,22 +59,24 @@ class ReMarkableBackup:  # pylint: disable=too-many-instance-attributes
             host: Tablet IP/hostname (USB default: 10.11.99.1)
             use_wifi: Connect via Wi-Fi instead of USB
             wifi_host: Wi-Fi IP/hostname (auto-discovered if empty)
+            pre_sync_command: Shell command to run before SSH connects.
+            post_sync_command: Shell command to run after SSH disconnects.
         """
         self.backup_dir = backup_dir
-        self.files_dir = backup_dir / "Notebooks"  # Clean folder name
-        self.templates_dir = backup_dir / "Templates"  # Clean folder name
+        self.files_dir = backup_dir / "Notebooks"
+        self.templates_dir = backup_dir / "Templates"
         self.metadata_file = backup_dir / "sync_metadata.json"
 
-        # Create directories
         self.files_dir.mkdir(parents=True, exist_ok=True)
         self.templates_dir.mkdir(parents=True, exist_ok=True)
 
-        # Initialize components
         self.connection = ReMarkableConnection(
             password=password,
             host=host,
             use_wifi=use_wifi,
             wifi_host=wifi_host,
+            pre_sync_command=pre_sync_command,
+            post_sync_command=post_sync_command,
         )
         self.metadata = FileMetadata(self.metadata_file)
 
@@ -173,23 +177,13 @@ class ReMarkableBackup:  # pylint: disable=too-many-instance-attributes
         print(f"  Found {len(allowed)} notebooks in selected folders")
         return allowed
 
-    def backup_files(
+    def _do_backup_files(
         self,
     ) -> Tuple[bool, Set[str], Dict[str, Set[str]]]:  # pylint: disable=too-many-branches
-        """Backup files from ReMarkable tablet.
-
-        Returns:
-            Tuple of (success, set of notebook UUIDs that were updated,
-            dict mapping notebook UUID to set of changed page IDs)
-        """
+        """Backup files from ReMarkable tablet. Assumes connection is already open."""
         logging.info("Starting file backup...")
-        print("  Connecting to tablet...")
-
-        if not self.connection.connect():
-            return False, set(), {}
 
         try:
-            # Resolve folder filter before listing files
             allowed_uuids = self._resolve_allowed_uuids()
 
             # Get list of remote files
@@ -316,22 +310,9 @@ class ReMarkableBackup:  # pylint: disable=too-many-instance-attributes
             logging.error("Backup failed: %s", e)
             return False, set(), {}
 
-        finally:
-            self.connection.disconnect()
-
-    def backup_templates(self) -> bool:
-        """Backup template files from ReMarkable tablet.
-
-        Templates are stored in /usr/share/remarkable/templates/ and include
-        PNG/SVG template images and a templates.json configuration file.
-
-        Returns:
-            bool: True if successful, False otherwise
-        """
+    def _do_backup_templates(self) -> bool:
+        """Backup template files from ReMarkable tablet. Assumes connection is already open."""
         logging.info("Starting template backup...")
-
-        if not self.connection.connect():
-            return False
 
         try:
             # Get list of template files
@@ -386,9 +367,6 @@ class ReMarkableBackup:  # pylint: disable=too-many-instance-attributes
         except (paramiko.SSHException, OSError) as e:
             logging.error("Template backup failed: %s", e)
             return False
-
-        finally:
-            self.connection.disconnect()
 
     def find_notebooks(self) -> List[Dict]:
         """Find and parse notebook metadata.
@@ -465,7 +443,7 @@ class ReMarkableBackup:  # pylint: disable=too-many-instance-attributes
         force_convert_all: bool = False,
         convert_to_pdf: bool = False,
         backup_templates: bool = True,
-    ) -> bool:
+    ) -> Tuple[bool, Set[str], Dict[str, Set[str]]]:
         """Run complete backup process with optional PDF conversion.
 
         Args:
@@ -474,27 +452,34 @@ class ReMarkableBackup:  # pylint: disable=too-many-instance-attributes
             backup_templates: If True, backup template files from the tablet (default: True)
 
         Returns:
-            bool: True if backup successful, False otherwise
+            Tuple of (success, updated_notebook_uuids, updated_pages)
         """
         logging.info("Starting ReMarkable backup process")
 
-        # Backup files and get list of updated notebooks
-        success, updated_notebook_uuids, updated_pages = self.backup_files()
-        if not success:
-            return False
+        if not self.connection.connect():
+            return False, set(), {}
 
-        # Backup templates if requested
-        if backup_templates:
-            templates_success = self.backup_templates()
-            if not templates_success:
-                logging.warning("Template backup failed, but continuing with main backup")
+        updated_notebook_uuids: Set[str] = set()
+        updated_pages: Dict[str, Set[str]] = {}
 
-        # Automatic PDF conversion using hybrid converter
+        try:
+            success, updated_notebook_uuids, updated_pages = self._do_backup_files()
+            if not success:
+                return False, set(), {}
+
+            if backup_templates:
+                templates_success = self._do_backup_templates()
+                if not templates_success:
+                    logging.warning("Template backup failed, but continuing with main backup")
+        finally:
+            self.connection.disconnect()
+
         if convert_to_pdf:
-            return self.run_pdf_conversion(updated_notebook_uuids, force_convert_all, updated_pages)
+            ok = self.run_pdf_conversion(updated_notebook_uuids, force_convert_all, updated_pages)
+            return ok, updated_notebook_uuids, updated_pages
 
         logging.info("Backup process completed successfully")
-        return True
+        return True, updated_notebook_uuids, updated_pages
 
     def run_pdf_conversion(
         self,

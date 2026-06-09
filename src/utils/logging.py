@@ -126,7 +126,12 @@ def setup_logging(
     # Suppress verbose debug messages from third-party libraries
     logging.getLogger("svglib.svglib").setLevel(logging.WARNING)
     logging.getLogger("reportlab").setLevel(logging.WARNING)
-    logging.getLogger("paramiko").setLevel(logging.WARNING)
+    # Suppress all paramiko output — connection errors are caught and reported
+    # via our own ERR - status messages; raw paramiko logs are noise.
+    for _name in ("paramiko", "paramiko.transport", "paramiko.auth", "paramiko.channel"):
+        _lg = logging.getLogger(_name)
+        _lg.setLevel(logging.CRITICAL)
+        _lg.propagate = False
     logging.getLogger("openai").setLevel(logging.WARNING)
     logging.getLogger("httpcore").setLevel(logging.WARNING)
     logging.getLogger("httpx").setLevel(logging.WARNING)

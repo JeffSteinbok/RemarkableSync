@@ -101,6 +101,8 @@ def run_pipeline(
     # ------------------------------------------------------------------
     # Stage 1: Backup
     # ------------------------------------------------------------------
+    pre_sync_cmd = config.get("pre_sync_command", "").strip()
+    post_sync_cmd = config.get("post_sync_command", "").strip()
     updated_uuids: set = set()
     updated_pages: dict = {}
 
@@ -113,22 +115,29 @@ def run_pipeline(
             host=host,
             use_wifi=use_wifi,
             wifi_host=wifi_host,
+            pre_sync_command=pre_sync_cmd,
+            post_sync_command=post_sync_cmd,
         )
+        backup_ok = False
         try:
-            success, updated_uuids, updated_pages = backup_tool.backup_files()
+            success, updated_uuids, updated_pages = backup_tool.run_backup(
+                backup_templates=True,
+            )
             if not success:
                 print_error("  ERR - Backup failed.")
-                return 1
-            backup_tool.backup_templates()
-            print_success(f"  OK - Backed up ({len(updated_uuids)} notebooks updated)")
-            write_manifest(
-                backup_dir.parent / "updated_notebooks.txt",
-                sorted(updated_uuids),
-                "updated_notebooks",
-            )
+            else:
+                print_success(f"  OK - Backed up ({len(updated_uuids)} notebooks updated)")
+                write_manifest(
+                    backup_dir.parent / "updated_notebooks.txt",
+                    sorted(updated_uuids),
+                    "updated_notebooks",
+                )
+                backup_ok = True
         except Exception as exc:  # noqa: BLE001
             logging.error("Backup error: %s", exc)
             print_error(f"  ERR - Backup failed: {exc}")
+
+        if not backup_ok:
             return 1
     else:
         print("\n[1/3] Backup skipped (--skip-backup)")
@@ -211,8 +220,7 @@ def run_pipeline(
     # Discover notebooks and their folder paths
     all_items = find_notebooks(backup_dir)
     if not all_items:
-        print("      No notebooks found in backup directory.")
-        return 0
+        print("      No notebooks found in backup directory. Continuing to post-sync step.")
 
     org = organize_notebooks_by_structure(all_items, backup_dir)
     notebooks = org["documents_to_convert"]
@@ -281,4 +289,5 @@ def run_pipeline(
     print(f"  Markdown   : {exported} exported, {skipped} unchanged -> {output_dir.absolute()}")
     print(f"  Duration   : {mins}m {secs}s")
     print("=" * 70)
+
     return 0

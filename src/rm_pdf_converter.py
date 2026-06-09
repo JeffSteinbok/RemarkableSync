@@ -169,7 +169,7 @@ def run_conversion(
                     description=f"{_nb} (page {_pc[0] + 1} of {_nbt})",
                 )
 
-            progress.update(task, description=f"{nb_name} (page 0 of {nb_total})")
+            progress.update(task, description=f"{nb_name} (page 1 of {nb_total})")
 
             try:
                 notebook_changed_pages = None

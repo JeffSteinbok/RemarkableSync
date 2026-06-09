@@ -49,6 +49,8 @@ def test_run_config_command_without_ocr_preserves_embed_images():
             "/tmp/backup",  # backup dir
             "pdf",  # sync action
             "/tmp/pdf",  # pdf dir
+            "",  # pre_sync_command
+            "",  # post_sync_command
         ]
     )
     fake_inquirer_module = types.ModuleType("InquirerPy")
@@ -76,6 +78,8 @@ def test_run_config_command_without_ocr_preserves_embed_images():
                     "embed_images": False,
                     "ai_provider": "github",
                     "ai_model": "",
+                    "pre_sync_command": "",
+                    "post_sync_command": "",
                 },
             ),
             patch("src.commands.config_command._get_folder_choices_live", return_value=[]),

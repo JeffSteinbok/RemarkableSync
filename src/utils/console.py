@@ -11,23 +11,23 @@ from rich.progress import (
     TimeElapsedColumn,
 )
 
-# Shared console instance
-console = Console(stderr=True)
+# Shared console instance — stdout so print() and Rich output stay on the same stream
+console = Console(stderr=False)
 
 
 def print_error(msg: str) -> None:
     """Print an error message in red."""
-    console.print(f"[bold red]{msg}[/bold red]")
+    console.print(msg, style="bold red")
 
 
 def print_warn(msg: str) -> None:
     """Print a warning message in yellow."""
-    console.print(f"[yellow]{msg}[/yellow]")
+    console.print(msg, style="yellow")
 
 
 def print_success(msg: str) -> None:
     """Print a success message in green."""
-    console.print(f"[bold green]{msg}[/bold green]")
+    console.print(msg, style="bold green")
 
 
 def print_status(msg: str) -> None:

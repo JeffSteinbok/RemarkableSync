@@ -41,9 +41,13 @@ def run_sync_command(
     """
     import time as _time
 
+    from ..config import load_config
+
     log_dir = backup_dir.parent
     setup_logging(log_level, log_dir=log_dir)
     _start_time = _time.monotonic()
+
+    config = load_config()
 
     print("ReMarkable Sync (Backup + Convert)")
     print("=" * 70)
@@ -60,12 +64,17 @@ def run_sync_command(
     if force_convert:
         print("Force convert: All notebooks will be converted")
 
+    # ------------------------------------------------------------------
+    # Backup + convert
+    # ------------------------------------------------------------------
     backup_tool = ReMarkableBackup(
         backup_dir,
         password=password,
         host=host,
         use_wifi=use_wifi,
         wifi_host=wifi_host,
+        pre_sync_command=config.get("pre_sync_command", "").strip(),
+        post_sync_command=config.get("post_sync_command", "").strip(),
     )
 
     try:
@@ -87,14 +96,15 @@ def run_sync_command(
             print(f"  Backup     : {backup_tool.files_dir}")
             if not skip_templates:
                 print(f"  Templates  : {backup_tool.templates_dir}")
-            from ..config import load_config
-
-            _cfg = load_config()
-            _pdf_dir = _cfg.get("pdf_dir", "")
+            _pdf_dir = config.get("pdf_dir", "")
             if _pdf_dir and Path(_pdf_dir).exists():
                 print(f"  PDFs       : {_pdf_dir}")
             print(f"  Duration   : {mins}m {secs}s")
             print("=" * 70)
+
+            # ------------------------------------------------------------------
+            # Post-sync command
+            # ------------------------------------------------------------------
             return 0
         else:
             print("\n[ERROR] Sync failed. Check logs for details.")

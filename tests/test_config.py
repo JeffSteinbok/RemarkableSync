@@ -119,6 +119,8 @@ class TestConfigModule:
             "ai_provider": "github",
             "embed_images": True,
             "ai_model": "",
+            "pre_sync_command": "",
+            "post_sync_command": "",
         }
 
         with patch("src.config.get_config_path", return_value=fake_path):

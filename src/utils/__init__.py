@@ -1,6 +1,7 @@
 """Utility modules for RemarkableSync."""
 
 import logging as _logging
+import subprocess as _subprocess
 from pathlib import Path
 from typing import Iterable
 
@@ -31,3 +32,31 @@ def write_manifest(path: Path, items: Iterable, label: str) -> None:
         _logging.debug("Wrote %s manifest (%d entries): %s", label, len(lines), path)
     except OSError as exc:
         _logging.warning("Could not write %s manifest: %s", label, exc)
+
+
+def run_shell_command(cmd: str) -> int:
+    """Run *cmd* as a shell command and return its exit code.
+
+    Output (stdout/stderr) is streamed to the console so the user can see
+    progress from long-running pre/post-sync scripts.  The command is run
+    via the system shell (``shell=True``) so shell features like ``&&``,
+    environment variable expansion, and quoting are supported.
+
+    .. warning::
+        Only pass commands sourced from the user's own configuration file.
+        Never pass untrusted external input — shell=True means arbitrary
+        commands will be executed with the user's privileges.
+
+    Args:
+        cmd: Shell command string to execute (user-supplied from config).
+
+    Returns:
+        Exit code of the command (0 = success).
+    """
+    _logging.debug("Running shell command: %s", cmd)
+    try:
+        result = _subprocess.run(cmd, shell=True)  # noqa: S602
+        return result.returncode
+    except Exception as exc:  # noqa: BLE001
+        _logging.error("Shell command failed: %s", exc)
+        return 1
