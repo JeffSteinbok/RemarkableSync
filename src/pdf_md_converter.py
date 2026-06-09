@@ -124,36 +124,13 @@ class MarkdownExporter:
         current_hash = _file_hash(pdf_path)
         return current_hash != self._state[notebook_uuid].get("pdf_hash", "")
 
-    def _page_needs_export(self, notebook_uuid: str, page_idx: int, page_pdf: Path) -> bool:
-        """Return True if a single page PDF has changed since last export."""
-        nb_state = self._state.get(notebook_uuid, {})
-        page_hashes = nb_state.get("page_hashes", {})
-        stored = page_hashes.get(str(page_idx))
-        if stored is None:
-            # No hash stored yet.  If the notebook was previously exported,
-            # assume this page is unchanged (migration from before per-page
-            # tracking).  If the notebook has never been exported, it's new.
-            return "exported_at" not in nb_state
-        if not page_pdf.exists():
-            return False
-        return _file_hash(page_pdf) != stored
-
     def _record_export(self, notebook_uuid: str, pdf_path: Path, md_path: Path) -> None:
         pdf_hash = _file_hash(pdf_path) if pdf_path.exists() else ""
-        prev_state = self._state.get(notebook_uuid, {})
         self._state[notebook_uuid] = {
             "pdf_hash": pdf_hash,
             "md_path": str(md_path),
             "exported_at": datetime.now(timezone.utc).isoformat(),
-            "page_hashes": prev_state.get("page_hashes", {}),
         }
-
-    def _record_page_hash(self, notebook_uuid: str, page_idx: int, page_pdf: Path) -> None:
-        """Store the hash of a single page PDF in the notebook state."""
-        if notebook_uuid not in self._state:
-            self._state[notebook_uuid] = {}
-        page_hashes = self._state[notebook_uuid].setdefault("page_hashes", {})
-        page_hashes[str(page_idx)] = _file_hash(page_pdf) if page_pdf.exists() else ""
 
     # ------------------------------------------------------------------
     # Page image export
@@ -357,6 +334,7 @@ class MarkdownExporter:
         force: bool = False,
         page_pdfs: Optional[List[Path]] = None,
         on_page_done: Optional[callable] = None,
+        changed_page_ids: Optional[set] = None,
     ) -> Optional[Path]:
         """Export a notebook as a folder with one Markdown file per page.
 
@@ -368,6 +346,9 @@ class MarkdownExporter:
             on_page_done: Callback ``(page_num, total_pages, cached=False)``
                 called after each page is processed.  *cached* is True when
                 the page was skipped because its PDF hash was unchanged.
+            changed_page_ids: Set of page IDs (UUID stems) known to have
+                changed in the backup.  When provided, pages in this set
+                are always re-exported regardless of hash state.
 
         Returns:
             Path to the notebook folder, or *None* on failure.
@@ -410,8 +391,12 @@ class MarkdownExporter:
             rate_limited = False
 
             for pg_idx, pg_pdf in enumerate(pages_to_process, start=1):
-                # Skip unchanged pages (per-page hash check)
-                if not force and not self._page_needs_export(uuid, pg_idx, pg_pdf):
+                # Skip pages that haven't changed
+                if (
+                    not force
+                    and changed_page_ids is not None
+                    and pg_pdf.stem not in changed_page_ids
+                ):
                     logging.debug("Skipping unchanged page %d of '%s'", pg_idx, name)
                     if on_page_done:
                         on_page_done(pg_idx, total_pages, cached=True)
@@ -502,9 +487,6 @@ class MarkdownExporter:
                 except OSError as exc:
                     logging.error("Failed to write page %d of '%s': %s", pg_idx, name, exc)
 
-                # Record per-page hash so unchanged pages are skipped next time
-                self._record_page_hash(uuid, pg_idx, pg_pdf)
-
                 if on_page_done:
                     on_page_done(pg_idx, total_pages)
 
@@ -520,6 +502,7 @@ class MarkdownExporter:
         force: bool = False,
         converted_pages: Optional[Dict[str, List[Path]]] = None,
         page_filter: Optional[int] = None,
+        updated_pages: Optional[Dict[str, set]] = None,
     ) -> Tuple[int, int]:
         """Export all notebooks to Markdown.
 
@@ -531,6 +514,8 @@ class MarkdownExporter:
             converted_pages: Dict mapping notebook UUID to list of per-page
                 PDF paths produced by the PDF conversion step.  When provided,
                 these are used directly instead of scanning the cache dir.
+            updated_pages: Dict mapping notebook UUID to set of changed page
+                IDs from the backup stage.
 
         Returns:
             ``(exported_count, skipped_count)`` tuple.
@@ -611,12 +596,17 @@ class MarkdownExporter:
                     else:
                         logging.info("MD: %s (page %d/%d)", _nb_name, pg_num, pg_total)
 
+                nb_changed_pages = None
+                if updated_pages and notebook["uuid"] in updated_pages:
+                    nb_changed_pages = updated_pages[notebook["uuid"]]
+
                 result = self.export_notebook(
                     notebook,
                     pdf_path,
                     force=force,
                     page_pdfs=page_pdfs_list,
                     on_page_done=_on_page,
+                    changed_page_ids=nb_changed_pages,
                 )
                 # Ensure we advance the full count even if pages were fewer
                 remaining = nb_pages - (nb_pages if result else 0)

@@ -249,6 +249,7 @@ def run_pipeline(
             force=force_export,
             converted_pages=converted_pages,
             page_filter=page_filter,
+            updated_pages=updated_pages,
         )
 
     # ------------------------------------------------------------------

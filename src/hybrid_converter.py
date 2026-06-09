@@ -507,7 +507,7 @@ def convert_notebook(
         template_temp_dir = Path(tempfile.mkdtemp(prefix="remarkable_templates_"))
 
     try:
-        # Resolve ordered pages using .content file if present (v5 ordering)
+        # Resolve ordered pages using .content file if present
         metadata_file = notebook.get("metadata_file")
         content_path = metadata_file.with_suffix(".content") if metadata_file else None
 
@@ -516,7 +516,21 @@ def convert_notebook(
         if template_renderer and content_path:
             page_templates = get_page_templates(content_path)
 
-        ordered_v5_pages: List[Path] = []
+        # Build a set of all known .rm files by page ID for fast lookup
+        all_rm_by_id: Dict[str, Path] = {}
+        for rm_file in (
+            notebook.get("v5_files", [])
+            + notebook.get("v6_files", [])
+            + notebook.get("v4_files", [])
+        ):
+            all_rm_by_id[rm_file.stem] = rm_file
+
+        # Determine version for each page
+        v6_ids = {f.stem for f in notebook.get("v6_files", [])}
+        v4_ids = {f.stem for f in notebook.get("v4_files", [])}
+
+        # Order pages using .content file (applies to all versions)
+        ordered_pages: List[Path] = []
         if content_path and content_path.exists():
             try:
                 with open(content_path, "r", encoding="utf-8") as cf:
@@ -524,20 +538,26 @@ def convert_notebook(
                 page_ids = content_json.get("pages", [])
                 base_dir = content_path.parent / content_path.stem
                 for pid in page_ids:
-                    candidate = base_dir / f"{pid}.rm"
-                    if candidate.exists():
-                        ordered_v5_pages.append(candidate)
+                    if pid in all_rm_by_id:
+                        ordered_pages.append(all_rm_by_id[pid])
                     else:
-                        # fallback: find rm page anywhere under files matching page id
-                        alt = list((content_path.parent).glob(f"{pid}.rm"))
-                        if alt:
-                            ordered_v5_pages.append(alt[0])
+                        candidate = base_dir / f"{pid}.rm"
+                        if candidate.exists():
+                            ordered_pages.append(candidate)
+                        else:
+                            alt = list((content_path.parent).glob(f"{pid}.rm"))
+                            if alt:
+                                ordered_pages.append(alt[0])
             except Exception as e:
                 logging.debug("Failed reading content ordering for %s: %s", notebook["name"], e)
 
         # Fallback to unsorted list if ordering extraction failed
-        if not ordered_v5_pages:
-            ordered_v5_pages = notebook["v5_files"]
+        if not ordered_pages:
+            ordered_pages = (
+                notebook.get("v5_files", [])
+                + notebook.get("v6_files", [])
+                + notebook.get("v4_files", [])
+            )
 
         def _needs_conversion(page_id: str) -> bool:
             """Check if a page needs (re-)conversion."""
@@ -589,25 +609,19 @@ def convert_notebook(
             results[result_key] += 1
             return cached_pdf, False
 
-        # Convert v5 files in determined order
-        for rm_file in ordered_v5_pages:
-            pdf, cached = _convert_page(rm_file, "v5", convert_v5_file_with_rmrl, "v5_converted")
-            if pdf:
-                page_pdfs.append(pdf)
-            if on_page_done:
-                on_page_done(cached=cached)
-
-        # Convert v6 files
-        for rm_file in notebook["v6_files"]:
-            pdf, cached = _convert_page(rm_file, "v6", convert_v6_file_with_rmc, "v6_converted")
-            if pdf:
-                page_pdfs.append(pdf)
-            if on_page_done:
-                on_page_done(cached=cached)
-
-        # Convert v4 files (best-effort; may not succeed)
-        for rm_file in notebook.get("v4_files", []):
-            pdf, cached = _convert_page(rm_file, "v4", convert_v4_file_with_rmrl, "v4_converted")
+        # Convert all pages in content-file order
+        for rm_file in ordered_pages:
+            page_id = rm_file.stem
+            if page_id in v6_ids:
+                pdf, cached = _convert_page(rm_file, "v6", convert_v6_file_with_rmc, "v6_converted")
+            elif page_id in v4_ids:
+                pdf, cached = _convert_page(
+                    rm_file, "v4", convert_v4_file_with_rmrl, "v4_converted"
+                )
+            else:
+                pdf, cached = _convert_page(
+                    rm_file, "v5", convert_v5_file_with_rmrl, "v5_converted"
+                )
             if pdf:
                 page_pdfs.append(pdf)
             if on_page_done:
