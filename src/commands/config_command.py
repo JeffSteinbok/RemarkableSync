@@ -164,29 +164,32 @@ def run_config_command() -> int:
     # 5. Sync actions — later steps imply earlier ones (backup → pdf → ocr)
     action_order = [value for value, _ in SYNC_ACTIONS]
     current_actions = current.get("sync_actions", ["backup", "pdf", "ocr"])
-    # Default: all steps enabled
     if not current_actions:
         current_actions = action_order
 
-    action_choices = [
-        {"name": display, "value": value, "enabled": value in current_actions}
-        for value, display in SYNC_ACTIONS
-    ]
+    # Build cascade choices: each option enables all steps up to and including it
+    cascade_labels = {
+        "backup": "Backup only",
+        "pdf": "Backup + PDF Conversion",
+        "ocr": "Backup + PDF Conversion + AI OCR & Markdown Export",
+    }
+    highest_current = max(
+        (action_order.index(a) for a in current_actions if a in action_order), default=0
+    )
+    default_action = action_order[highest_current]
 
-    sync_actions = inquirer.checkbox(
-        message="What to do on sync (selecting a later step enables all prior steps):",
-        choices=action_choices,
-        validate=lambda result: len(result) >= 1,
-        invalid_message="Select at least one sync action.",
+    chosen = inquirer.select(
+        message="What to do on sync:",
+        choices=[{"name": cascade_labels[value], "value": value} for value, _ in SYNC_ACTIONS],
+        default=default_action,
     ).execute()
 
-    if sync_actions is None:
+    if chosen is None:
         click.echo("Configuration cancelled.")
         return 0
 
-    # Enforce cascade: if a step is selected, all preceding steps are included
-    highest = max((action_order.index(a) for a in sync_actions if a in action_order), default=0)
-    sync_actions = action_order[: highest + 1]
+    # Cascade: all steps up to and including the chosen step
+    sync_actions = action_order[: action_order.index(chosen) + 1]
 
     # 6. PDF output directory (if PDF or OCR selected)
     from src.config import _default_documents_dir
