@@ -24,15 +24,12 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 from .ocr.ocr_engine import OCREngine
+from .utils import sanitize_name
+from .utils.name_registry import NameRegistry
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
-
-
-def _safe_name(name: str) -> str:
-    """Return a filesystem-safe version of *name*."""
-    return "".join(c for c in name if c.isalnum() or c in " -_()").strip()
 
 
 def _file_hash(path: Path) -> str:
@@ -50,14 +47,7 @@ def _file_hash(path: Path) -> str:
 
 
 class MarkdownExporter:
-    """Export ReMarkable notebooks as Markdown notes.
-
-    Tracks which notebooks have already been exported (via a JSON state
-    file) and skips notebooks whose PDF has not changed since the last
-    export, enabling efficient incremental syncs.
-    """
-
-    STATE_FILE_NAME = "obsidian_export_state.json"
+    """Export ReMarkable notebooks as Markdown notes."""
 
     def __init__(
         self,
@@ -66,54 +56,16 @@ class MarkdownExporter:
         ocr_engine: Optional[OCREngine] = None,
         tags: Optional[List[str]] = None,
         embed_images: bool = True,
+        registry: Optional[NameRegistry] = None,
     ):
-        """Initialise the exporter.
-
-        Args:
-            output_dir: Root directory of the Markdown output (or a
-                sub-folder inside it).
-            backup_dir: RemarkableSync backup directory (contains
-                ``Notebooks/``, ``PDF/``, etc.).
-            ocr_engine: Configured :class:`~src.ocr.ocr_engine.OCREngine`
-                instance. When *None* the notes will not contain extracted
-                text.
-            tags: List of tags to add to every note's YAML frontmatter.
-                Defaults to ``["remarkable"]``.
-            embed_images: When *True*, copy page images to the output directory
-                and embed them using wiki-style image links.
-        """
         self.output_dir = output_dir
         self.backup_dir = backup_dir
         self.ocr_engine = ocr_engine
         self.tags = tags or ["remarkable"]
         self.embed_images = embed_images
+        self.registry = registry
 
         self.output_dir.mkdir(parents=True, exist_ok=True)
-
-        # State file lives in the backup dir, not the output directory
-        self._state_path = backup_dir / self.STATE_FILE_NAME
-        self._state: Dict[str, Dict] = self._load_state()
-
-    # ------------------------------------------------------------------
-    # State management
-    # ------------------------------------------------------------------
-
-    def _load_state(self) -> Dict[str, Dict]:
-        if not self._state_path.exists():
-            return {}
-        try:
-            with open(self._state_path, "r", encoding="utf-8") as fh:
-                return json.load(fh)
-        except (OSError, json.JSONDecodeError) as exc:
-            logging.warning("Could not load Markdown export state: %s", exc)
-            return {}
-
-    def _save_state(self) -> None:
-        try:
-            with open(self._state_path, "w", encoding="utf-8") as fh:
-                json.dump(self._state, fh, indent=2)
-        except OSError as exc:
-            logging.error("Failed to save Markdown export state: %s", exc)
 
     @staticmethod
     def _get_content_page_order(notebook: Dict) -> Optional[List[str]]:
@@ -134,23 +86,6 @@ class MarkdownExporter:
             return page_ids if page_ids else None
         except Exception:
             return None
-
-    def _needs_export(self, notebook_uuid: str, pdf_path: Path) -> bool:
-        """Return True if the notebook has changed since the last export."""
-        if notebook_uuid not in self._state:
-            return True
-        if not pdf_path.exists():
-            return False
-        current_hash = _file_hash(pdf_path)
-        return current_hash != self._state[notebook_uuid].get("pdf_hash", "")
-
-    def _record_export(self, notebook_uuid: str, pdf_path: Path, md_path: Path) -> None:
-        pdf_hash = _file_hash(pdf_path) if pdf_path.exists() else ""
-        self._state[notebook_uuid] = {
-            "pdf_hash": pdf_hash,
-            "md_path": str(md_path),
-            "exported_at": datetime.now(timezone.utc).isoformat(),
-        }
 
     # ------------------------------------------------------------------
     # Page image export
@@ -377,19 +312,13 @@ class MarkdownExporter:
         name = notebook["name"]
         folder_path = notebook.get("folder_path", "")
 
-        # Skip if nothing changed (notebook-level check only when we don't
-        # have per-page PDFs — per-page hashing handles the granular case).
-        if not force and not page_pdfs and not self._needs_export(uuid, pdf_path):
-            logging.debug("Skipping unchanged notebook: %s", name)
-            return self._state.get(uuid, {}).get("md_path")
-
-        safe = _safe_name(name) or f"notebook_{uuid[:8]}"
+        safe = sanitize_name(name) or f"notebook_{uuid[:8]}"
 
         # Notebook becomes a folder
         notebook_dir = self.output_dir
         if folder_path:
             for segment in folder_path.split("/"):
-                notebook_dir = notebook_dir / _safe_name(segment)
+                notebook_dir = notebook_dir / sanitize_name(segment)
         notebook_dir = notebook_dir / safe
         notebook_dir.mkdir(parents=True, exist_ok=True)
 
@@ -484,7 +413,7 @@ class MarkdownExporter:
 
                 # Derive title from OCR text
                 title = self._extract_title(page_text, pg_idx)
-                safe_title = _safe_name(title)
+                safe_title = sanitize_name(title)
 
                 # Build and write per-page Markdown
                 md_content = self._build_page_markdown(
@@ -511,8 +440,6 @@ class MarkdownExporter:
                     on_page_done(pg_idx, total_pages)
 
         logging.info("Exported notebook: %s (%d pages)", name, total_pages)
-        self._record_export(uuid, pdf_path, notebook_dir)
-        self._save_state()
         return notebook_dir
 
     def export_all(
@@ -523,7 +450,7 @@ class MarkdownExporter:
         converted_pages: Optional[Dict[str, List[Path]]] = None,
         page_filter: Optional[int] = None,
         updated_pages: Optional[Dict[str, set]] = None,
-    ) -> Tuple[int, int]:
+    ) -> Tuple[int, int, List[Path]]:
         """Export all notebooks to Markdown.
 
         Args:
@@ -538,12 +465,14 @@ class MarkdownExporter:
                 IDs from the backup stage.
 
         Returns:
-            ``(exported_count, skipped_count)`` tuple.
+            ``(exported_count, skipped_count, exported_dirs)`` tuple where
+            *exported_dirs* lists the notebook output directories that were written.
         """
         from .utils.console import create_progress
 
         exported = 0
         skipped = 0
+        exported_dirs: List[Path] = []
         doc_notebooks = [nb for nb in notebooks if nb.get("type") == "DocumentType"]
 
         # Count total pages for progress bar
@@ -587,14 +516,14 @@ class MarkdownExporter:
                     description=f"{nb_name} (page 0 of {nb_pages})",
                 )
 
-                safe = _safe_name(notebook["name"]) or f"notebook_{notebook['uuid'][:8]}"
+                safe = sanitize_name(notebook["name"]) or f"notebook_{notebook['uuid'][:8]}"
                 folder_path = notebook.get("folder_path", "")
 
                 # Locate the PDF produced by the converter
                 pdf_dir = pdf_output_dir
                 if folder_path:
                     for seg in folder_path.split("/"):
-                        pdf_dir = pdf_dir / _safe_name(seg)
+                        pdf_dir = pdf_dir / sanitize_name(seg)
                 pdf_path = pdf_dir / f"{safe}.pdf"
 
                 # Use page PDFs from pipeline if available, else scan cache
@@ -671,8 +600,9 @@ class MarkdownExporter:
 
                 if result:
                     exported += 1
+                    exported_dirs.append(result)
                 else:
                     skipped += 1
 
         logging.info("Markdown export complete: %d exported, %d skipped", exported, skipped)
-        return exported, skipped
+        return exported, skipped, exported_dirs

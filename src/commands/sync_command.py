@@ -41,7 +41,8 @@ def run_sync_command(
     """
     import time as _time
 
-    setup_logging(log_level, log_dir=backup_dir)
+    log_dir = backup_dir.parent
+    setup_logging(log_level, log_dir=log_dir)
     _start_time = _time.monotonic()
 
     print("ReMarkable Sync (Backup + Convert)")

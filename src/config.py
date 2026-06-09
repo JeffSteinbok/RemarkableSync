@@ -49,7 +49,7 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "wifi_host": "",
     "password": "",
     "folders": [],
-    "sync_actions": ["pdf"],
+    "sync_actions": ["backup", "pdf", "ocr"],
     "ocr_enabled": False,
     "ocr_output_dir": "",
     "output_dir": "",
@@ -83,6 +83,16 @@ def load_config() -> Dict[str, Any]:
         # Merge with defaults so new keys are always present
         merged = dict(DEFAULT_CONFIG)
         merged.update(data)
+
+        # Cascade-normalize sync_actions: if a later step is present,
+        # all earlier steps must be too (e.g. "pdf" implies "backup").
+        _action_order = [a for a, _ in SYNC_ACTIONS]
+        actions = merged.get("sync_actions", [])
+        valid = [a for a in actions if a in _action_order]
+        if valid:
+            highest = max(_action_order.index(a) for a in valid)
+            merged["sync_actions"] = _action_order[: highest + 1]
+
         return merged
     except (json.JSONDecodeError, OSError):
         return dict(DEFAULT_CONFIG)

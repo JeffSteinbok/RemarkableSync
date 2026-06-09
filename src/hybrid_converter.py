@@ -16,6 +16,7 @@ This module provides:
 - Detection and reporting for v4/v3 files (limited support)
 """
 
+import hashlib
 import json
 import logging
 import shutil
@@ -27,9 +28,21 @@ from typing import Dict, List, Optional
 # Import modular converter classes
 from .converters import V4Converter, V5Converter, V6Converter
 from .template_renderer import TemplateRenderer
+from .utils import sanitize_name
 
 # Suppress warnings from third-party libraries to reduce output noise
 warnings.filterwarnings("ignore")
+
+
+def _hash_file(path: Path) -> str:
+    """Return MD5 hex-digest of *path*, or empty string if it doesn't exist."""
+    if not path.exists():
+        return ""
+    h = hashlib.md5()
+    with open(path, "rb") as fh:
+        for chunk in iter(lambda: fh.read(65536), b""):
+            h.update(chunk)
+    return h.hexdigest()
 
 
 def setup_logging(verbose: bool = False):
@@ -291,14 +304,12 @@ def organize_notebooks_by_structure(notebooks: List[Dict], backup_dir: Path) -> 
 
     for item in notebooks:
         if item["type"] == "DocumentType":
-            # This is a notebook to convert
             hierarchy = get_folder_hierarchy(item, backup_dir)
-            folder_path = "/".join(hierarchy) if hierarchy else ""
-
-            item["folder_path"] = folder_path
+            item["folder_path"] = "/".join(name for name, _ in hierarchy)
+            item["folder_hierarchy"] = hierarchy
             documents_to_convert.append(item)
 
-            # Ensure folder exists in structure
+            folder_path = item["folder_path"]
             if folder_path not in folder_structure:
                 folder_structure[folder_path] = []
             folder_structure[folder_path].append(item)
@@ -306,8 +317,12 @@ def organize_notebooks_by_structure(notebooks: List[Dict], backup_dir: Path) -> 
     return {"folder_structure": folder_structure, "documents_to_convert": documents_to_convert}
 
 
-def get_folder_hierarchy(notebook: Dict, backup_dir: Path) -> List[str]:
-    """Get the folder hierarchy for a notebook by following parent UUIDs."""
+def get_folder_hierarchy(notebook: Dict, backup_dir: Path) -> List[tuple]:
+    """Get the folder hierarchy for a notebook by following parent UUIDs.
+
+    Returns a list of ``(raw_name, uuid)`` tuples ordered from root to
+    immediate parent, e.g. ``[("1:1", "abc..."), ("L65+", "def...")]``.
+    """
     hierarchy = []
     current_uuid = notebook.get("parent")
     files_dir = backup_dir / "Notebooks"
@@ -319,12 +334,8 @@ def get_folder_hierarchy(notebook: Dict, backup_dir: Path) -> List[str]:
                 with open(metadata_file, "r", encoding="utf-8") as f:
                     metadata = json.load(f)
                 folder_name = metadata.get("visibleName", "Unknown")
-                # Create safe folder name
-                safe_folder = "".join(
-                    c for c in folder_name if c.isalnum() or c in (" ", "-", "_")
-                ).strip()
-                if safe_folder:
-                    hierarchy.insert(0, safe_folder)  # Insert at beginning to build path
+                if folder_name:
+                    hierarchy.insert(0, (folder_name, current_uuid))
                 current_uuid = metadata.get("parent")
             else:
                 break
@@ -447,6 +458,7 @@ def convert_notebook(
     changed_page_ids: Optional[set] = None,
     on_page_done: Optional[callable] = None,
     on_page_start: Optional[callable] = None,
+    registry=None,
 ) -> Dict:
     """Convert a notebook using appropriate tools for each file type.
 
@@ -465,20 +477,25 @@ def convert_notebook(
             When *None* all pages are (re-)converted.
         on_page_done: Callback ``(cached: bool)`` called after each page.
             *cached* is True when the page was served from cache.
+        registry: Optional :class:`~src.utils.name_registry.NameRegistry`
+            for stable, deduplicated output path names.
     """
-    # Create safe filename
-    safe_name = "".join(c for c in notebook["name"] if c.isalnum() or c in (" ", "-", "_")).rstrip()
-    if not safe_name:
-        safe_name = f"notebook_{notebook['uuid'][:8]}"
-
-    # Use pre-computed folder path from organization
-    folder_path = notebook.get("folder_path", "")
-
-    # Create output directory with folder structure
+    # Build output directory using registry if available, else plain sanitize
+    hierarchy = notebook.get("folder_hierarchy", [])
     output_notebook_dir = output_dir
-    if folder_path:
-        for folder in folder_path.split("/"):
-            output_notebook_dir = output_notebook_dir / folder
+    if registry:
+        for i, (folder_name, folder_uuid) in enumerate(hierarchy):
+            parent_uuid = hierarchy[i - 1][1] if i > 0 else ""
+            output_notebook_dir = output_notebook_dir / registry.get_or_assign(
+                folder_uuid, folder_name, parent_uuid
+            )
+        parent_uuid = hierarchy[-1][1] if hierarchy else ""
+        safe_name = registry.get_or_assign(notebook["uuid"], notebook["name"], parent_uuid)
+    else:
+        for folder_name, _ in hierarchy:
+            output_notebook_dir = output_notebook_dir / sanitize_name(folder_name)
+        safe_name = sanitize_name(notebook["name"]) or f"notebook_{notebook['uuid'][:8]}"
+
     output_notebook_dir.mkdir(parents=True, exist_ok=True)
 
     # Persistent page PDF cache directory
@@ -487,7 +504,7 @@ def convert_notebook(
 
     results = {
         "name": notebook["name"],
-        "folder_path": str(output_notebook_dir.relative_to(output_dir)) if folder_path else "",
+        "folder_path": str(output_notebook_dir.relative_to(output_dir)) if hierarchy else "",
         "page_cache_dir": page_cache_dir,
         "v5_converted": 0,
         "v6_converted": 0,
@@ -657,8 +674,11 @@ def convert_notebook(
         # Create merged PDF if we have any pages
         if page_pdfs:
             final_pdf = output_notebook_dir / f"{safe_name}.pdf"
+            pre_merge_hash = _hash_file(final_pdf)
+
             if merge_pdfs(page_pdfs, final_pdf):
                 results["output_files"].append(final_pdf)
+                results["pdf_changed"] = _hash_file(final_pdf) != pre_merge_hash
                 logging.info(
                     f"[OK] {notebook['name']}: Merged {len(page_pdfs)} pages into {final_pdf.name}"
                 )

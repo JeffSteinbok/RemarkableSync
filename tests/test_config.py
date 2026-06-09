@@ -111,7 +111,7 @@ class TestConfigModule:
             "wifi_host": "192.168.1.50",
             "password": "secret",
             "folders": ["Work", "Personal"],
-            "sync_actions": ["pdf", "ocr"],
+            "sync_actions": ["backup", "pdf", "ocr"],
             "ocr_enabled": True,
             "ocr_output_dir": "",
             "output_dir": "~/Documents/Markdown/Notes",
@@ -141,4 +141,4 @@ class TestConfigModule:
 
         assert loaded["connection_mode"] == "wifi"
         assert "sync_actions" in loaded  # merged from defaults
-        assert loaded["sync_actions"] == ["pdf"]
+        assert loaded["sync_actions"] == ["backup", "pdf", "ocr"]  # default + cascade

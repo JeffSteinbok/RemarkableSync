@@ -527,34 +527,15 @@ class ReMarkableBackup:  # pylint: disable=too-many-instance-attributes
             output_dir = self.backup_dir / "PDF"
             logging.warning("No pdf_dir configured, falling back to %s", output_dir)
 
-        # Determine conversion strategy
-        updated_only_file = None
-        if force_convert_all:
-            logging.info("Force conversion enabled - converting all notebooks to PDF")
-        elif updated_notebook_uuids:
-            # Create a temporary file list of updated notebooks for selective conversion
-            updated_list_file = self.backup_dir / "updated_notebooks.txt"
-            try:
-                with open(updated_list_file, "w", encoding="utf-8") as f:
-                    for uuid in sorted(updated_notebook_uuids):
-                        f.write(f"{uuid}\n")
-
-                updated_only_file = updated_list_file
-                logging.info("Converting %d updated notebooks to PDF", len(updated_notebook_uuids))
-            except OSError as e:
-                logging.error("Failed to create updated notebooks list: %s", e)
-                return False
-        else:
+        if not updated_notebook_uuids and not force_convert_all:
             logging.info("No notebooks were updated - skipping PDF conversion")
             return True
 
-        # Load folder filter from config
         from ..config import load_config
 
         config = load_config()
         folder_filter = config.get("folders", []) or None
 
-        # Run conversion
         try:
             success, _converted = run_conversion(
                 backup_dir=self.backup_dir,
@@ -562,17 +543,10 @@ class ReMarkableBackup:  # pylint: disable=too-many-instance-attributes
                 verbose="INF",
                 sample=None,
                 notebook_filter=None,
-                updated_only=updated_only_file,
+                updated_uuids=updated_notebook_uuids if not force_convert_all else None,
                 updated_pages=updated_pages,
                 folder_filter=folder_filter,
             )
-
-            # Clean up temporary file if created
-            if updated_only_file and updated_only_file.exists():
-                try:
-                    updated_only_file.unlink()
-                except OSError:
-                    pass  # Ignore cleanup errors
 
             if success:
                 logging.info("PDF conversion completed successfully")

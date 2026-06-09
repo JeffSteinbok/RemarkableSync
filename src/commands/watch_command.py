@@ -330,7 +330,7 @@ class _WatchTray:
 
     def _on_open_log(self, icon, item):
         if self._backup_dir:
-            log_file = self._backup_dir / "remarkablesync.log"
+            log_file = self._backup_dir.parent / "remarkablesync.log"
             if log_file.exists():
                 self._open_file(log_file)
 

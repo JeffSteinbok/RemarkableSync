@@ -102,13 +102,11 @@ def run_config_command() -> int:
                 click.echo("    5. Re-run this wizard with the IP ready")
                 return 1
 
-        # Let user confirm/change the IP (pre-filled from device or config)
-        default_ip = wifi_host or current.get("wifi_host", "") or "192.168.1."
+        # Let user confirm/change the IP (pre-filled from device or config; blank if unknown)
+        default_ip = wifi_host or current.get("wifi_host", "") or ""
         wifi_host = inquirer.text(
             message="Tablet WiFi IP address:",
             default=default_ip,
-            validate=lambda x: len(x.strip()) > 0,
-            invalid_message="IP address cannot be empty.",
         ).execute()
 
         if wifi_host is None:
@@ -163,15 +161,20 @@ def run_config_command() -> int:
         backup_dir = _default_backup_dir()
         click.echo(f"  Using default: {backup_dir}")
 
-    # 5. Sync actions
-    current_actions = current.get("sync_actions", ["backup", "pdf"])
+    # 5. Sync actions — later steps imply earlier ones (backup → pdf → ocr)
+    action_order = [value for value, _ in SYNC_ACTIONS]
+    current_actions = current.get("sync_actions", ["backup", "pdf", "ocr"])
+    # Default: all steps enabled
+    if not current_actions:
+        current_actions = action_order
+
     action_choices = [
         {"name": display, "value": value, "enabled": value in current_actions}
         for value, display in SYNC_ACTIONS
     ]
 
     sync_actions = inquirer.checkbox(
-        message="What to do on sync:",
+        message="What to do on sync (selecting a later step enables all prior steps):",
         choices=action_choices,
         validate=lambda result: len(result) >= 1,
         invalid_message="Select at least one sync action.",
@@ -180,6 +183,10 @@ def run_config_command() -> int:
     if sync_actions is None:
         click.echo("Configuration cancelled.")
         return 0
+
+    # Enforce cascade: if a step is selected, all preceding steps are included
+    highest = max((action_order.index(a) for a in sync_actions if a in action_order), default=0)
+    sync_actions = action_order[: highest + 1]
 
     # 6. PDF output directory (if PDF or OCR selected)
     from src.config import _default_documents_dir

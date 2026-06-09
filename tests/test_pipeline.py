@@ -78,7 +78,7 @@ class TestRunPipeline:
         mock_backup.backup_files.return_value = (True, {"uuid-1"}, {})
         mock_backup_cls.return_value = mock_backup
 
-        mock_convert.return_value = (True, {"uuid-1": []})
+        mock_convert.return_value = (True, {"uuid-1": []}, [])
 
         result = self._run(tmp_path, skip_backup=False, skip_convert=False)
         assert result == 0
@@ -98,7 +98,7 @@ class TestRunPipeline:
         mock_org.return_value = {"documents_to_convert": notebooks}
 
         mock_exporter = MagicMock()
-        mock_exporter.export_all.return_value = (1, 0)
+        mock_exporter.export_all.return_value = (1, 0, [])
         mock_exporter_cls.return_value = mock_exporter
 
         result = self._run(tmp_path, force_export=True)
@@ -128,7 +128,7 @@ class TestRunPipeline:
         mock_org.return_value = {"documents_to_convert": notebooks}
 
         mock_exporter = MagicMock()
-        mock_exporter.export_all.return_value = (1, 0)
+        mock_exporter.export_all.return_value = (1, 0, [])
         mock_exporter_cls.return_value = mock_exporter
 
         result = self._run(tmp_path, force_export=True)
@@ -159,7 +159,7 @@ class TestRunPipeline:
         mock_org.return_value = {"documents_to_convert": notebooks}
 
         mock_exporter = MagicMock()
-        mock_exporter.export_all.return_value = (1, 0)
+        mock_exporter.export_all.return_value = (1, 0, [])
         mock_exporter_cls.return_value = mock_exporter
 
         result = self._run(tmp_path, notebook_filter="Target", force_export=True)

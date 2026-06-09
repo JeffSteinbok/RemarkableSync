@@ -14,6 +14,7 @@ from typing import Dict, List, Optional
 from ..backup import ReMarkableBackup
 from ..backup.connection import USB_HOST
 from ..rm_pdf_converter import run_conversion
+from ..utils import write_manifest
 from ..utils.console import print_error, print_success, print_warn
 from ..utils.logging import setup_logging
 
@@ -67,7 +68,8 @@ def run_pipeline(
     """
     import time as _time
 
-    setup_logging(log_level, log_dir=backup_dir)
+    log_dir = backup_dir.parent
+    setup_logging(log_level, log_dir=log_dir)
     _start_time = _time.monotonic()
 
     from ..config import load_config
@@ -119,6 +121,11 @@ def run_pipeline(
                 return 1
             backup_tool.backup_templates()
             print_success(f"  [OK] Backed up ({len(updated_uuids)} notebooks updated)")
+            write_manifest(
+                backup_dir.parent / "updated_notebooks.txt",
+                sorted(updated_uuids),
+                "updated_notebooks",
+            )
         except Exception as exc:  # noqa: BLE001
             logging.error("Backup error: %s", exc)
             print_error(f"  [ERR] Backup failed: {exc}")
@@ -133,26 +140,24 @@ def run_pipeline(
 
     if not skip_convert:
         print("\n[2/3] Converting notebooks to PDF...")
-        updated_list_file: Optional[Path] = None
-
-        if not force_convert and updated_uuids is not None and not skip_backup:
-            updated_list_file = backup_dir / "updated_notebooks.txt"
-            try:
-                updated_list_file.write_text("\n".join(sorted(updated_uuids)), encoding="utf-8")
-            except OSError as exc:
-                logging.warning("Could not write updated notebooks list: %s", exc)
-                updated_list_file = None
 
         try:
-            _ok, converted_pages = run_conversion(
+            _ok, converted_pages, merged_pdfs = run_conversion(
                 backup_dir=backup_dir,
                 output_dir=pdf_output_dir,
                 verbose=log_level,
-                updated_only=updated_list_file,
+                updated_uuids=updated_uuids if not force_convert and not skip_backup else None,
                 updated_pages=updated_pages,
                 folder_filter=folder_filter,
             )
             print_success("  [OK] PDF conversion done")
+            all_page_pdfs = sorted(p for pages in converted_pages.values() for p in pages)
+            write_manifest(
+                backup_dir.parent / "updated_pdf_pages.txt", all_page_pdfs, "updated_pdf_pages"
+            )
+            write_manifest(
+                backup_dir.parent / "updated_pdfs.txt", sorted(merged_pdfs), "updated_pdfs"
+            )
         except Exception as exc:  # noqa: BLE001
             logging.error("Conversion error: %s", exc)
             print_error(f"  [ERR] PDF conversion failed: {exc}")
@@ -241,9 +246,9 @@ def run_pipeline(
 
     if not notebooks:
         print("  No notebooks to export — skipping")
-        exported, skipped = 0, 0
+        exported, skipped, exported_dirs = 0, 0, []
     else:
-        exported, skipped = exporter.export_all(
+        exported, skipped, exported_dirs = exporter.export_all(
             notebooks=notebooks,
             pdf_output_dir=pdf_output_dir,
             force=force_export,
@@ -251,6 +256,7 @@ def run_pipeline(
             page_filter=page_filter,
             updated_pages=updated_pages,
         )
+        write_manifest(backup_dir.parent / "updated_md.txt", sorted(exported_dirs), "updated_md")
 
     # ------------------------------------------------------------------
     # Summary

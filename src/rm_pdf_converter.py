@@ -28,10 +28,10 @@ def run_conversion(
     verbose: str = "WRN",
     sample: Optional[int] = None,
     notebook_filter: Optional[str] = None,
-    updated_only: Optional[Path] = None,
+    updated_uuids: Optional[set] = None,
     updated_pages: Optional[dict] = None,
     folder_filter: Optional[list] = None,
-) -> Tuple[bool, Dict[str, List[Path]]]:
+) -> Tuple[bool, Dict[str, List[Path]], List[Path]]:
     """Run PDF conversion on backed up notebooks.
 
     Args:
@@ -40,17 +40,14 @@ def run_conversion(
         verbose: Enable verbose logging
         sample: Convert only first N notebooks
         notebook_filter: Convert only this notebook (by UUID or name)
-        updated_only: File containing list of updated notebook UUIDs
+        updated_uuids: Set of notebook UUIDs to convert. When None, all are converted.
         updated_pages: Dict mapping notebook UUID to set of changed page IDs
         folder_filter: List of top-level folder names to include.
-            When provided, only notebooks inside these folders are converted.
 
     Returns:
         Tuple of (success: bool, converted: dict).  ``converted`` maps
         notebook UUID to the list of per-page PDF paths that were
-        generated/updated, so downstream stages (e.g. Markdown export)
-        know exactly which pages to process.  When no notebooks were
-        converted the dict is empty.
+        generated/updated.
     """
     if not backup_dir.exists():
         logging.error(f"Backup directory not found: {backup_dir}")
@@ -58,16 +55,8 @@ def run_conversion(
 
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    # Load updated notebooks list if provided
-    updated_uuids = None
-    if updated_only and updated_only.exists():
-        try:
-            with open(updated_only, "r", encoding="utf-8") as f:
-                updated_uuids = {line.strip() for line in f if line.strip()}
-            logging.info(f"Converting only {len(updated_uuids)} updated notebooks")
-        except OSError as e:
-            logging.error(f"Failed to read updated notebooks file: {e}")
-            return False, {}
+    if updated_uuids is not None:
+        logging.info(f"Converting only {len(updated_uuids)} updated notebooks")
 
     # Find notebooks
     all_items = find_notebooks(backup_dir)
@@ -85,7 +74,7 @@ def run_conversion(
         all_items = [item for item in all_items if item["uuid"] in updated_uuids]
         if not all_items:
             logging.info("No updated notebooks found for conversion")
-            return True, {}  # Not an error
+            return True, {}
 
     # Filter by notebook name/UUID if provided
     if notebook_filter:
@@ -105,7 +94,7 @@ def run_conversion(
     # Filter by selected folders if provided
     if folder_filter:
         include_root = "(Root)" in folder_filter
-        real_folders = [f for f in folder_filter if f != "(Root)"]
+        real_folders = {f for f in folder_filter if f != "(Root)"}
 
         def _in_selected_folders(nb):
             fp = nb.get("folder_path", "")
@@ -143,6 +132,7 @@ def run_conversion(
     # Convert notebooks with per-page Rich progress bar
     successful = 0
     converted: Dict[str, List[Path]] = {}
+    merged_pdfs: List[Path] = []
 
     # Count total pages across all notebooks for the progress bar
     total_pages = 0
@@ -195,14 +185,20 @@ def run_conversion(
                     on_page_done=_on_page_done,
                     on_page_start=_on_page_start,
                 )
+
                 if results["output_files"]:
                     successful += 1
-                    # Use ordered page PDFs from converter (preserves .content order)
                     page_pdfs = results.get("page_pdfs", [])
-                    if page_pdfs:
+                    merged = [f for f in results["output_files"] if isinstance(f, Path)]
+                    merged_pdfs.extend(merged)
+                    if page_pdfs and results.get("pdf_changed", True):
                         converted[notebook["uuid"]] = page_pdfs
+                    elif page_pdfs:
+                        logging.debug(
+                            "PDF unchanged after conversion, skipping MD: %s", notebook["name"]
+                        )
             except Exception as e:
                 print_error(f"  [ERR] Failed to convert {notebook['name']}: {e}")
 
     print(f"  Conversion complete: {successful}/{len(notebooks)} notebooks converted")
-    return successful > 0, converted
+    return successful > 0, converted, merged_pdfs
