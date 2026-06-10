@@ -80,7 +80,6 @@ class TestVersionDetectionIntegration:
 
     def test_pre_committed_v4_fixture_routable(self):
         p = FIXTURES_DIR / "minimal_v4.rm"
-        pytest.importorskip("pathlib", reason="fixtures must exist")
         if not p.exists():
             pytest.skip("minimal_v4.rm fixture not found")
         assert V4Converter().can_convert(p)

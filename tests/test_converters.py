@@ -52,10 +52,10 @@ class _ConcreteConverter(BaseConverter):
     def __init__(self):
         super().__init__("test")
 
-    def can_convert(self, rm_file: Path) -> bool:  # type: ignore[override]
+    def can_convert(self, rm_file: Path) -> bool:
         return False
 
-    def convert_to_pdf(self, rm_file: Path, output_file: Path) -> bool:  # type: ignore[override]
+    def convert_to_pdf(self, rm_file: Path, output_file: Path) -> bool:
         return False
 
 
