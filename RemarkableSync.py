@@ -21,7 +21,9 @@ if sys.platform == "win32":
 # Check Python version before importing anything else
 if sys.version_info < (3, 11):
     print("Error: RemarkableSync requires Python 3.11 or higher.")
-    print(f"You are using Python {sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}")
+    print(
+        f"You are using Python {sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
+    )
     print("\nPlease upgrade your Python installation:")
     print("  - Download from: https://www.python.org/downloads/")
     print("  - Or use a package manager (brew, apt, etc.)")
@@ -41,21 +43,21 @@ _LOG_LEVELS = [e.value for e in LogLevel]
 
 _connection_options = [
     click.option(
-        '--host',
+        "--host",
         default=USB_HOST,
         show_default=True,
-        help='Tablet USB IP address or hostname.',
+        help="Tablet USB IP address or hostname.",
     ),
     click.option(
-        '--wifi',
-        'use_wifi',
+        "--wifi",
+        "use_wifi",
         is_flag=True,
-        help='Connect via Wi-Fi instead of USB.',
+        help="Connect via Wi-Fi instead of USB.",
     ),
     click.option(
-        '--wifi-host',
-        default='',
-        help='Tablet Wi-Fi IP address or hostname (auto-discovered when empty).',
+        "--wifi-host",
+        default="",
+        help="Tablet Wi-Fi IP address or hostname (auto-discovered when empty).",
     ),
 ]
 
@@ -70,10 +72,12 @@ def add_connection_options(func):
 def add_log_level_option(func):
     """Decorator that adds --log-level option to a command."""
     func = click.option(
-        '--log-level', '-l',
+        "--log-level",
+        "-l",
         type=click.Choice(_LOG_LEVELS, case_sensitive=False),
-        default='NONE', show_default=True,
-        help='Console log verbosity.',
+        default="NONE",
+        show_default=True,
+        help="Console log verbosity.",
     )(func)
     return func
 
@@ -94,13 +98,22 @@ def version_callback(ctx, param, value):
 
 
 @click.group(invoke_without_command=False)
-@click.option('--version', is_flag=True, callback=version_callback,
-              expose_value=False, is_eager=True,
-              help='Show version and repository information')
-@click.option('--log-level', '-l',
-              type=click.Choice(_LOG_LEVELS, case_sensitive=False),
-              default='NONE', show_default=True,
-              help='Log verbosity: DBG, INF, WRN, ERR.')
+@click.option(
+    "--version",
+    is_flag=True,
+    callback=version_callback,
+    expose_value=False,
+    is_eager=True,
+    help="Show version and repository information",
+)
+@click.option(
+    "--log-level",
+    "-l",
+    type=click.Choice(_LOG_LEVELS, case_sensitive=False),
+    default="NONE",
+    show_default=True,
+    help="Log verbosity: DBG, INF, WRN, ERR.",
+)
 @click.pass_context
 def cli(ctx, log_level):
     """RemarkableSync - Backup and convert ReMarkable tablet files.
@@ -121,14 +134,19 @@ def cli(ctx, log_level):
 # backup
 # ---------------------------------------------------------------------------
 
+
 @cli.command()
-@click.option('--backup-dir', '-d', type=click.Path(path_type=Path),
-              default=Path('./remarkable_backup'),
-              help='Directory to store backup files')
-@click.option('--password', '-p', type=str, help='ReMarkable SSH password')
+@click.option(
+    "--backup-dir",
+    "-d",
+    type=click.Path(path_type=Path),
+    default=Path("./remarkable_backup"),
+    help="Directory to store backup files",
+)
+@click.option("--password", "-p", type=str, help="ReMarkable SSH password")
 @add_log_level_option
-@click.option('--skip-templates', is_flag=True, help='Skip backing up template files')
-@click.option('--force', '-f', is_flag=True, help='Force backup all files (ignore sync status)')
+@click.option("--skip-templates", is_flag=True, help="Skip backing up template files")
+@click.option("--force", "-f", is_flag=True, help="Force backup all files (ignore sync status)")
 @add_connection_options
 def backup(
     backup_dir: Path,
@@ -147,6 +165,7 @@ def backup(
     specified.
     """
     from src.commands.backup_command import run_backup_command
+
     sys.exit(
         run_backup_command(
             backup_dir,
@@ -165,24 +184,40 @@ def backup(
 # convert
 # ---------------------------------------------------------------------------
 
-@cli.command(name='pdf')
-@click.option('--backup-dir', '-d', type=click.Path(path_type=Path),
-              default=Path('./remarkable_backup'),
-              help='Directory containing ReMarkable backup files')
-@click.option('--output-dir', '-o', type=click.Path(path_type=Path),
-              help='Directory to save PDF files (default: backup_dir/pdfs_final)')
+
+@cli.command(name="pdf")
+@click.option(
+    "--backup-dir",
+    "-d",
+    type=click.Path(path_type=Path),
+    default=Path("./remarkable_backup"),
+    help="Directory containing ReMarkable backup files",
+)
+@click.option(
+    "--output-dir",
+    "-o",
+    type=click.Path(path_type=Path),
+    help="Directory to save PDF files (default: backup_dir/pdfs_final)",
+)
 @add_log_level_option
-@click.option('--force-all', '-f', is_flag=True, help='Convert all notebooks (ignore sync status)')
-@click.option('--sample', '-s', type=int, help='Convert only first N notebooks (for testing)')
-@click.option('--notebook', '-n', type=str, help='Convert only this notebook (by UUID or name)')
-def pdf(backup_dir: Path, output_dir: Optional[Path], log_level: str, force_all: bool,
-        sample: Optional[int], notebook: Optional[str]):
+@click.option("--force-all", "-f", is_flag=True, help="Convert all notebooks (ignore sync status)")
+@click.option("--sample", "-s", type=int, help="Convert only first N notebooks (for testing)")
+@click.option("--notebook", "-n", type=str, help="Convert only this notebook (by UUID or name)")
+def pdf(
+    backup_dir: Path,
+    output_dir: Optional[Path],
+    log_level: str,
+    force_all: bool,
+    sample: Optional[int],
+    notebook: Optional[str],
+):
     """Convert backed up notebooks to PDF format.
 
     Converts ReMarkable notebooks to PDF with template backgrounds.
     By default, only converts notebooks that were updated in the last backup.
     """
     from src.commands.convert_command import run_convert_command
+
     sys.exit(run_convert_command(backup_dir, output_dir, log_level, force_all, sample, notebook))
 
 
@@ -190,15 +225,20 @@ def pdf(backup_dir: Path, output_dir: Optional[Path], log_level: str, force_all:
 # sync  (backup + convert)
 # ---------------------------------------------------------------------------
 
+
 @cli.command()
-@click.option('--backup-dir', '-d', type=click.Path(path_type=Path),
-              default=Path('./remarkable_backup'),
-              help='Directory to store backup files')
-@click.option('--password', '-p', type=str, help='ReMarkable SSH password')
+@click.option(
+    "--backup-dir",
+    "-d",
+    type=click.Path(path_type=Path),
+    default=Path("./remarkable_backup"),
+    help="Directory to store backup files",
+)
+@click.option("--password", "-p", type=str, help="ReMarkable SSH password")
 @add_log_level_option
-@click.option('--skip-templates', is_flag=True, help='Skip backing up template files')
-@click.option('--force-backup', is_flag=True, help='Force backup all files')
-@click.option('--force-convert', is_flag=True, help='Force convert all notebooks')
+@click.option("--skip-templates", is_flag=True, help="Skip backing up template files")
+@click.option("--force-backup", is_flag=True, help="Force backup all files")
+@click.option("--force-convert", is_flag=True, help="Force convert all notebooks")
 @add_connection_options
 def sync(
     backup_dir: Path,
@@ -217,6 +257,7 @@ def sync(
     any notebooks that were updated during the backup.
     """
     from src.commands.sync_command import run_sync_command
+
     sys.exit(
         run_sync_command(
             backup_dir,
@@ -236,35 +277,62 @@ def sync(
 # md  (backup + convert + OCR/AI + Markdown export)
 # ---------------------------------------------------------------------------
 
-@cli.command(name='md')
-@click.option('--backup-dir', '-d', type=click.Path(path_type=Path),
-              default=None,
-              help='Directory to store backup files (default: from config)')
-@click.option('--vault-dir', '-V', type=click.Path(path_type=Path),
-              default=None,
-              help='Markdown output directory (default: from config)')
-@click.option('--password', '-p', type=str, help='ReMarkable SSH password')
+
+@cli.command(name="md")
+@click.option(
+    "--backup-dir",
+    "-d",
+    type=click.Path(path_type=Path),
+    default=None,
+    help="Directory to store backup files (default: from config)",
+)
+@click.option(
+    "--vault-dir",
+    "-V",
+    type=click.Path(path_type=Path),
+    default=None,
+    help="Markdown output directory (default: from config)",
+)
+@click.option("--password", "-p", type=str, help="ReMarkable SSH password")
 @add_log_level_option
-@click.option('--with-backup', is_flag=True, help='Also run tablet backup before export')
-@click.option('--with-pdf', is_flag=True, help='Also run PDF conversion before export')
-@click.option('--force-backup', is_flag=True, help='Force full backup')
-@click.option('--force-convert', is_flag=True, help='Force convert all notebooks')
-@click.option('--force-export', is_flag=True, help='Re-export all notes even if unchanged')
-@click.option('--ai-provider', default=None,
-              type=click.Choice(['', 'claude', 'anthropic', 'github', 'github_models'], case_sensitive=False),
-              help='AI provider for handwriting recognition')
-@click.option('--ai-model', default='', help='Override AI model (provider-specific)')
-@click.option('--ai-api-key', default='', envvar='REMARKABLE_AI_KEY',
-              help='AI API key (falls back to config / env-vars)')
-@click.option('--use-ai-ocr', is_flag=True, default=True, show_default=True,
-              help='Use AI vision for handwriting recognition (requires --ai-provider)')
-@click.option('--notebook', '-n', type=str, help='Export only this notebook (by name or UUID)')
-@click.option('--page', type=int, help='Export only this page number (requires --notebook)')
-@click.option('--tags', default='remarkable',
-              help='Comma-separated tags to add to note frontmatter')
-@click.option('--no-images', 'embed_images', is_flag=True, default=None,
-              flag_value=False,
-              help='Do not embed page images in notes')
+@click.option("--with-backup", is_flag=True, help="Also run tablet backup before export")
+@click.option("--with-pdf", is_flag=True, help="Also run PDF conversion before export")
+@click.option("--force-backup", is_flag=True, help="Force full backup")
+@click.option("--force-convert", is_flag=True, help="Force convert all notebooks")
+@click.option("--force-export", is_flag=True, help="Re-export all notes even if unchanged")
+@click.option(
+    "--ai-provider",
+    default=None,
+    type=click.Choice(["", "claude", "anthropic", "github", "github_models"], case_sensitive=False),
+    help="AI provider for handwriting recognition",
+)
+@click.option("--ai-model", default="", help="Override AI model (provider-specific)")
+@click.option(
+    "--ai-api-key",
+    default="",
+    envvar="REMARKABLE_AI_KEY",
+    help="AI API key (falls back to config / env-vars)",
+)
+@click.option(
+    "--use-ai-ocr",
+    is_flag=True,
+    default=True,
+    show_default=True,
+    help="Use AI vision for handwriting recognition (requires --ai-provider)",
+)
+@click.option("--notebook", "-n", type=str, help="Export only this notebook (by name or UUID)")
+@click.option("--page", type=int, help="Export only this page number (requires --notebook)")
+@click.option(
+    "--tags", default="remarkable", help="Comma-separated tags to add to note frontmatter"
+)
+@click.option(
+    "--no-images",
+    "embed_images",
+    is_flag=True,
+    default=None,
+    flag_value=False,
+    help="Do not embed page images in notes",
+)
 @add_connection_options
 def md(
     backup_dir: Optional[Path],
@@ -314,7 +382,9 @@ def md(
         backup_dir = Path(cfg.get("backup_dir", "./remarkable_backup"))
     output_dir = vault_dir or Path(cfg.get("output_dir", ""))
     if not str(output_dir):
-        click.echo("[ERROR] No output directory specified. Use -V or run: python RemarkableSync.py config")
+        click.echo(
+            "[ERROR] No output directory specified. Use -V or run: python RemarkableSync.py config"
+        )
         sys.exit(1)
 
     if ai_provider is None:
@@ -323,6 +393,7 @@ def md(
         ai_model = cfg.get("ai_model", "")
     if not ai_api_key:
         from src.keyring_store import KEY_CLAUDE_API_KEY, KEY_GITHUB_TOKEN, get_secret
+
         if ai_provider == "claude":
             ai_api_key = get_secret(KEY_CLAUDE_API_KEY)
         else:
@@ -367,6 +438,7 @@ def md(
 # config  (interactive configuration wizard)
 # ---------------------------------------------------------------------------
 
+
 @cli.command()
 def config():
     """Interactive configuration wizard.
@@ -375,6 +447,7 @@ def config():
     sync actions using an interactive terminal UI.
     """
     from src.commands.config_command import run_config_command
+
     sys.exit(run_config_command())
 
 
@@ -382,13 +455,24 @@ def config():
 # watch  (periodic sync)
 # ---------------------------------------------------------------------------
 
+
 @cli.command()
-@click.option('--interval', '-i', type=int, default=None,
-              help='Minutes between sync attempts (overrides config)')
-@click.option('--systray/--no-systray', default=True, show_default=True,
-              help='Show a system tray icon while watch mode is running')
-@click.option('--foreground', is_flag=True, default=False,
-              help='Run in the foreground instead of detaching')
+@click.option(
+    "--interval",
+    "-i",
+    type=int,
+    default=None,
+    help="Minutes between sync attempts (overrides config)",
+)
+@click.option(
+    "--systray/--no-systray",
+    default=True,
+    show_default=True,
+    help="Show a system tray icon while watch mode is running",
+)
+@click.option(
+    "--foreground", is_flag=True, default=False, help="Run in the foreground instead of detaching"
+)
 @add_log_level_option
 @add_connection_options
 def watch(
@@ -425,10 +509,7 @@ def watch(
         try:
             from InquirerPy import inquirer
 
-            choices = [
-                {"name": label, "value": secs}
-                for label, secs in INTERVAL_CHOICES
-            ]
+            choices = [{"name": label, "value": secs} for label, secs in INTERVAL_CHOICES]
             interval_secs = inquirer.select(
                 message="Sync interval:",
                 choices=choices,
@@ -444,7 +525,9 @@ def watch(
                 click.echo(f"  {i}. {label}")
             click.echo()
             choice = click.prompt(
-                "Choice", type=click.IntRange(1, len(INTERVAL_CHOICES)), default=2,
+                "Choice",
+                type=click.IntRange(1, len(INTERVAL_CHOICES)),
+                default=2,
             )
             _, interval_secs = INTERVAL_CHOICES[choice - 1]
 
@@ -459,34 +542,47 @@ def watch(
 
     # --- foreground mode (child process lands here) ---
 
+    # Launch-time values used for the tray label, lock-file placement, and
+    # the tray "Open" menu items. The actual sync parameters are reloaded
+    # fresh on every cycle (see run_once below) so config edits take effect
+    # without restarting the watcher.
     backup_dir = Path(cfg.get("backup_dir", "./remarkable_backup"))
     output_dir_str = cfg.get("output_dir", "")
     output_dir = Path(output_dir_str) if output_dir_str else None
-    sync_actions = cfg.get("sync_actions", ["backup", "pdf"])
+    mode = "md" if ("ocr" in cfg.get("sync_actions", ["backup", "pdf"]) and output_dir) else "sync"
 
-    conn_mode = cfg.get("connection_mode", "usb")
-    if not use_wifi and conn_mode == "wifi":
-        use_wifi = True
-    if not wifi_host:
-        wifi_host = cfg.get("wifi_host", "")
+    # CLI flags act as overrides; everything else is read from config per cycle.
+    cli_use_wifi = use_wifi
+    cli_wifi_host = wifi_host
 
-    ai_provider = cfg.get("ai_provider", "")
     from src.keyring_store import KEY_CLAUDE_API_KEY, KEY_GITHUB_TOKEN, get_secret
-    if ai_provider == "claude":
-        ai_api_key = get_secret(KEY_CLAUDE_API_KEY)
-    else:
-        ai_api_key = get_secret(KEY_GITHUB_TOKEN)
-    tags = cfg.get("tags", "remarkable")
 
-    has_md = "ocr" in sync_actions
+    def run_once() -> int:
+        # Reload config each cycle so edits apply without restarting watch.
+        c = load_config()
+        bdir = Path(c.get("backup_dir", "./remarkable_backup"))
+        out_str = c.get("output_dir", "")
+        odir = Path(out_str) if out_str else None
+        sync_actions = c.get("sync_actions", ["backup", "pdf"])
 
-    if has_md and output_dir:
-        from src.commands.pipeline import run_pipeline
+        eff_use_wifi = cli_use_wifi
+        if not eff_use_wifi and c.get("connection_mode", "usb") == "wifi":
+            eff_use_wifi = True
+        eff_wifi_host = cli_wifi_host or c.get("wifi_host", "")
 
-        def run_once() -> int:
+        ai_provider = c.get("ai_provider", "")
+        if ai_provider == "claude":
+            ai_api_key = get_secret(KEY_CLAUDE_API_KEY)
+        else:
+            ai_api_key = get_secret(KEY_GITHUB_TOKEN)
+        tags = c.get("tags", "remarkable")
+
+        if "ocr" in sync_actions and odir:
+            from src.commands.pipeline import run_pipeline
+
             return run_pipeline(
-                backup_dir=backup_dir,
-                output_dir=output_dir,
+                backup_dir=bdir,
+                output_dir=odir,
                 log_level=log_level,
                 skip_backup=False,
                 skip_convert=False,
@@ -494,33 +590,41 @@ def watch(
                 force_convert=False,
                 force_export=False,
                 ai_provider=ai_provider or "github",
-                ai_model=cfg.get("ai_model", ""),
+                ai_model=c.get("ai_model", ""),
                 ai_api_key=ai_api_key,
                 use_ai_ocr=True,
                 tags=tags,
-                embed_images=cfg.get("embed_images", True),
+                embed_images=c.get("embed_images", True),
                 host=host,
-                use_wifi=use_wifi,
-                wifi_host=wifi_host,
+                use_wifi=eff_use_wifi,
+                wifi_host=eff_wifi_host,
             )
 
-        mode = "md"
-    else:
         from src.commands.sync_command import run_sync_command
 
-        def run_once() -> int:
-            return run_sync_command(
-                backup_dir=backup_dir,
-                log_level=log_level,
-                skip_templates=False,
-                force_backup=False,
-                force_convert=False,
-                host=host,
-                use_wifi=use_wifi,
-                wifi_host=wifi_host,
-            )
+        return run_sync_command(
+            backup_dir=bdir,
+            log_level=log_level,
+            skip_templates=False,
+            force_backup=False,
+            force_convert=False,
+            host=host,
+            use_wifi=eff_use_wifi,
+            wifi_host=eff_wifi_host,
+        )
 
-        mode = "sync"
+    def _get_interval_secs() -> int:
+        c = load_config()
+        mins = c.get("watch_interval")
+        return mins * 60 if mins else 0
+
+    def _save_interval_secs(secs: int) -> None:
+        c = load_config()
+        c["watch_interval"] = secs // 60 if secs else 0
+        save_config(c)
+
+    # Only re-read interval from config when it wasn't overridden on the CLI.
+    get_interval = _get_interval_secs if interval is None else None
 
     sys.exit(
         run_watch_command(
@@ -531,6 +635,8 @@ def watch(
             mode=mode,
             use_systray=systray,
             output_dir=output_dir,
+            get_interval=get_interval,
+            on_interval_change=_save_interval_secs,
         )
     )
 
@@ -575,6 +681,7 @@ def _detach_watch():
 # Entry point
 # ---------------------------------------------------------------------------
 
+
 def main():
     """Entry point for the application.
 
@@ -585,10 +692,10 @@ def main():
     Config-based defaults (backup_dir, output_dir, connection, etc.) are
     injected as CLI args so the subcommand sees them.
     """
-    known_commands = {'backup', 'pdf', 'sync', 'md', 'config', 'watch'}
+    known_commands = {"backup", "pdf", "sync", "md", "config", "watch"}
     has_command = any(arg in known_commands for arg in sys.argv[1:])
 
-    if not has_command and '--version' not in sys.argv and '--help' not in sys.argv:
+    if not has_command and "--version" not in sys.argv and "--help" not in sys.argv:
         # Load config to decide which pipeline to run
         from src.config import get_config_path, load_config
 
@@ -628,6 +735,7 @@ def main():
             if ai_provider:
                 extra_args.extend(["--ai-provider", ai_provider])
             from src.keyring_store import KEY_CLAUDE_API_KEY, KEY_GITHUB_TOKEN, get_secret
+
             if ai_provider == "claude":
                 ai_token = get_secret(KEY_CLAUDE_API_KEY)
             else:
