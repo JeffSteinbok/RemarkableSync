@@ -215,11 +215,13 @@ class _WatchTray:
         interval: int,
         backup_dir: Optional[Path] = None,
         output_dir: Optional[Path] = None,
+        on_interval_change: Optional[Callable[[int], None]] = None,
     ):
         self._mode = mode
         self._enabled = enabled
         self._backup_dir = backup_dir
         self._output_dir = output_dir
+        self._on_interval_change = on_interval_change
         self._icon = None
         self._status = "Idle"
         self._detail = ""  # last activity line shown in menu
@@ -245,6 +247,13 @@ class _WatchTray:
     @property
     def interval(self) -> int:
         return self._interval
+
+    def set_interval(self, secs: int) -> None:
+        """Update the interval and refresh the tray menu (idempotent)."""
+        if secs == self._interval:
+            return
+        self._interval = secs
+        self._rebuild_icon_menu()
 
     def _build_icon_image(self, color: str):
         """Create a small circular tray icon image."""
@@ -344,6 +353,11 @@ class _WatchTray:
             label = _format_interval(secs) if secs else "manual"
             print(f"  Interval changed to {label}")
             self._rebuild_icon_menu()
+            if self._on_interval_change is not None:
+                try:
+                    self._on_interval_change(secs)
+                except Exception:
+                    pass
 
         return handler
 
@@ -506,7 +520,7 @@ class _WatchTray:
         self._status = status
 
         if sync_ok is not None:
-            self._last_sync = datetime.now().strftime("%H:%M:%S")
+            self._last_sync = datetime.now().strftime("%m/%d/%Y %H:%M")
             self._last_sync_ok = sync_ok
         if next_sync is not None:
             self._next_sync = next_sync
@@ -562,7 +576,7 @@ class _StatusWindow(threading.Thread):
         root = tk.Tk()
         self._root = root
         root.title("RemarkableSync")
-        root.geometry("480x320")
+        root.geometry("576x320")
         root.resizable(True, True)
         root.configure(bg="#1e1e1e")
 
@@ -571,7 +585,7 @@ class _StatusWindow(threading.Thread):
 
         # Position near bottom-right of screen
         sw, sh = root.winfo_screenwidth(), root.winfo_screenheight()
-        x = sw - 500
+        x = sw - 596
         y = sh - 400
         root.geometry(f"+{x}+{y}")
 
@@ -764,7 +778,7 @@ def _format_interval(seconds: int) -> str:
 def _next_run_time(seconds: int) -> str:
     """Return a human-readable timestamp for the next run."""
     t = datetime.now() + timedelta(seconds=seconds)
-    return t.strftime("%H:%M:%S")
+    return t.strftime("%m/%d/%Y %H:%M")
 
 
 # ---------------------------------------------------------------------------
@@ -804,6 +818,8 @@ def run_watch_command(
     mode: str = "sync",
     use_systray: bool = True,
     output_dir: Optional[Path] = None,
+    get_interval: Optional[Callable[[], int]] = None,
+    on_interval_change: Optional[Callable[[int], None]] = None,
 ) -> int:
     """Run *run_once* repeatedly every *interval* seconds.
 
@@ -816,6 +832,12 @@ def run_watch_command(
         mode: Human-readable mode label shown in log messages.
         use_systray: Enable a best-effort system tray status icon.
         output_dir: Markdown output directory (for "Open Markdown Folder").
+        get_interval: Optional callable returning the interval (seconds) to
+                  use. Called at the start of each cycle so config-file edits
+                  take effect without restarting.
+        on_interval_change: Optional callback invoked with the new interval
+                  (seconds) when it is changed via the tray menu, so the change
+                  can be persisted to config.
 
     Returns:
         Exit code (0).  Returns when interrupted via Ctrl-C or tray Quit.
@@ -827,6 +849,7 @@ def run_watch_command(
         interval=interval,
         backup_dir=backup_dir,
         output_dir=output_dir,
+        on_interval_change=on_interval_change,
     )
     tray.start()
 
@@ -863,6 +886,13 @@ def run_watch_command(
             if tray.paused:
                 time.sleep(1)
                 continue
+
+            # Re-read interval from config so edits apply on the next cycle.
+            if get_interval is not None:
+                try:
+                    tray.set_interval(get_interval())
+                except Exception:
+                    pass
 
             # Manual mode — wait for Sync Now
             current_interval = tray.interval
