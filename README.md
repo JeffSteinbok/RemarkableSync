@@ -1,4 +1,4 @@
-# RemarkableSync
+<h1><img src="docs/logo.png" height="32" style="vertical-align: middle;"> RemarkableSync</h1>
 
 ![RemarkableSync](https://raw.githubusercontent.com/JeffSteinbok/RemarkableSync/main/githubSocial.png)
 
