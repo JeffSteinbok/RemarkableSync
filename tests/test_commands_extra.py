@@ -240,7 +240,7 @@ class TestRunConvertCommand:
             )
 
         assert result == 0
-        assert mock_convert.call_args.kwargs.get("backup_dir") == configured_backup
+        assert mock_convert.call_args.kwargs["backup_dir"] == configured_backup
 
     @patch("src.commands.convert_command.run_conversion")
     def test_explicit_missing_backup_dir_does_not_fallback_to_config(self, mock_convert, tmp_path):
