@@ -220,7 +220,9 @@ class TestRunConvertCommand:
         assert result == 1
 
     @patch("src.commands.convert_command.run_conversion")
-    def test_uses_existing_configured_backup_dir_when_cli_default_missing(self, mock_convert, tmp_path):
+    def test_uses_existing_configured_backup_dir_when_cli_default_missing(
+        self, mock_convert, tmp_path
+    ):
         from src.commands.convert_command import run_convert_command
 
         mock_convert.return_value = (True, {}, [])
