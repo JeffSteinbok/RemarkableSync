@@ -216,8 +216,11 @@ Page images are stored in a `_images/` subfolder next to the Markdown files.
 | Can't connect via Wi-Fi | Same network? Try `ping remarkable.local` or use `--wifi-host <ip>` |
 | AI OCR returns errors | Check API key/token, verify package installed (`anthropic` or `openai`), check rate limits |
 | Empty Markdown files | AI provider may have failed — check log file for details |
+| v6 notebooks not converting | Ensure `rmc` is installed (`pip install rmc`) — required for v6 .rm format |
 | Watch lock error | Delete `<backup-dir>/.remarkable_watch.lock` |
 | Permission errors | Ensure output directories are writable; run as admin on Windows if needed |
+
+For any issue, re-run your command with `--log-level DBG` to get detailed output. See [How to get DEBUG logs](docs/debug-logs.md) for details.
 
 ## Acknowledgements
 
