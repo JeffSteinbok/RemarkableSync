@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RemarkableSync — Backup, PDF & AI Markdown for reMarkable</title>
+    <meta name="description" content="Sync your reMarkable tablet notebooks to PDF and Markdown with AI handwriting recognition. USB & Wi-Fi. Open source.">
+    <style>
+        :root {
+            --primary: #2d6a4f;
+            --primary-light: #40916c;
+            --bg: #fafafa;
+            --surface: #ffffff;
+            --text: #1a1a2e;
+            --text-muted: #555;
+            --border: #e0e0e0;
+            --code-bg: #f4f4f4;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+        }
+
+        .hero {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            color: white;
+            padding: 4rem 2rem;
+            text-align: center;
+        }
+
+        .hero img {
+            max-width: 700px;
+            width: 100%;
+            border-radius: 12px;
+            margin-bottom: 2rem;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+
+        .hero h1 {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            font-weight: 700;
+        }
+
+        .hero p {
+            font-size: 1.2rem;
+            opacity: 0.9;
+            max-width: 600px;
+            margin: 0 auto 2rem;
+        }
+
+        .badges {
+            display: flex;
+            gap: 0.5rem;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-bottom: 2rem;
+        }
+
+        .cta-buttons {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .cta {
+            display: inline-block;
+            padding: 0.8rem 1.8rem;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 1rem;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .cta:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+        }
+
+        .cta-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .cta-secondary {
+            background: rgba(255,255,255,0.15);
+            color: white;
+            border: 1px solid rgba(255,255,255,0.3);
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 0 2rem;
+        }
+
+        section {
+            padding: 4rem 0;
+        }
+
+        section h2 {
+            font-size: 1.8rem;
+            margin-bottom: 1.5rem;
+            text-align: center;
+        }
+
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 1.5rem;
+            margin-top: 2rem;
+        }
+
+        .feature-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            transition: box-shadow 0.2s;
+        }
+
+        .feature-card:hover {
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        }
+
+        .feature-card h3 {
+            font-size: 1.1rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .feature-card p {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+        }
+
+        .install-section {
+            background: var(--surface);
+            border-top: 1px solid var(--border);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .install-options {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-top: 1.5rem;
+        }
+
+        .install-option {
+            background: var(--code-bg);
+            border-radius: 8px;
+            padding: 1.5rem;
+        }
+
+        .install-option h3 {
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--primary);
+            margin-bottom: 0.75rem;
+        }
+
+        .install-option code {
+            display: block;
+            font-family: 'SF Mono', 'Fira Code', monospace;
+            font-size: 0.85rem;
+            line-height: 1.8;
+            color: var(--text);
+        }
+
+        .pipeline {
+            text-align: center;
+            margin-top: 2rem;
+        }
+
+        .pipeline-flow {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            font-size: 1rem;
+            font-weight: 500;
+            margin: 1.5rem 0;
+        }
+
+        .pipeline-step {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 0.5rem 1rem;
+        }
+
+        .pipeline-arrow {
+            color: var(--primary);
+            font-weight: bold;
+        }
+
+        .credits {
+            text-align: center;
+        }
+
+        .credits-grid {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 0.75rem;
+            margin-top: 1.5rem;
+        }
+
+        .credits-grid a {
+            background: var(--code-bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 0.4rem 0.8rem;
+            text-decoration: none;
+            color: var(--text);
+            font-size: 0.9rem;
+            transition: border-color 0.2s;
+        }
+
+        .credits-grid a:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        footer {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            border-top: 1px solid var(--border);
+        }
+
+        footer a {
+            color: var(--primary);
+            text-decoration: none;
+        }
+
+        @media (max-width: 600px) {
+            .hero h1 { font-size: 1.8rem; }
+            .hero p { font-size: 1rem; }
+            .pipeline-flow { font-size: 0.85rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="hero">
+        <img src="https://raw.githubusercontent.com/JeffSteinbok/RemarkableSync/main/githubSocial.png" alt="RemarkableSync banner">
+        <h1>RemarkableSync</h1>
+        <p>Backup your reMarkable tablet, convert notebooks to PDF, and transcribe handwriting to Markdown with AI — over USB or Wi-Fi.</p>
+        <div class="badges">
+            <a href="https://github.com/JeffSteinbok/RemarkableSync/releases"><img src="https://img.shields.io/github/v/release/JeffSteinbok/RemarkableSync" alt="GitHub release"></a>
+            <a href="https://pypi.org/project/remarkablesync/"><img src="https://img.shields.io/pypi/v/remarkablesync.svg" alt="PyPI"></a>
+            <a href="https://github.com/JeffSteinbok/homebrew-remarkablesync"><img src="https://img.shields.io/badge/Homebrew-remarkablesync-FBB040?logo=homebrew" alt="Homebrew"></a>
+            <a href="https://github.com/JeffSteinbok/RemarkableSync/blob/main/LICENSE"><img src="https://img.shields.io/github/license/JeffSteinbok/RemarkableSync" alt="MIT License"></a>
+        </div>
+        <div class="cta-buttons">
+            <a href="https://github.com/JeffSteinbok/RemarkableSync" class="cta cta-primary">View on GitHub</a>
+            <a href="https://github.com/JeffSteinbok/RemarkableSync/releases" class="cta cta-secondary">Download</a>
+        </div>
+    </div>
+
+    <section class="container">
+        <h2>Features</h2>
+        <div class="features">
+            <div class="feature-card">
+                <h3>🔌 USB & Wi-Fi Sync</h3>
+                <p>Connect via cable or wirelessly over your local network. The config wizard can enable Wi-Fi SSH for you.</p>
+            </div>
+            <div class="feature-card">
+                <h3>⚡ Incremental Backup</h3>
+                <p>Only downloads files that have changed — tracked by size, modification time, and MD5 hash.</p>
+            </div>
+            <div class="feature-card">
+                <h3>📄 PDF Conversion</h3>
+                <p>Full support for v5 and v6 .rm formats with template backgrounds. Folder hierarchy preserved.</p>
+            </div>
+            <div class="feature-card">
+                <h3>🤖 AI Handwriting Recognition</h3>
+                <p>Send page images to GitHub Copilot or Claude to transcribe handwriting into clean text.</p>
+            </div>
+            <div class="feature-card">
+                <h3>📝 Markdown Export</h3>
+                <p>Each notebook becomes a .md file with YAML frontmatter and embedded page images.</p>
+            </div>
+            <div class="feature-card">
+                <h3>👀 Watch Mode</h3>
+                <p>Automatic periodic sync with a system-tray icon and optional run-at-startup.</p>
+            </div>
+        </div>
+    </section>
+
+    <section class="container pipeline">
+        <h2>How It Works</h2>
+        <div class="pipeline-flow">
+            <span class="pipeline-step">.rm files</span>
+            <span class="pipeline-arrow">→</span>
+            <span class="pipeline-step">SVG</span>
+            <span class="pipeline-arrow">→</span>
+            <span class="pipeline-step">PDF</span>
+            <span class="pipeline-arrow">→</span>
+            <span class="pipeline-step">PNG</span>
+            <span class="pipeline-arrow">→</span>
+            <span class="pipeline-step">AI OCR</span>
+            <span class="pipeline-arrow">→</span>
+            <span class="pipeline-step">Markdown</span>
+        </div>
+        <p>Your handwritten notes go from the tablet to searchable, AI-readable Markdown files — fully automated.</p>
+    </section>
+
+    <section class="install-section">
+        <div class="container">
+            <h2>Install</h2>
+            <div class="install-options">
+                <div class="install-option">
+                    <h3>macOS (Homebrew)</h3>
+                    <code>brew tap jeffsteinbok/remarkablesync<br>brew install remarkablesync</code>
+                </div>
+                <div class="install-option">
+                    <h3>All Platforms (pip)</h3>
+                    <code>pip install remarkablesync</code>
+                </div>
+                <div class="install-option">
+                    <h3>Pre-built Executables</h3>
+                    <code>Download from <a href="https://github.com/JeffSteinbok/RemarkableSync/releases" style="color: var(--primary)">GitHub Releases</a></code>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="container credits">
+        <h2>Built With</h2>
+        <div class="credits-grid">
+            <a href="https://github.com/ricklupton/rmc">rmc</a>
+            <a href="https://github.com/deeplook/svglib">svglib</a>
+            <a href="https://github.com/MrBitBucket/reportlab-mirror">ReportLab</a>
+            <a href="https://github.com/py-pdf/pypdf">PyPDF2</a>
+            <a href="https://github.com/pymupdf/PyMuPDF">PyMuPDF</a>
+            <a href="https://github.com/python-pillow/Pillow">Pillow</a>
+        </div>
+    </section>
+
+    <footer>
+        <p>MIT License · Made by <a href="https://github.com/JeffSteinbok">Jeff Steinbok</a> · <a href="https://github.com/JeffSteinbok/RemarkableSync">Source on GitHub</a></p>
+    </footer>
+</body>
+</html>
