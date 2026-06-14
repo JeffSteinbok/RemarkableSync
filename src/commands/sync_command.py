@@ -79,7 +79,7 @@ def run_sync_command(
 
     try:
         # Run backup with PDF conversion enabled
-        success = backup_tool.run_backup(
+        success, _, _ = backup_tool.run_backup(
             force_convert_all=force_convert,
             convert_to_pdf=True,
             backup_templates=not skip_templates,

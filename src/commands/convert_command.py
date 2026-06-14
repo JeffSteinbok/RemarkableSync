@@ -8,6 +8,27 @@ from ..rm_pdf_converter import run_conversion
 from ..utils.logging import setup_logging
 
 
+def _resolve_backup_dir(backup_dir: Path) -> Path:
+    """Resolve backup directory using config when CLI default path is missing."""
+    if backup_dir.exists():
+        return backup_dir
+
+    default_cli_backup_dir = Path("./remarkable_backup").absolute()
+    if backup_dir.expanduser().absolute() != default_cli_backup_dir:
+        return backup_dir
+
+    from ..config import load_config
+
+    configured_backup_dir = str(load_config().get("backup_dir", "")).strip()
+    if configured_backup_dir:
+        candidate = Path(configured_backup_dir).expanduser()
+        candidate.mkdir(parents=True, exist_ok=True)
+        print(f"Using configured backup directory: {candidate}")
+        return candidate
+
+    return backup_dir
+
+
 def run_convert_command(
     backup_dir: Path,
     output_dir: Optional[Path],
@@ -30,6 +51,7 @@ def run_convert_command(
         Exit code (0 for success, 1 for failure)
     """
     setup_logging(log_level)
+    backup_dir = _resolve_backup_dir(backup_dir)
 
     if not backup_dir.exists():
         print(f"[ERROR] Backup directory not found: {backup_dir}")

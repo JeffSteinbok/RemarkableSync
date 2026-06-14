@@ -63,7 +63,7 @@ class TestRunBackupCommand:
     @patch("src.commands.backup_command.ReMarkableBackup")
     def test_successful_backup_returns_zero(self, mock_backup_cls, tmp_path):
         mock_backup = MagicMock()
-        mock_backup.run_backup.return_value = True
+        mock_backup.run_backup.return_value = (True, set(), {})
         mock_backup.files_dir = tmp_path / "backup" / "Notebooks"
         mock_backup.templates_dir = tmp_path / "backup" / "Templates"
         mock_backup_cls.return_value = mock_backup
@@ -74,7 +74,7 @@ class TestRunBackupCommand:
     @patch("src.commands.backup_command.ReMarkableBackup")
     def test_failed_backup_returns_one(self, mock_backup_cls, tmp_path):
         mock_backup = MagicMock()
-        mock_backup.run_backup.return_value = False
+        mock_backup.run_backup.return_value = (False, set(), {})
         mock_backup_cls.return_value = mock_backup
 
         result = self._run(tmp_path)
@@ -101,7 +101,7 @@ class TestRunBackupCommand:
     @patch("src.commands.backup_command.ReMarkableBackup")
     def test_skip_templates_flag_passed(self, mock_backup_cls, tmp_path):
         mock_backup = MagicMock()
-        mock_backup.run_backup.return_value = True
+        mock_backup.run_backup.return_value = (True, set(), {})
         mock_backup.files_dir = tmp_path / "backup" / "Notebooks"
         mock_backup.templates_dir = tmp_path / "backup" / "Templates"
         mock_backup_cls.return_value = mock_backup
@@ -114,7 +114,7 @@ class TestRunBackupCommand:
     @patch("src.commands.backup_command.ReMarkableBackup")
     def test_wifi_mode_reported(self, mock_backup_cls, tmp_path, capsys):
         mock_backup = MagicMock()
-        mock_backup.run_backup.return_value = True
+        mock_backup.run_backup.return_value = (True, set(), {})
         mock_backup.files_dir = tmp_path / "backup" / "Notebooks"
         mock_backup.templates_dir = tmp_path / "backup" / "Templates"
         mock_backup_cls.return_value = mock_backup
@@ -220,6 +220,104 @@ class TestRunConvertCommand:
         assert result == 1
 
     @patch("src.commands.convert_command.run_conversion")
+    def test_uses_existing_configured_backup_dir_when_cli_default_missing(
+        self, mock_convert, tmp_path
+    ):
+        from src.commands.convert_command import run_convert_command
+
+        mock_convert.return_value = (True, {}, [])
+        configured_backup = tmp_path / "configured_backup"
+        configured_backup.mkdir(parents=True)
+        output_dir = tmp_path / "pdf"
+        output_dir.mkdir(parents=True)
+
+        with patch("src.config.load_config", return_value={"backup_dir": str(configured_backup)}):
+            result = run_convert_command(
+                backup_dir=Path("./remarkable_backup"),
+                output_dir=output_dir,
+                log_level="WRN",
+                force_all=False,
+                sample=None,
+                notebook=None,
+            )
+
+        assert result == 0
+        assert mock_convert.call_args.kwargs["backup_dir"] == configured_backup
+
+    @patch("src.commands.convert_command.run_conversion")
+    def test_creates_configured_backup_dir_when_cli_default_missing(self, mock_convert, tmp_path):
+        from src.commands.convert_command import run_convert_command
+
+        mock_convert.return_value = (True, {}, [])
+        configured_backup = tmp_path / "configured_backup"
+        output_dir = tmp_path / "pdf"
+        output_dir.mkdir(parents=True)
+
+        with patch("src.config.load_config", return_value={"backup_dir": str(configured_backup)}):
+            result = run_convert_command(
+                backup_dir=Path("./remarkable_backup"),
+                output_dir=output_dir,
+                log_level="WRN",
+                force_all=False,
+                sample=None,
+                notebook=None,
+            )
+
+        assert result == 0
+        assert configured_backup.exists()
+        assert configured_backup.is_dir()
+        assert mock_convert.call_args.kwargs["backup_dir"] == configured_backup
+
+    @patch("src.commands.convert_command.run_conversion")
+    def test_absolute_default_backup_dir_still_falls_back_to_config(
+        self, mock_convert, tmp_path, monkeypatch
+    ):
+        from src.commands.convert_command import run_convert_command
+
+        mock_convert.return_value = (True, {}, [])
+        configured_backup = tmp_path / "configured_backup"
+        configured_backup.mkdir(parents=True)
+        output_dir = tmp_path / "pdf"
+        output_dir.mkdir(parents=True)
+        monkeypatch.chdir(tmp_path)
+
+        with patch("src.config.load_config", return_value={"backup_dir": str(configured_backup)}):
+            result = run_convert_command(
+                backup_dir=tmp_path / "remarkable_backup",
+                output_dir=output_dir,
+                log_level="WRN",
+                force_all=False,
+                sample=None,
+                notebook=None,
+            )
+
+        assert result == 0
+        assert mock_convert.call_args.kwargs["backup_dir"] == configured_backup
+
+    @patch("src.commands.convert_command.run_conversion")
+    def test_explicit_missing_backup_dir_does_not_fallback_to_config(self, mock_convert, tmp_path):
+        from src.commands.convert_command import run_convert_command
+
+        mock_convert.return_value = (True, {}, [])
+        configured_backup = tmp_path / "configured_backup"
+        configured_backup.mkdir(parents=True)
+        output_dir = tmp_path / "pdf"
+        output_dir.mkdir(parents=True)
+
+        with patch("src.config.load_config", return_value={"backup_dir": str(configured_backup)}):
+            result = run_convert_command(
+                backup_dir=tmp_path / "missing_backup",
+                output_dir=output_dir,
+                log_level="WRN",
+                force_all=False,
+                sample=None,
+                notebook=None,
+            )
+
+        assert result == 1
+        assert not mock_convert.called
+
+    @patch("src.commands.convert_command.run_conversion")
     def test_updated_only_file_parsed_as_uuids(self, mock_convert, tmp_path):
         """updated_notebooks.txt UUIDs are passed as updated_uuids set."""
         mock_convert.return_value = (True, {}, [])
@@ -282,7 +380,7 @@ class TestRunSyncCommand:
             "post_sync_command": "",
         }
         mock_backup = MagicMock()
-        mock_backup.run_backup.return_value = True
+        mock_backup.run_backup.return_value = (True, set(), {})
         mock_backup.files_dir = tmp_path / "backup" / "Notebooks"
         mock_backup.templates_dir = tmp_path / "backup" / "Templates"
         mock_backup_cls.return_value = mock_backup
@@ -300,7 +398,7 @@ class TestRunSyncCommand:
             "post_sync_command": "",
         }
         mock_backup = MagicMock()
-        mock_backup.run_backup.return_value = False
+        mock_backup.run_backup.return_value = (False, set(), {})
         mock_backup_cls.return_value = mock_backup
 
         result = self._run(tmp_path)
@@ -333,7 +431,7 @@ class TestRunSyncCommand:
     def test_force_convert_passed_to_backup(self, mock_cfg, mock_backup_cls, tmp_path):
         mock_cfg.return_value = {"pdf_dir": "", "pre_sync_command": "", "post_sync_command": ""}
         mock_backup = MagicMock()
-        mock_backup.run_backup.return_value = True
+        mock_backup.run_backup.return_value = (True, set(), {})
         mock_backup.files_dir = tmp_path / "Notebooks"
         mock_backup.templates_dir = tmp_path / "Templates"
         mock_backup_cls.return_value = mock_backup
@@ -342,6 +440,32 @@ class TestRunSyncCommand:
 
         call_kwargs = mock_backup.run_backup.call_args.kwargs
         assert call_kwargs.get("force_convert_all") is True
+
+
+# ---------------------------------------------------------------------------
+# backup_manager
+# ---------------------------------------------------------------------------
+
+
+class TestBackupManager:
+    """Tests for backup_manager conversion integration behavior."""
+
+    @patch("src.config.load_config")
+    @patch("src.rm_pdf_converter.run_conversion")
+    def test_run_pdf_conversion_accepts_three_value_return(
+        self, mock_run_conversion, mock_cfg, tmp_path
+    ):
+        from src.backup.backup_manager import ReMarkableBackup
+
+        mock_cfg.return_value = {"pdf_dir": str(tmp_path / "pdf"), "folders": []}
+        mock_run_conversion.return_value = (True, {}, [])
+        (tmp_path / "pdf").mkdir(parents=True)
+
+        backup = ReMarkableBackup(tmp_path / "backup")
+        result = backup.run_pdf_conversion({"uuid-1"}, force_convert_all=False, updated_pages={})
+
+        assert result is True
+        assert mock_run_conversion.called
 
 
 # ---------------------------------------------------------------------------
