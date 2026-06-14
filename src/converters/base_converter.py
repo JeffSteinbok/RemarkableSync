@@ -174,7 +174,7 @@ class BaseConverter(ABC):
         """
         try:
             with open(rm_file, "rb") as f:
-                header = f.read(8).decode("utf-8", errors="ignore")
+                header = f.read(50).decode("utf-8", errors="ignore")
 
                 # Check for known version patterns
                 if "version=6" in header:

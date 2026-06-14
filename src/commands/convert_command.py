@@ -69,13 +69,18 @@ def run_convert_command(
                 updated_only_file = updated_list
                 print("Converting recently updated notebooks only")
 
-        success, _converted = run_conversion(
+        updated_uuids: set | None = None
+        if updated_only_file and updated_only_file.exists():
+            lines = updated_only_file.read_text(encoding="utf-8").splitlines()
+            updated_uuids = {ln.strip() for ln in lines if ln.strip()}
+
+        success, _converted, _merged = run_conversion(
             backup_dir=backup_dir,
             output_dir=output_dir,
             verbose=log_level,
             sample=sample,
             notebook_filter=notebook,
-            updated_only=updated_only_file,
+            updated_uuids=updated_uuids,
         )
 
         return 0 if success else 1
