@@ -83,10 +83,20 @@ def add_log_level_option(func):
 
 
 def print_header():
-    """Print the application header."""
+    """Print the application header, with a daily update check."""
     click.echo(f"RemarkableSync v{__version__} by Jeff Steinbok")
     click.echo(f"Repository: {__repository__}")
     click.echo()
+
+    # Non-blocking daily update check (errors are silently ignored)
+    try:
+        from src.update_checker import check_for_update, format_update_message
+
+        latest = check_for_update()
+        if latest:
+            click.echo(format_update_message(latest))
+    except Exception:
+        pass
 
 
 def version_callback(ctx, param, value):
@@ -452,6 +462,24 @@ def config():
 
 
 # ---------------------------------------------------------------------------
+# check-update  (check for new versions)
+# ---------------------------------------------------------------------------
+
+
+@cli.command("check-update")
+def check_update():
+    """Check for a newer version of RemarkableSync."""
+    from src.update_checker import check_for_update, format_update_message
+
+    click.echo("Checking for updates...")
+    latest = check_for_update(force=True)
+    if latest:
+        click.echo(format_update_message(latest))
+    else:
+        click.echo(f"✓ You are running the latest version (v{__version__}).")
+
+
+# ---------------------------------------------------------------------------
 # watch  (periodic sync)
 # ---------------------------------------------------------------------------
 
@@ -692,7 +720,7 @@ def main():
     Config-based defaults (backup_dir, output_dir, connection, etc.) are
     injected as CLI args so the subcommand sees them.
     """
-    known_commands = {"backup", "pdf", "sync", "md", "config", "watch"}
+    known_commands = {"backup", "pdf", "sync", "md", "config", "watch", "check-update"}
     has_command = any(arg in known_commands for arg in sys.argv[1:])
 
     if not has_command and "--version" not in sys.argv and "--help" not in sys.argv:
