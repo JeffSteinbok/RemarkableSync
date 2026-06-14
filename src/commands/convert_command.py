@@ -13,7 +13,7 @@ def _resolve_backup_dir(backup_dir: Path) -> Path:
     if backup_dir.exists():
         return backup_dir
 
-    default_cli_backup_dir = Path("./remarkable_backup").expanduser().absolute()
+    default_cli_backup_dir = Path("./remarkable_backup").absolute()
     if backup_dir.expanduser().absolute() != default_cli_backup_dir:
         return backup_dir
 
