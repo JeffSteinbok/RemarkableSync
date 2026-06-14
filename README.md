@@ -211,6 +211,19 @@ Page images are stored in a `_images/` subfolder next to the Markdown files.
 | Watch lock error | Delete `<backup-dir>/.remarkable_watch.lock` |
 | Permission errors | Ensure output directories are writable; run as admin on Windows if needed |
 
+## Acknowledgements
+
+RemarkableSync is built on top of these excellent open-source projects:
+
+| Library | Role |
+|---------|------|
+| [rmc](https://github.com/ricklupton/rmc) | Converts reMarkable v6 `.rm` files to SVG |
+| [svglib](https://github.com/deeplook/svglib) | Converts SVG to ReportLab drawings |
+| [ReportLab](https://github.com/MrBitBucket/reportlab-mirror) | Renders drawings and templates to PDF |
+| [PyPDF2](https://github.com/py-pdf/pypdf) | Merges and overlays PDF pages |
+| [PyMuPDF](https://github.com/pymupdf/PyMuPDF) | Rasterises PDF pages to images for AI OCR |
+| [Pillow](https://github.com/python-pillow/Pillow) | Image processing and manipulation |
+
 ## Security
 
 - SSH password and AI tokens are stored in your **system keyring** (never in plain-text config files)
