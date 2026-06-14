@@ -522,7 +522,7 @@ class ReMarkableBackup:  # pylint: disable=too-many-instance-attributes
         folder_filter = config.get("folders", []) or None
 
         try:
-            success, _converted = run_conversion(
+            success, _converted, _merged = run_conversion(
                 backup_dir=self.backup_dir,
                 output_dir=output_dir,
                 verbose="INF",

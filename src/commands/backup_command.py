@@ -59,7 +59,7 @@ def run_backup_command(
     )
 
     try:
-        success = backup_tool.run_backup(
+        success, _, _ = backup_tool.run_backup(
             force_convert_all=False, convert_to_pdf=False, backup_templates=not skip_templates
         )
 
