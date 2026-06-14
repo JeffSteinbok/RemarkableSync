@@ -1,0 +1,87 @@
+---
+name: Bug Report
+description: Report a bug or unexpected behavior
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug! Please fill out the information below so we can diagnose the issue quickly.
+
+  - type: input
+    id: version
+    attributes:
+      label: RemarkableSync Version
+      description: "Run `RemarkableSync --version` or `pip show remarkablesync` to find this."
+      placeholder: "e.g., 2.0.4"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: install-method
+    attributes:
+      label: Installation Method
+      options:
+        - pip
+        - Homebrew
+        - Pre-built executable (Releases)
+        - From source
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating System
+      options:
+        - macOS
+        - Windows
+        - Linux
+    validations:
+      required: true
+
+  - type: dropdown
+    id: connection
+    attributes:
+      label: Connection Method
+      options:
+        - USB
+        - Wi-Fi
+        - N/A
+    validations:
+      required: true
+
+  - type: input
+    id: command
+    attributes:
+      label: Command Run
+      description: "The exact command you ran."
+      placeholder: "e.g., RemarkableSync sync --wifi"
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: "Describe the bug — what you expected vs. what actually happened."
+    validations:
+      required: true
+
+  - type: textarea
+    id: debug-log
+    attributes:
+      label: Debug Log
+      description: |
+        **Please attach or paste your DEBUG log.** See [How to get DEBUG logs](https://github.com/JeffSteinbok/RemarkableSync/blob/main/docs/debug-logs.md) for instructions.
+      render: text
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Context
+      description: "Any other context — screenshots, workarounds tried, etc."
+    validations:
+      required: false
