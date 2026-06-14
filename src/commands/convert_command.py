@@ -22,9 +22,9 @@ def _resolve_backup_dir(backup_dir: Path) -> Path:
     configured_backup_dir = str(load_config().get("backup_dir", "")).strip()
     if configured_backup_dir:
         candidate = Path(configured_backup_dir).expanduser()
-        if candidate.exists():
-            print(f"Using configured backup directory: {candidate}")
-            return candidate
+        candidate.mkdir(parents=True, exist_ok=True)
+        print(f"Using configured backup directory: {candidate}")
+        return candidate
 
     return backup_dir
 
