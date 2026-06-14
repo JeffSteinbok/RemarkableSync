@@ -269,6 +269,32 @@ class TestRunConvertCommand:
         assert mock_convert.call_args.kwargs["backup_dir"] == configured_backup
 
     @patch("src.commands.convert_command.run_conversion")
+    def test_absolute_default_backup_dir_still_falls_back_to_config(
+        self, mock_convert, tmp_path, monkeypatch
+    ):
+        from src.commands.convert_command import run_convert_command
+
+        mock_convert.return_value = (True, {}, [])
+        configured_backup = tmp_path / "configured_backup"
+        configured_backup.mkdir(parents=True)
+        output_dir = tmp_path / "pdf"
+        output_dir.mkdir(parents=True)
+        monkeypatch.chdir(tmp_path)
+
+        with patch("src.config.load_config", return_value={"backup_dir": str(configured_backup)}):
+            result = run_convert_command(
+                backup_dir=tmp_path / "remarkable_backup",
+                output_dir=output_dir,
+                log_level="WRN",
+                force_all=False,
+                sample=None,
+                notebook=None,
+            )
+
+        assert result == 0
+        assert mock_convert.call_args.kwargs["backup_dir"] == configured_backup
+
+    @patch("src.commands.convert_command.run_conversion")
     def test_explicit_missing_backup_dir_does_not_fallback_to_config(self, mock_convert, tmp_path):
         from src.commands.convert_command import run_convert_command
 
