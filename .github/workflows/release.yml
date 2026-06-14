@@ -235,31 +235,40 @@ jobs:
           body: |
             ## Release v${{ needs.bump-version.outputs.new_version }}
 
-            ### What's New
-            - Automatic release created via GitHub Actions
-
             ### Installation
 
-            #### macOS (Recommended)
+            #### macOS (Homebrew — recommended)
             ```bash
             brew tap jeffsteinbok/remarkablesync
             brew install remarkablesync
             ```
 
-            #### Windows / macOS Manual Installation
-            Download the appropriate package for your platform:
+            #### pip (all platforms)
+            ```bash
+            pip install --upgrade remarkablesync
+            ```
+
+            #### Manual download
+            Download the appropriate package for your platform below:
             - **Windows**: `RemarkableSync-Windows.zip`
             - **macOS**: `RemarkableSync-macOS.zip`
 
-            Extract and follow the instructions in `README.md`.
+            Extract the archive and run the `RemarkableSync` executable.
 
-            ### Platform Support
-            - Windows 10/11 (64-bit)
-            - macOS 10.13+ (Intel and Apple Silicon)
+            ### Upgrading
 
-            > **Note**: This tool has been tested exclusively on reMarkable 2. Compatibility with reMarkable 1 is not guaranteed.
+            ```bash
+            # Homebrew
+            brew upgrade remarkablesync
 
-            > **Note**: The Homebrew formula will be automatically updated when this release is published.
+            # pip
+            pip install --upgrade remarkablesync
+
+            # Check for updates from the CLI
+            RemarkableSync check-update
+            ```
+
+
           files: |
             RemarkableSync-Windows.zip
             RemarkableSync-macOS.zip

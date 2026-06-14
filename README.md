@@ -118,6 +118,9 @@ RemarkableSync md              # Markdown export only (from existing PDFs)
 
 # Watch mode (periodic sync)
 RemarkableSync watch           # uses saved config for interval, dirs, AI
+
+# Check for updates
+RemarkableSync check-update
 ```
 
 ### Command Line Options
@@ -158,6 +161,10 @@ All commands read defaults from the saved config. CLI flags override config valu
 **Watch:**
 - `-i, --interval N` — minutes between syncs (default: 30)
 - `--systray / --no-systray` — system tray icon (default: enabled)
+
+**Updates:**
+- `RemarkableSync check-update` — check for newer versions
+- Update notifications appear automatically (checked once per day)
 
 ## Wi-Fi Connection
 
