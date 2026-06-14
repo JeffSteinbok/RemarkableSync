@@ -6,9 +6,16 @@ on:
       - main
     paths-ignore:
       - 'src/__version__.py'
+      - 'docs/**'
+      - '*.md'
+      - '.github/ISSUE_TEMPLATE/**'
   pull_request:
     branches:
       - main
+    paths-ignore:
+      - 'docs/**'
+      - '*.md'
+      - '.github/ISSUE_TEMPLATE/**'
 
 jobs:
   lint:
